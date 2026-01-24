@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mis adeudos</title>
+</head>
+<body>
+  <h1>Mis adeudos</h1>
+
+  <p><a href="/inventory/">Volver al inventario</a></p>
+
+  {% if debts|length == 0 %}
+    <p>No tienes adeudos.</p>
+  {% else %}
+    <table border="1" cellpadding="6">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Status</th>
+          <th>Material</th>
+          <th>Razón</th>
+          <th>Creado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in debts %}
+          <tr>
+            <td>{{ d.id }}</td>
+            <td>{{ d.status }}</td>
+            <td>
+              {% if d.material %}
+                {{ d.material.name | smart_title }} (ID {{ d.material.id }})
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>{{ d.reason }}</td>
+            <td>{{ d.created_at }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</body>
+</html>

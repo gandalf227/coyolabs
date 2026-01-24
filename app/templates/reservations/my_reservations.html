@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mis reservas</title>
+</head>
+<body>
+  <h1>Mis reservas</h1>
+
+  <p>
+    <a href="/reservations/request">Solicitar reserva</a> |
+    <a href="/inventory/">Volver al inventario</a>
+  </p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>
+        {% for category, msg in messages %}
+          <li>{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {% if reservations|length == 0 %}
+    <p>No tienes reservas.</p>
+  {% else %}
+    <table border="1" cellpadding="6">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Salón/Lab</th>
+          <th>Fecha</th>
+          <th>Inicio</th>
+          <th>Fin</th>
+          <th>Status</th>
+          <th>Nota admin</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reservations %}
+          <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.room }}</td>
+            <td>{{ r.date }}</td>
+            <td>{{ r.start_time }}</td>
+            <td>{{ r.end_time }}</td>
+            <td>{{ r.status }}</td>
+            <td>{{ r.admin_note }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</body>
+</html>

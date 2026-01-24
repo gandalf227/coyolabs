@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Reservas pendientes (Admin)</title>
+</head>
+<body>
+  <h1>Reservas pendientes (Admin)</h1>
+
+  <p><a href="/inventory/">Volver al inventario</a></p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>
+        {% for category, msg in messages %}
+          <li>{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {% if reservations|length == 0 %}
+    <p>No hay reservas pendientes.</p>
+  {% else %}
+    <table border="1" cellpadding="6">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Usuario</th>
+          <th>Salón/Lab</th>
+          <th>Fecha</th>
+          <th>Inicio</th>
+          <th>Fin</th>
+          <th>Motivo</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reservations %}
+          <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.user.email }}</td>
+            <td>{{ r.room }}</td>
+            <td>{{ r.date }}</td>
+            <td>{{ r.start_time }}</td>
+            <td>{{ r.end_time }}</td>
+            <td>{{ r.purpose }}</td>
+            <td>
+              <form method="post" action="/reservations/admin/{{ r.id }}/approve" style="display:inline;">
+                <input type="text" name="admin_note" placeholder="nota (opcional)">
+                <button type="submit">Aprobar</button>
+              </form>
+              <form method="post" action="/reservations/admin/{{ r.id }}/reject" style="display:inline;">
+                <input type="text" name="admin_note" placeholder="nota (opcional)">
+                <button type="submit">Rechazar</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Solicitar reserva</title>
+</head>
+<body>
+  <h1>Solicitar reserva</h1>
+
+  <p><a href="/reservations/my">Volver</a></p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>
+        {% for category, msg in messages %}
+          <li>{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post">
+    <label>Salón/Laboratorio:</label><br>
+    <select name="room" required>
+        <option value="">-- Selecciona --</option>
+        {% for r in rooms %}
+            <option value="{{ r }}">{{ r }}</option>
+        {% endfor %}
+    </select><br><br>
+
+    <label>Grupo:</label><br>
+    <input type="text" name="group_name" placeholder="Ej: 3A" required><br><br>
+
+    <label>Nombre del profesor:</label><br>
+    <input type="text" name="teacher_name" required><br><br>
+
+    <label>Materia:</label><br>
+    <input type="text" name="subject" required><br><br>
+
+    <label>Fecha:</label><br>
+    <input type="date" name="date" required><br><br>
+
+    <label>Hora inicio:</label><br>
+    <input type="time" name="start_time" required><br><br>
+
+    <label>Hora fin:</label><br>
+    <input type="time" name="end_time" required><br><br>
+
+    <label>Motivo (opcional):</label><br>
+    <textarea name="purpose" rows="3" cols="60"></textarea><br><br>
+
+    <label>Firma (confirmación):</label>
+    <input type="checkbox" name="signed" value="1" required>
+    <span>Confirmo que la información es correcta</span>
+    <br><br>
+
+    <button type="submit">Enviar solicitud</button>
+  </form>
+</body>
+</html>

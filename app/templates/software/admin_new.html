@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Nuevo software (Admin)</title>
+</head>
+<body>
+  <h1>Agregar software (Admin)</h1>
+
+  <p><a href="/software/">Volver</a></p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>
+        {% for category, msg in messages %}
+          <li>{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post">
+    <label>Laboratorio (opcional):</label><br>
+    <select name="lab_id">
+      <option value="">-- Sin lab --</option>
+      {% for lab in labs %}
+        <option value="{{ lab.id }}">{{ lab.name }}</option>
+      {% endfor %}
+    </select><br><br>
+
+    <label>Nombre (obligatorio):</label><br>
+    <input type="text" name="name" size="60" required><br><br>
+
+    <label>Versión (opcional):</label><br>
+    <input type="text" name="version" size="20"><br><br>
+
+    <label>Tipo de licencia (opcional):</label><br>
+    <input type="text" name="license_type" size="30"><br><br>
+
+    <label>Notas (opcional):</label><br>
+    <textarea name="notes" rows="3" cols="70"></textarea><br><br>
+
+    <button type="submit">Guardar</button>
+  </form>
+</body>
+</html>

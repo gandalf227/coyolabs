@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Reportes</title>
+</head>
+<body>
+  <h1>Reportes (CSV)</h1>
+
+  <p>
+    <a href="/inventory/">Inventario</a> |
+    <a href="/reservations/admin">Reservas (Admin)</a> |
+    <a href="/lostfound/">Objetos perdidos</a> |
+    <a href="/software/">Software</a>
+  </p>
+
+  <h2>Descargas</h2>
+  <ul>
+    <li><a href="/reports/inventory.csv">Inventario (todo)</a></li>
+    <li>
+      Inventario por laboratorio:
+      <ul>
+        {% for lab in labs %}
+          <li><a href="/reports/inventory.csv?lab_id={{ lab.id }}">{{ lab.name }}</a></li>
+        {% endfor %}
+      </ul>
+    </li>
+    <li><a href="/reports/debts.csv">Adeudos</a></li>
+    <li><a href="/reports/logbook.csv">Bitácora</a></li>
+    <li><a href="/reports/reservations.csv">Reservas</a></li>
+    <li><a href="/reports/lostfound.csv">Objetos perdidos</a></li>
+    <li><a href="/reports/software.csv">Software</a></li>
+  </ul>
+
+  <h2>PDF</h2>
+  <ul>
+    <li><a href="/reports/inventory.pdf">Inventario (PDF)</a></li>
+  </ul>
+
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Detalle de material</title>
+</head>
+<body>
+  <h1>Detalle de material</h1>
+
+  <p><a href="/inventory/">Volver al inventario</a></p>
+
+  <h2>{{ material.name | smart_title }}</h2>
+
+  <ul>
+    <li><strong>Laboratorio:</strong> {{ material.lab.name }}</li>
+    <li><strong>Ubicación:</strong> {{ material.location | smart_title }}</li>
+    <li><strong>Piezas:</strong> {{ material.pieces_text }}</li>
+    <li><strong>Estado:</strong> {{ material.status | smart_title }}</li>
+  </ul>
+
+  <h3>Datos técnicos</h3>
+  <ul>
+    <li><strong>Marca:</strong> {{ material.brand }}</li>
+    <li><strong>Modelo:</strong> {{ material.model }}</li>
+    <li><strong>Código:</strong> {{ material.code }}</li>
+    <li><strong>Serie:</strong> {{ material.serial }}</li>
+  </ul>
+
+  <h3>Observaciones</h3>
+  <p>{{ material.notes }}</p>
+
+  <h3>Trazabilidad (origen del Excel)</h3>
+  <ul>
+    <li><strong>Archivo:</strong> {{ material.source_file }}</li>
+    <li><strong>Hoja:</strong> {{ material.source_sheet }}</li>
+    <li><strong>Fila:</strong> {{ material.source_row }}</li>
+  </ul>
+
+  {% if material.tutorial_url %}
+    <p><strong>Tutorial:</strong> <a href="{{ material.tutorial_url }}" target="_blank">{{ material.tutorial_url }}</a></p>
+  {% endif %}
+</body>
+</html>

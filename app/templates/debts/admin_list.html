@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Adeudos (Admin)</title>
+</head>
+<body>
+  <h1>Adeudos (Admin)</h1>
+
+  <p>
+    <a href="/debts/admin/create">Crear adeudo</a> |
+    <a href="/inventory/">Volver al inventario</a>
+  </p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>
+        {% for category, msg in messages %}
+          <li>{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <table border="1" cellpadding="6">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Usuario</th>
+        <th>Status</th>
+        <th>Material</th>
+        <th>Razón</th>
+        <th>Creado</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in debts %}
+        <tr>
+          <td>{{ d.id }}</td>
+          <td>{{ d.user.email }}</td>
+          <td>{{ d.status }}</td>
+          <td>
+            {% if d.material %}
+              {{ d.material.name | smart_title }} (ID {{ d.material.id }})
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td>{{ d.reason }}</td>
+          <td>{{ d.created_at }}</td>
+          <td>
+            {% if d.status == "OPEN" %}
+              <form method="post" action="/debts/admin/{{ d.id }}/close">
+                <button type="submit">Marcar pagado</button>
+              </form>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

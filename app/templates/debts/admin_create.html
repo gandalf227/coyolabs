@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Crear adeudo</title>
+</head>
+<body>
+  <h1>Crear adeudo (Admin)</h1>
+
+  <p><a href="/debts/admin">Volver</a></p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>
+        {% for category, msg in messages %}
+          <li>{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post">
+    <label>Email del alumno (debe existir):</label><br>
+    <input type="email" name="email" required><br><br>
+
+    <label>ID de material (opcional):</label><br>
+    <input type="number" name="material_id"><br><br>
+
+    <label>Razón / comentario:</label><br>
+    <textarea name="reason" rows="3" cols="60"></textarea><br><br>
+
+    <button type="submit">Crear</button>
+  </form>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Bitácora (Admin)</title>
+</head>
+<body>
+  <h1>Bitácora (Admin)</h1>
+
+  <p>
+    <a href="/reports/">Volver a reportes</a> |
+    <a href="/inventory/">Inventario</a>
+  </p>
+
+  <form method="get" action="/reports/logbook">
+    <label>Acción contiene:</label>
+    <input type="text" name="action" value="{{ action or '' }}" placeholder="RA_SCAN, LOGIN, ...">
+
+    <label>User ID:</label>
+    <input type="number" name="user_id" value="{{ user_id or '' }}">
+
+    <label>Material ID:</label>
+    <input type="number" name="material_id" value="{{ material_id or '' }}">
+
+    <button type="submit">Filtrar</button>
+    <a href="/reports/logbook">Limpiar</a>
+  </form>
+
+  <hr>
+
+  {% if events|length == 0 %}
+    <p>No hay eventos con esos filtros.</p>
+  {% else %}
+    <table border="1" cellpadding="6">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Fecha</th>
+          <th>User ID</th>
+          <th>Material ID</th>
+          <th>Action</th>
+          <th>Description</th>
+          <th>Metadata</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in events %}
+          <tr>
+            <td>{{ e.id }}</td>
+            <td>{{ e.created_at }}</td>
+            <td>{{ e.user_id }}</td>
+            <td>{{ e.material_id }}</td>
+            <td>{{ e.action }}</td>
+            <td>{{ e.description }}</td>
+            <td><pre>{{ e.metadata_json }}</pre></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Registro</title>
+</head>
+<body>
+  <h1>Registro institucional</h1>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul>
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post">
+    <label>Correo institucional (@utpn.edu.mx):</label><br />
+    <input type="email" name="email" required /><br /><br />
+
+    <label>Contraseña:</label><br />
+    <input type="password" name="password" required /><br /><br />
+
+    <button type="submit">Registrarme</button>
+  </form>
+
+  <p>Después de registrarte, revisa tu correo institucional para verificar tu cuenta.</p>
+</body>
+</html>

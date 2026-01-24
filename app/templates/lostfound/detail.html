@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Detalle objeto perdido</title>
+</head>
+<body>
+  <h1>Detalle</h1>
+
+  <p><a href="/lostfound/">Volver al listado</a></p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>
+        {% for category, msg in messages %}
+          <li>{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <ul>
+    <li><b>ID:</b> {{ item.id }}</li>
+    <li><b>Título:</b> {{ item.title }}</li>
+    <li><b>Estado:</b> {{ item.status }}</li>
+    <li><b>Ubicación:</b> {{ item.location }}</li>
+    <li><b>Descripción:</b> {{ item.description }}</li>
+    <li><b>Evidencia:</b> {{ item.evidence_ref }}</li>
+    <li><b>Material ID:</b> {{ item.material_id }}</li>
+    <li><b>Nota admin:</b> {{ item.admin_note }}</li>
+    <li><b>Creado:</b> {{ item.created_at }}</li>
+  </ul>
+
+  {% if current_user.is_authenticated and current_user.role in ['ADMIN', 'SUPERADMIN'] %}
+    <hr>
+    <h2>Acciones (Admin)</h2>
+    <form method="post" action="/lostfound/admin/{{ item.id }}/status">
+      <label>Nuevo estado:</label><br>
+      <select name="status" required>
+        <option value="REPORTED">REPORTED</option>
+        <option value="IN_STORAGE">IN_STORAGE</option>
+        <option value="RETURNED">RETURNED</option>
+      </select><br><br>
+
+      <label>Nota (opcional):</label><br>
+      <input type="text" name="admin_note" size="60"><br><br>
+
+      <button type="submit">Actualizar</button>
+    </form>
+  {% endif %}
+
+</body>
+</html>

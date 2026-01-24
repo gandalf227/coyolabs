@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Nuevo objeto perdido (Admin)</title>
+</head>
+<body>
+  <h1>Nuevo registro (Admin)</h1>
+
+  <p><a href="/lostfound/">Volver</a></p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>
+        {% for category, msg in messages %}
+          <li>{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post">
+    <label>Título (obligatorio):</label><br>
+    <input type="text" name="title" size="60" required><br><br>
+
+    <label>Descripción (opcional):</label><br>
+    <textarea name="description" rows="4" cols="70"></textarea><br><br>
+
+    <label>Ubicación (opcional):</label><br>
+    <input type="text" name="location" size="60"><br><br>
+
+    <label>Evidencia (opcional: URL/texto):</label><br>
+    <input type="text" name="evidence_ref" size="60"><br><br>
+
+    <label>Material ID (opcional):</label><br>
+    <input type="number" name="material_id"><br><br>
+
+    <button type="submit">Crear</button>
+  </form>
+</body>
+</html>
