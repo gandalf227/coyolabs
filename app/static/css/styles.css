@@ -1,0 +1,11 @@
+body { font-family: Arial, sans-serif; padding: 16px; }
+h1 { margin-bottom: 12px; }
+.panel { margin-bottom: 14px; }
+input { width: 420px; max-width: 95%; padding: 6px; }
+button { padding: 8px 12px; margin-right: 8px; cursor: pointer; }
+
+.wrap { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+#reader { width: 420px; max-width: 95%; border: 2px dashed #999; padding: 8px; }
+
+.card { min-width: 360px; max-width: 95%; border: 1px solid #ddd; padding: 12px; border-radius: 8px; }
+pre { background: #f7f7f7; padding: 10px; border-radius: 6px; overflow: auto; }

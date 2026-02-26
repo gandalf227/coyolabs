@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RA MVP (Cliente ligero)</title>
+
+  <!-- Librería de escaneo QR -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; }
+    input, button { padding: 6px 8px; }
+    label { font-weight: 600; }
+    .row { margin-bottom: 10px; }
+    #reader { width: 420px; max-width: 95%; border: 2px dashed #999; padding: 8px; margin-top: 10px; }
+    pre { background: #f5f5f5; padding: 12px; border: 1px solid #ddd; overflow: auto; }
+    .btns button { margin-right: 8px; }
+  </style>
+</head>
+
+<body>
+  <h1>RA MVP (Cliente ligero)</h1>
+
+  <div class="row">
+    <label>Base URL (PC en LAN):</label><br />
+    <input id="baseUrl" type="text" value="http://127.0.0.1:5000" style="width: 360px;" />
+  </div>
+
+  <div class="row">
+    <label>API Key:</label><br />
+    <input id="apiKey" type="text" placeholder="pega tu RA_API_KEY" style="width: 520px;" />
+  </div>
+
+  <div class="row">
+    <label>User email:</label><br />
+    <input id="userEmail" type="email" value="24310130@utpn.edu.mx" style="width: 360px;" />
+  </div>
+
+  <div class="row">
+    <label>Material ID:</label><br />
+    <input id="materialId" type="number" value="2" style="width: 120px;" />
+  </div>
+
+  <div class="row btns">
+    <button onclick="getMaterial()">GET Material</button>
+    <button onclick="postEvent()">POST Evento (scan)</button>
+  </div>
+
+  <hr />
+
+  <h2>Escaneo QR</h2>
+  <div class="row btns">
+    <button onclick="startCamera()">Iniciar cámara</button>
+    <button onclick="stopCamera()">Detener</button>
+  </div>
+
+  <div id="reader"></div>
+
+  <h2>Resultado</h2>
+
+<div id="overlayCard" style="display:none; border:1px solid #ccc; padding:15px; width:420px; border-radius:8px;">
+  <h3 id="matName"></h3>
+  <p><strong>Laboratorio:</strong> <span id="matLab"></span></p>
+  <p><strong>Ubicación:</strong> <span id="matLocation"></span></p>
+  <p><strong>Piezas:</strong> <span id="matPieces"></span></p>
+  <p><strong>Estado:</strong> <span id="matStatus"></span></p>
+  <div id="scanStatus" style="margin-top:10px; font-weight:bold;"></div>
+</div>
+
+<pre id="out"></pre>
+  <!-- Tu JS -->
+  <script src="/static/app.js"></script>
+</body>
+</html>

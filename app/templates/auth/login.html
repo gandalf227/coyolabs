@@ -1,4 +1,81 @@
 <!DOCTYPE html>
+<<<<<<< HEAD
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login | CoyoLabs</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+</head>
+
+<body>
+
+  <div class="grid"></div>
+
+  <div class="background" aria-hidden="true">
+    <div class="shape one"></div>
+    <div class="shape two"></div>
+  </div>
+
+  <main class="card">
+
+    <!-- LOGO FLOTANTE -->
+    <div class="card-logo">
+      <img src="{{ url_for('static', filename='img/coyolabs.png') }}" alt="CoyoLabs Logo">
+    </div>
+
+    <h1 class="title">Iniciar sesión</h1>
+    <p class="subtitle">CoyoLabs Universidad — Acceso institucional</p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash">
+          <ul>
+            {% for message in messages %}
+              <li>{{ message }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" autocomplete="on">
+      
+      <div>
+        <label for="email">Correo institucional</label>
+        <div class="field">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
+          </svg>
+          <input id="email" type="email" name="email" placeholder="tu.correo@institucion.edu" required />
+        </div>
+      </div>
+
+      <div>
+        <label for="password">Contraseña</label>
+        <div class="field">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M12 17a2 2 0 0 0 2-2v-1a2 2 0 0 0-4 0v1a2 2 0 0 0 2 2zm6-7h-1V8a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zM9 10V8a3 3 0 0 1 6 0v2H9z"/>
+          </svg>
+          <input id="password" type="password" name="password" placeholder="Tu contraseña" required />
+        </div>
+      </div>
+
+      <button type="submit">Entrar</button>
+
+    </form>
+
+    <p class="note">
+      Nota: Si tu cuenta no está verificada, no podrás iniciar sesión.
+    </p>
+
+  </main>
+
+</body>
+</html>
+=======
 <html>
 <head>
     <meta charset="UTF-8" />
@@ -30,3 +107,4 @@
     <p>Nota: Si tu cuenta no está verificada, no podrás iniciar sesión.</p>
 </body>
 </html>
+>>>>>>> 3fb175fb595e9c86f8ba3f8b742f849b90692634

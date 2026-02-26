@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Acceso | CoyoLabs</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+</head>
+
+<body class="mode-login">
+  <div class="grid" aria-hidden="true"></div>
+
+  <!-- Fondo animado -->
+  <div class="background" aria-hidden="true">
+    <div class="shape one"></div>
+    <div class="shape two"></div>
+    <div class="shape three"></div>
+  </div>
+
+  <main class="card" role="main">
+    <!-- Logo flotante -->
+    <div class="card-logo" aria-hidden="true">
+      <img src="{{ url_for('static', filename='img/coyolabs.png') }}" alt="CoyoLabs Logo">
+    </div>
+
+    <!-- Títulos (se actualizan por JS) -->
+    <h1 class="title" id="title">Iniciar sesión</h1>
+    <p class="subtitle" id="subtitle">CoyoLabs Universidad — Acceso institucional</p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash" role="alert" aria-live="polite">
+          <ul>
+            {% for message in messages %}
+              <li>{{ message }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="forms">
+
+      <!-- LOGIN -->
+      <form class="form form-login" id="loginForm" method="post" action="/auth/login" autocomplete="on">
+        <div>
+          <label for="email_login">Correo institucional</label>
+          <div class="field">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
+            </svg>
+            <input id="email_login" type="email" name="email" placeholder="tu.correo@utpn.edu.mx" required />
+          </div>
+        </div>
+
+        <div>
+          <label for="password_login">Contraseña</label>
+          <div class="field">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path d="M12 17a2 2 0 0 0 2-2v-1a2 2 0 0 0-4 0v1a2 2 0 0 0 2 2zm6-7h-1V8a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zM9 10V8a3 3 0 0 1 6 0v2H9z"/>
+            </svg>
+            <input id="password_login" type="password" name="password" placeholder="Tu contraseña" required />
+          </div>
+        </div>
+
+        <button type="submit" class="btn">Entrar</button>
+
+        <div class="switch">
+          <span>¿No tienes cuenta?</span>
+          <button type="button" class="link" id="toRegister">Registrarme</button>
+        </div>
+
+        <p class="note">Nota: Si tu cuenta no está verificada, no podrás iniciar sesión.</p>
+      </form>
+
+      <!-- REGISTER -->
+      <form class="form form-register" id="registerForm" method="post" action="/auth/register" autocomplete="on">
+        <div>
+          <label for="email_reg">Correo institucional (@utpn.edu.mx)</label>
+          <div class="field">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
+            </svg>
+            <input id="email_reg" type="email" name="email" placeholder="tu.correo@utpn.edu.mx" required />
+          </div>
+        </div>
+
+        <div>
+          <label for="password_reg">Contraseña</label>
+          <div class="field">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path d="M12 17a2 2 0 0 0 2-2v-1a2 2 0 0 0-4 0v1a2 2 0 0 0 2 2zm6-7h-1V8a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zM9 10V8a3 3 0 0 1 6 0v2H9z"/>
+            </svg>
+            <input id="password_reg" type="password" name="password" placeholder="Crea tu contraseña" required />
+          </div>
+        </div>
+
+        <button type="submit" class="btn">Registrarme</button>
+
+        <div class="switch">
+          <span>¿Ya tienes cuenta?</span>
+          <button type="button" class="link" id="toLogin">Volver a login</button>
+        </div>
+
+        <p class="note">Después de registrarte, revisa tu correo institucional para verificar tu cuenta.</p>
+      </form>
+
+    </div>
+  </main>
+
+  <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+</body>
+</html>

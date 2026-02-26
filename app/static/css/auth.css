@@ -1,0 +1,316 @@
+:root{
+  /* Base */
+  --white:#fff;
+  --darkest:#0B2C17;
+
+  /* Login palette */
+  --login-bg-a:#0B2C17;
+  --login-bg-b:#0F3D1F;
+  --login-accent:#2FAF5A;
+  --login-accent-2:#00BCD4;
+
+  /* Register palette (más dorado) */
+  --reg-bg-a:#071F12;
+  --reg-bg-b:#123A22;
+  --reg-accent:#E0B12C;
+  --reg-accent-2:#F6D75A;
+
+  /* Glass */
+  --glass: rgba(255,255,255,0.10);
+  --glass-2: rgba(255,255,255,0.06);
+  --stroke: rgba(255,255,255,0.14);
+  --shadow: 0 18px 45px rgba(0,0,0,0.45);
+
+  --danger-bg: rgba(211, 47, 47, 0.16);
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; }
+
+body{
+  min-height:100svh;
+  font-family:'Poppins',sans-serif;
+  color:var(--white);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:clamp(18px,3vw,28px);
+  overflow:hidden;
+
+  /* Fondo por defecto = LOGIN */
+  background:
+    radial-gradient(1200px 600px at 20% 10%, rgba(47,175,90,0.18), transparent 55%),
+    radial-gradient(900px 500px at 80% 75%, rgba(0,188,212,0.10), transparent 60%),
+    linear-gradient(135deg, var(--login-bg-a), var(--login-bg-b));
+  transition: background 600ms ease;
+}
+
+/* Cuando se pasa a REGISTER cambia paleta */
+body.mode-register{
+  background:
+    radial-gradient(1200px 600px at 18% 12%, rgba(224,177,44,0.16), transparent 55%),
+    radial-gradient(900px 500px at 82% 78%, rgba(246,215,90,0.10), transparent 60%),
+    linear-gradient(135deg, var(--reg-bg-a), var(--reg-bg-b));
+}
+
+/* Grid */
+.grid{
+  position:absolute;
+  inset:-2px;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  opacity:0.08;
+  pointer-events:none;
+}
+
+/* Fondo shapes */
+.background{
+  width:min(520px, 96vw);
+  height:min(600px, 96vh);
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+  transition: transform 700ms cubic-bezier(.2,.8,.2,1);
+}
+
+/* Mirror + slide al modo register */
+body.mode-register .background{
+  transform: translate(-50%,-50%) scaleX(-1) rotate(-2deg);
+}
+
+/* Shapes base */
+.shape{
+  position:absolute;
+  border-radius:50%;
+  filter: blur(0.2px);
+  opacity:0.95;
+  transition: all 700ms cubic-bezier(.2,.8,.2,1);
+}
+
+/* LOGIN: posiciones */
+.shape.one{
+  width: clamp(160px, 22vw, 240px);
+  height: clamp(160px, 22vw, 240px);
+  left:-90px; top:-90px;
+  background: radial-gradient(circle at 30% 30%, rgba(42,255,190,0.40), rgba(47,175,90,0.12) 55%, transparent 72%);
+}
+.shape.two{
+  width: clamp(170px, 24vw, 260px);
+  height: clamp(170px, 24vw, 260px);
+  right:-80px; bottom:-110px;
+  background: radial-gradient(circle at 40% 35%, rgba(0,188,212,0.28), rgba(0,188,212,0.10) 55%, transparent 72%);
+}
+.shape.three{
+  width: clamp(120px, 18vw, 200px);
+  height: clamp(120px, 18vw, 200px);
+  right: 25px; top: 45px;
+  opacity:0.35;
+  background: radial-gradient(circle at 35% 35%, rgba(47,175,90,0.25), transparent 70%);
+}
+
+/* REGISTER: cambian color + posiciones */
+body.mode-register .shape.one{
+  left:-70px;
+  top:-120px;
+  background: radial-gradient(circle at 30% 30%, rgba(246,215,90,0.45), rgba(224,177,44,0.14) 55%, transparent 72%);
+}
+body.mode-register .shape.two{
+  right:-100px;
+  bottom:-90px;
+  background: radial-gradient(circle at 40% 35%, rgba(224,177,44,0.35), rgba(224,177,44,0.12) 55%, transparent 72%);
+}
+body.mode-register .shape.three{
+  right: 40px;
+  top: 25px;
+  opacity:0.28;
+  background: radial-gradient(circle at 35% 35%, rgba(246,215,90,0.22), transparent 70%);
+}
+
+/* Card */
+.card{
+  width:min(420px, 92vw);
+  background: var(--glass);
+  border:1px solid var(--stroke);
+  backdrop-filter: blur(12px);
+  border-radius:16px;
+  box-shadow: var(--shadow);
+  position:relative;
+  padding: clamp(54px, 7vw, 68px) 28px 28px;
+}
+
+/* Logo flotante */
+.card-logo{
+  position:absolute;
+  left:50%;
+  top:0;
+  transform: translate(-50%, -58%);
+  pointer-events:none;
+}
+.card-logo img{
+  width: clamp(120px, 26vw, 175px);
+  filter: drop-shadow(0 14px 28px rgba(0,0,0,0.45));
+}
+
+/* Títulos */
+.title{
+  text-align:center;
+  font-size: clamp(18px, 4.2vw, 22px);
+  font-weight:600;
+  margin-top: 6px;
+}
+.subtitle{
+  text-align:center;
+  margin-top: 6px;
+  font-size: clamp(12px, 3.2vw, 13px);
+  color: rgba(255,255,255,0.78);
+  margin-bottom: 18px;
+}
+
+/* Flash */
+.flash{
+  margin-top: 12px;
+  padding: 10px;
+  background: var(--danger-bg);
+  border-radius: 10px;
+}
+.flash ul{
+  list-style:none;
+  font-size:13px;
+  display:grid;
+  gap:6px;
+}
+
+/* Forms */
+.forms{
+  position:relative;
+}
+.form{
+  display:grid;
+  gap:14px;
+  transition: opacity 450ms ease, transform 450ms ease;
+}
+
+/* Visibilidad por modo */
+.form-register{
+  position:absolute;
+  left:0; right:0;
+  top:0;
+  opacity:0;
+  transform: translateX(18px);
+  pointer-events:none;
+}
+body.mode-register .form-register{
+  position:relative;
+  opacity:1;
+  transform: translateX(0);
+  pointer-events:auto;
+}
+body.mode-register .form-login{
+  opacity:0;
+  transform: translateX(-18px);
+  pointer-events:none;
+}
+
+/* Labels / Fields */
+label{
+  font-size:13px;
+  margin-bottom:6px;
+  display:block;
+  color: rgba(255,255,255,0.90);
+}
+.field{
+  background: var(--glass-2);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  padding: 12px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+.icon{ width:18px; fill: rgba(255,255,255,0.75); }
+
+input{
+  width:100%;
+  background:transparent;
+  border:none;
+  outline:none;
+  color:var(--white);
+  font-size:14px;
+}
+input::placeholder{ color: rgba(255,255,255,0.55); }
+
+/* Focus color cambia según modo */
+body.mode-login .field:focus-within{
+  border-color: var(--login-accent-2);
+  box-shadow: 0 0 0 4px rgba(0,188,212,0.16);
+}
+body.mode-register .field:focus-within{
+  border-color: var(--reg-accent-2);
+  box-shadow: 0 0 0 4px rgba(246,215,90,0.14);
+}
+
+/* Button cambia por modo */
+.btn{
+  margin-top:6px;
+  padding:13px;
+  border:none;
+  border-radius:12px;
+  font-weight:600;
+  font-size:15px;
+  cursor:pointer;
+  transition: transform .18s ease, filter .18s ease;
+}
+body.mode-login .btn{
+  color: #0F3D1F;
+  background: linear-gradient(135deg, #E0B12C, #F6D75A);
+}
+body.mode-register .btn{
+  color: #0F3D1F;
+  background: linear-gradient(135deg, #2FAF5A, #00BCD4);
+}
+.btn:hover{ transform: translateY(-2px); filter: brightness(1.03); }
+
+/* Switch */
+.switch{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  align-items:center;
+  margin-top: 4px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.80);
+}
+.link{
+  background: transparent;
+  border: none;
+  cursor:pointer;
+  font-weight:600;
+  font-size: 13px;
+  text-decoration: underline;
+  color: rgba(255,255,255,0.92);
+}
+body.mode-login .link:hover{ color: #F6D75A; }
+body.mode-register .link:hover{ color: #00BCD4; }
+
+.note{
+  margin-top: 6px;
+  font-size: 12px;
+  text-align:center;
+  color: rgba(255,255,255,0.72);
+  line-height:1.35;
+}
+
+/* Mobile */
+@media (max-width: 420px){
+  .card{
+    padding: 58px 18px 20px;
+    border-radius: 14px;
+  }
+  .field{ padding: 11px; }
+  .btn{ padding: 12px; }
+}

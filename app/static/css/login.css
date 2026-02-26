@@ -1,0 +1,244 @@
+:root{
+  --primary-dark: #0F3D1F;
+  --primary-medium: #1E6B3A;
+  --primary-bright: #2FAF5A;
+
+  --accent-gold: #E0B12C;
+  --accent-gold-light: #F6D75A;
+
+  --white: #FFFFFF;
+  --darkest: #0B2C17;
+
+  --glass: rgba(255,255,255,0.10);
+  --glass-2: rgba(255,255,255,0.06);
+  --stroke: rgba(255,255,255,0.14);
+
+  --danger-bg: rgba(211, 47, 47, 0.16);
+  --shadow: 0 18px 45px rgba(0,0,0,0.45);
+}
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  min-height:100svh; /* mejor que 100vh en móviles */
+  font-family:'Poppins', sans-serif;
+  color: var(--white);
+  background:
+    radial-gradient(1200px 600px at 20% 10%, rgba(47,175,90,0.18), transparent 55%),
+    radial-gradient(900px 500px at 80% 75%, rgba(224,177,44,0.14), transparent 60%),
+    linear-gradient(135deg, var(--darkest), var(--primary-dark));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: clamp(18px, 3vw, 28px);
+  /* 🔧 Esto evita que el card “toque el techo” visualmente */
+  padding-top: clamp(36px, 6vh, 64px);
+  overflow:hidden;
+}
+
+/* Background shapes */
+
+.background{
+  width: min(460px, 92vw);
+  height: min(560px, 92vh);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  pointer-events:none;
+}
+
+.shape{
+  height: clamp(150px, 22vw, 220px);
+  width: clamp(150px, 22vw, 220px);
+  position: absolute;
+  border-radius: 50%;
+}
+
+.shape.one{
+  background: radial-gradient(circle at 30% 30%, rgba(42,255,190,0.4), rgba(30,107,58,0.15) 55%, transparent 72%);
+  left: -90px;
+  top: -90px;
+}
+
+.shape.two{
+  background: radial-gradient(circle at 40% 35%, rgba(246,215,90,0.45), rgba(224,177,44,0.2) 55%, transparent 72%);
+  right: -70px;
+  bottom: -95px;
+}
+
+/* Grid overlay */
+
+.grid{
+  position:absolute;
+  inset:-2px;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  opacity: 0.08;
+  pointer-events:none;
+}
+
+/* Card */
+
+.card{
+  width: min(420px, 92vw);
+  background: var(--glass);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  position: relative;
+
+  /* 🔧 Recortamos el hueco extra arriba */
+  padding: clamp(54px, 7vw, 68px) 28px 34px;
+
+  /* 🔧 Se ve más “centrado” sin quedar pegado arriba */
+  margin-top: 60px;
+}
+
+/* Logo flotante */
+
+.card-logo{
+  position:absolute;
+  left:50%;
+  top:0;
+
+  /* 🔧 antes estaba muy arriba; ahora sale menos */
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  pointer-events:none;
+}
+
+.card-logo img{
+  width: clamp(150px, 26vw, 230px); /* responsive real */
+  height: auto;
+  filter: drop-shadow(0 14px 28px rgba(0,0,0,0.45));
+}
+
+/* Titles */
+
+.title{
+  text-align:center;
+  font-size: clamp(18px, 4.2vw, 22px);
+  font-weight:600;
+
+  /* 🔧 juntamos título con logo (menos espacio) */
+  margin-top: 6px;
+}
+
+.subtitle{
+  text-align:center;
+  margin-top: 6px;
+  font-size: clamp(12px, 3.2vw, 13px);
+  color: rgba(255,255,255,0.78);
+  margin-bottom: 18px;
+}
+
+/* Flash messages */
+
+.flash{
+  margin-top: 12px;
+  padding: 10px;
+  background: var(--danger-bg);
+  border-radius: 10px;
+}
+
+.flash ul{
+  list-style:none;
+  font-size: 13px;
+}
+
+/* Form */
+
+form{
+  margin-top: 18px;
+  display:grid;
+  gap: 14px;
+}
+
+label{
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.field{
+  background: var(--glass-2);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 12px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.field:focus-within{
+  border-color: var(--primary-bright);
+  box-shadow: 0 0 0 4px rgba(47,175,90,0.14);
+}
+
+.icon{
+  width: 18px;
+  fill: rgba(255,255,255,0.75);
+}
+
+input{
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--white);
+  font-size: 14px;
+}
+
+input::placeholder{
+  color: rgba(255,255,255,0.55);
+}
+
+/* Button */
+
+button{
+  margin-top: 6px;
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  color: var(--primary-dark);
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
+  transition: 0.2s;
+}
+
+button:hover{
+  transform: translateY(-2px);
+}
+
+.note{
+  margin-top: 14px;
+  font-size: 12px;
+  text-align: center;
+  color: rgba(255,255,255,0.72);
+  line-height: 1.35;
+}
+
+/* ✅ Ajustes extra para móviles */
+@media (max-width: 420px){
+  .card{
+    padding: 56px 18px 24px; /* más compacto */
+    border-radius: 14px;
+  }
+
+  .field{
+    padding: 11px;
+  }
+
+  button{
+    padding: 12px;
+  }
+}
