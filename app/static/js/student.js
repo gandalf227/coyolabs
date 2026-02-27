@@ -1,28 +1,44 @@
 (function () {
-  const bindToggle = ({ triggerId, panelId, storageKey, classMode = false, openClass = 'open' }) => {
-    const trigger = document.getElementById(triggerId);
-    const panel = document.getElementById(panelId);
-    if (!trigger || !panel) return;
+  const panel = document.getElementById('user-panel');
+  const userTrigger = document.getElementById('user-trigger');
 
-    const readStored = () => localStorage.getItem(storageKey) === '1';
-    const apply = (isOpen) => {
-      if (classMode) {
-        panel.classList.toggle(openClass, isOpen);
-      } else {
-        panel.hidden = !isOpen;
-      }
-      localStorage.setItem(storageKey, isOpen ? '1' : '0');
+  if (panel && userTrigger) {
+    const applyUserState = (open) => {
+      panel.classList.toggle('open', open);
+      panel.hidden = !open;
+      localStorage.setItem('student:user-panel-open', open ? '1' : '0');
     };
 
-    apply(readStored());
-    trigger.addEventListener('click', () => apply(classMode ? !panel.classList.contains(openClass) : panel.hidden));
+    applyUserState(localStorage.getItem('student:user-panel-open') === '1');
+
+    userTrigger.addEventListener('click', (event) => {
+      event.stopPropagation();
+      applyUserState(!panel.classList.contains('open'));
+    });
+
     document.addEventListener('click', (event) => {
-      if (!panel.contains(event.target) && !trigger.contains(event.target)) {
-        apply(false);
+      if (!panel.contains(event.target) && !userTrigger.contains(event.target)) {
+        applyUserState(false);
       }
     });
-  };
+  }
 
-  bindToggle({ triggerId: 'user-panel-toggle', panelId: 'user-panel', storageKey: 'student:user-panel' });
-  bindToggle({ triggerId: 'top-links-toggle', panelId: 'top-links-wrapper', storageKey: 'student:top-links', classMode: true });
+  const topLinksWrapper = document.getElementById('top-links-wrapper');
+  const toggleTopLinks = document.getElementById('toggle-top-links');
+
+  if (topLinksWrapper && toggleTopLinks) {
+    const applyTopLinks = (visible) => {
+      topLinksWrapper.classList.toggle('visible', visible);
+      topLinksWrapper.classList.remove('collapsed-by-default');
+      localStorage.setItem('student:top-links-collapsed', visible ? '0' : '1');
+      toggleTopLinks.textContent = visible ? '×' : '＝';
+    };
+
+    const collapsed = localStorage.getItem('student:top-links-collapsed') === '1';
+    applyTopLinks(!collapsed);
+
+    toggleTopLinks.addEventListener('click', () => {
+      applyTopLinks(!topLinksWrapper.classList.contains('visible'));
+    });
+  }
 })();
