@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Portal alumno{% endblock %}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/student.css') }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="student-shell">
+  <div id="user-panel" class="student-user-panel" hidden>
+    <div class="student-user-panel-inner">
+      <p class="student-user-email">{{ current_user.email }}</p>
+      <p class="student-user-role">Rol: {{ current_user.role }}</p>
+      <a class="student-logout-link" href="{{ url_for('auth.logout') }}">Cerrar sesión</a>
+    </div>
+  </div>
+
+  <div id="wrapper" class="student-wrapper">
+    <div id="top-links-wrapper" class="student-top-links collapsed-by-default" aria-label="Navegación principal">
+      <nav id="top-links" class="student-top-links-inner">
+        <a href="{{ url_for('inventory.inventory_list') }}"><b>01.</b> inventario</a>
+        <a href="{{ url_for('software.list_software') }}"><b>02.</b> software</a>
+        <a href="{{ url_for('reservations.my_reservations') }}"><b>03.</b> reservas</a>
+        <a href="{{ url_for('lostfound.list_items') }}"><b>04.</b> perdidos</a>
+        <a href="{{ url_for('debts.my_debts') }}"><b>05.</b> adeudos</a>
+        <a href="{{ url_for('ra_client.ra_client_home') }}"><b>06.</b> ra</a>
+      </nav>
+    </div>
+
+    <button id="toggle-top-links" type="button" aria-label="Mostrar u ocultar navegación">×</button>
+    <button id="user-trigger" type="button" aria-label="Abrir panel de usuario">
+      <i class="ph ph-book-open-text"></i>
+    </button>
+
+    <div id="navstrip" class="student-navstrip">
+      {% if crumbs %}
+        <span class="crumbs">
+          {% for label, href in crumbs %}
+            {% if not loop.last %}
+              <a href="{{ href }}">{{ label }}</a>
+              <span>•</span>
+            {% else %}
+              <a href="{{ href }}" aria-current="page">{{ label }}</a>
+            {% endif %}
+          {% endfor %}
+        </span>
+      {% else %}
+        <span class="crumbs">
+          <a href="{{ url_for('inventory.inventory_list') }}">Inicio</a>
+        </span>
+      {% endif %}
+    </div>
+
+    <div id="innerwrapper" class="student-innerwrapper">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <section class="student-flash-stack" aria-label="Mensajes del sistema">
+            {% for category, msg in messages %}
+              <article class="student-flash {{ category or 'info' }}">{{ msg }}</article>
+            {% endfor %}
+          </section>
+        {% endif %}
+      {% endwith %}
+
+      <main class="student-page-card">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/student.js') }}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
