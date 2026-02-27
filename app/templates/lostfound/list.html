@@ -1,63 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Objetos perdidos</title>
-</head>
-<body>
-  <h1>Objetos perdidos</h1>
-
-  <p>
-    <a href="/inventory/">Inventario</a> |
-    <a href="/reservations/my">Reservas</a> |
-    <a href="/lostfound/admin/new">Nuevo (Admin)</a>
-  </p>
-
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <ul>
-        {% for category, msg in messages %}
-          <li>{{ msg }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
-
-  <p>Filtrar:</p>
-  <ul>
-    <li><a href="/lostfound/">Todos</a></li>
-    <li><a href="/lostfound/?status=REPORTED">REPORTED</a></li>
-    <li><a href="/lostfound/?status=IN_STORAGE">IN_STORAGE</a></li>
-    <li><a href="/lostfound/?status=RETURNED">RETURNED</a></li>
-  </ul>
-
-  {% if items|length == 0 %}
-    <p>No hay registros.</p>
-  {% else %}
-    <table border="1" cellpadding="6">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Título</th>
-          <th>Estado</th>
-          <th>Ubicación</th>
-          <th>Creado</th>
-          <th>Ver</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for it in items %}
-          <tr>
-            <td>{{ it.id }}</td>
-            <td>{{ it.title }}</td>
-            <td>{{ it.status }}</td>
-            <td>{{ it.location }}</td>
-            <td>{{ it.created_at }}</td>
-            <td><a href="/lostfound/{{ it.id }}">Detalle</a></td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  {% endif %}
-</body>
-</html>
+{% extends "layouts/student_base.html" %}
+{% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Objetos perdidos", url_for('lostfound.list_items'))] %}
+{% block title %}Objetos perdidos{% endblock %}
+{% block content %}
+<h1>Objetos perdidos</h1>
+<p>Filtrar: <a class="btn-link" href="/lostfound/">Todos</a> · <a class="btn-link" href="/lostfound/?status=REPORTED">REPORTED</a> · <a class="btn-link" href="/lostfound/?status=IN_STORAGE">IN_STORAGE</a> · <a class="btn-link" href="/lostfound/?status=RETURNED">RETURNED</a></p>
+{% if items|length == 0 %}<p>No hay registros.</p>{% else %}
+<div class="table-wrap"><table><thead><tr><th>ID</th><th>Título</th><th>Estado</th><th>Ubicación</th><th>Creado</th><th>Ver</th></tr></thead><tbody>
+{% for it in items %}<tr><td>{{ it.id }}</td><td>{{ it.title }}</td><td>{{ it.status }}</td><td>{{ it.location }}</td><td>{{ it.created_at }}</td><td><a class="btn-link" href="/lostfound/{{ it.id }}">Detalle</a></td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+{% endblock %}

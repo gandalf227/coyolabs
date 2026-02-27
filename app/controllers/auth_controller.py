@@ -1,6 +1,6 @@
 import re
 from flask import current_app
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 
 from app.extensions import db
@@ -24,6 +24,14 @@ def _render_auth(mode: str = "login"):
     if mode not in {"login", "register"}:
         mode = "login"
     return render_template("auth/auth.html", mode=mode)
+
+
+def _bad_register_request(message: str):
+    if request.is_json:
+        return jsonify({"error": message}), 400
+
+    flash(message)
+    return _render_auth("register"), 400
 
 
 @auth_bp.route("/", methods=["GET"])
@@ -70,8 +78,22 @@ def register():
         return redirect(url_for("auth.me"))
 
     if request.method == "POST":
-        email = (request.form.get("email") or "").strip().lower()
-        password = request.form.get("password") or ""
+        data = request.get_json(silent=True) if request.is_json else request.form
+
+        email = (data.get("email") or "").strip().lower()
+        password = data.get("password") or ""
+        confirm_password = (
+            data.get("confirm_password")
+            or data.get("confirmPassword")
+            or data.get("password_confirm")
+            or ""
+        )
+
+        if not confirm_password:
+            return _bad_register_request("confirm_password es obligatorio.")
+
+        if password != confirm_password:
+            return _bad_register_request("Las contraseñas no coinciden.")
 
         # Validación dominio
         if not email.endswith(f"@{EMAIL_DOMAIN}"):
