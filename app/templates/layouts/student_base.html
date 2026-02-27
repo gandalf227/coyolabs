@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Portal alumno{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/student.css') }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="student-shell">
+  <header class="student-topbar">
+    <div class="brand-block">
+      <span class="brand-eyebrow">UTPN</span>
+      <strong class="brand-title">Plataforma Alumno</strong>
+    </div>
+
+    <button id="top-links-toggle" class="icon-btn" type="button" aria-label="Mostrar navegación">
+      <i class="ph ph-list"></i>
+    </button>
+
+    <nav id="top-links-wrapper" class="top-links" aria-label="Navegación principal">
+      <a href="{{ url_for('inventory.inventory_list') }}">Inventario</a>
+      <a href="{{ url_for('software.list_software') }}">Software</a>
+      <a href="{{ url_for('reservations.my_reservations') }}">Reservas</a>
+      <a href="{{ url_for('lostfound.list_items') }}">Objetos perdidos</a>
+      <a href="{{ url_for('debts.my_debts') }}">Adeudos</a>
+      <a href="{{ url_for('ra_client.ra_client_home') }}">RA</a>
+    </nav>
+
+    <div class="user-box">
+      <button id="user-panel-toggle" class="icon-btn" type="button" aria-label="Abrir panel de usuario">
+        <i class="ph ph-user-circle"></i>
+      </button>
+      <div id="user-panel" class="user-panel" hidden>
+        <p class="user-mail">{{ current_user.email }}</p>
+        <p class="user-role">Rol: {{ current_user.role }}</p>
+        <a class="logout-link" href="{{ url_for('auth.logout') }}">Cerrar sesión</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="student-main">
+    {% if crumbs %}
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        {% for label, href in crumbs %}
+          {% if not loop.last %}
+            <a href="{{ href }}">{{ label }}</a><span>/</span>
+          {% else %}
+            <span aria-current="page">{{ label }}</span>
+          {% endif %}
+        {% endfor %}
+      </nav>
+    {% endif %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <section class="flash-stack" aria-label="Mensajes del sistema">
+          {% for category, msg in messages %}
+            <article class="flash-msg {{ category or 'info' }}">{{ msg }}</article>
+          {% endfor %}
+        </section>
+      {% endif %}
+    {% endwith %}
+
+    <section class="page-card">
+      {% block content %}{% endblock %}
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='js/student.js') }}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

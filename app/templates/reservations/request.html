@@ -1,60 +1,18 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Solicitar reserva</title>
-</head>
-<body>
-  <h1>Solicitar reserva</h1>
-
-  <p><a href="/reservations/my">Volver</a></p>
-
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <ul>
-        {% for category, msg in messages %}
-          <li>{{ msg }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
-
-  <form method="post">
-    <label>Salón/Laboratorio:</label><br>
-    <select name="room" required>
-        <option value="">-- Selecciona --</option>
-        {% for r in rooms %}
-            <option value="{{ r }}">{{ r }}</option>
-        {% endfor %}
-    </select><br><br>
-
-    <label>Grupo:</label><br>
-    <input type="text" name="group_name" placeholder="Ej: 3A" required><br><br>
-
-    <label>Nombre del profesor:</label><br>
-    <input type="text" name="teacher_name" required><br><br>
-
-    <label>Materia:</label><br>
-    <input type="text" name="subject" required><br><br>
-
-    <label>Fecha:</label><br>
-    <input type="date" name="date" required><br><br>
-
-    <label>Hora inicio:</label><br>
-    <input type="time" name="start_time" required><br><br>
-
-    <label>Hora fin:</label><br>
-    <input type="time" name="end_time" required><br><br>
-
-    <label>Motivo (opcional):</label><br>
-    <textarea name="purpose" rows="3" cols="60"></textarea><br><br>
-
-    <label>Firma (confirmación):</label>
-    <input type="checkbox" name="signed" value="1" required>
-    <span>Confirmo que la información es correcta</span>
-    <br><br>
-
-    <button type="submit">Enviar solicitud</button>
-  </form>
-</body>
-</html>
+{% extends "layouts/student_base.html" %}
+{% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Mis reservas", url_for('reservations.my_reservations')), ("Solicitar", url_for('reservations.request_reservation'))] %}
+{% block title %}Solicitar reserva{% endblock %}
+{% block content %}
+<h1>Solicitar reserva</h1>
+<form method="post" class="input-grid">
+  <div><label>Salón/Laboratorio</label><select name="room" required><option value="">-- Selecciona --</option>{% for r in rooms %}<option value="{{ r }}">{{ r }}</option>{% endfor %}</select></div>
+  <div><label>Grupo</label><input type="text" name="group_name" placeholder="Ej: 3A" required></div>
+  <div><label>Nombre del profesor</label><input type="text" name="teacher_name" required></div>
+  <div><label>Materia</label><input type="text" name="subject" required></div>
+  <div><label>Fecha</label><input type="date" name="date" required></div>
+  <div><label>Hora inicio</label><input type="time" name="start_time" required></div>
+  <div><label>Hora fin</label><input type="time" name="end_time" required></div>
+  <div style="grid-column:1/-1;"><label>Motivo (opcional)</label><textarea name="purpose" rows="3"></textarea></div>
+  <div style="grid-column:1/-1;"><label><input type="checkbox" name="signed" value="1" required style="width:auto;"> Confirmo que la información es correcta</label></div>
+  <div><button type="submit">Enviar solicitud</button></div>
+</form>
+{% endblock %}

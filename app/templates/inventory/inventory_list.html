@@ -1,71 +1,53 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Inventario</title>
-</head>
-<body>
-  <h1>Inventario de Laboratorios</h1>
+{% extends "layouts/student_base.html" %}
+{% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Inventario", url_for('inventory.inventory_list'))] %}
 
-  <form method="get">
-    <label>Laboratorio:</label>
+{% block title %}Inventario{% endblock %}
+
+{% block content %}
+<h1>Inventario de laboratorios</h1>
+
+<form method="get" class="input-grid">
+  <div>
+    <label>Laboratorio</label>
     <select name="lab_id">
       <option value="">-- Todos --</option>
       {% for lab in labs %}
-        <option value="{{ lab.id }}" {% if selected_lab == lab.id %}selected{% endif %}>
-          {{ lab.name }}
-        </option>
+        <option value="{{ lab.id }}" {% if selected_lab == lab.id %}selected{% endif %}>{{ lab.name }}</option>
       {% endfor %}
     </select>
-
-    <label>Búsqueda:</label>
-    <input type="text" name="q" value="{{ q }}" placeholder="Nombre, ubicación, código, serie, notas" />
-
-    <button type="submit">Aplicar</button>
-  </form>
-
-  <p>
-    Resultados: <strong>{{ total }}</strong> |
-    Página <strong>{{ page }}</strong> de <strong>{{ total_pages }}</strong>
-  </p>
-
-
-  <hr>
-
-  <div>
-    {% if page > 1 %}
-      <a href="/inventory/?lab_id={{ selected_lab or '' }}&q={{ q }}&page={{ page - 1 }}">Anterior</a>
-    {% endif %}
-
-    {% if page < total_pages %}
-      <a href="/inventory/?lab_id={{ selected_lab or '' }}&q={{ q }}&page={{ page + 1 }}">Siguiente</a>
-    {% endif %}
   </div>
+  <div>
+    <label>Búsqueda</label>
+    <input type="text" name="q" value="{{ q }}" placeholder="Nombre, ubicación, código, serie, notas">
+  </div>
+  <div><label>&nbsp;</label><button type="submit">Aplicar</button></div>
+</form>
 
+<p>Resultados: <strong>{{ total }}</strong> | Página <strong>{{ page }}</strong> de <strong>{{ total_pages }}</strong></p>
+<div>
+  {% if page > 1 %}<a class="btn-link" href="/inventory/?lab_id={{ selected_lab or '' }}&q={{ q }}&page={{ page - 1 }}">← Anterior</a>{% endif %}
+  {% if page < total_pages %}<a class="btn-link" href="/inventory/?lab_id={{ selected_lab or '' }}&q={{ q }}&page={{ page + 1 }}">Siguiente →</a>{% endif %}
+</div>
 
-  {% if materials %}
-    <table border="1" cellpadding="5">
-      <tr>
-        <th>Laboratorio</th>
-        <th>Equipo / Material</th>
-        <th>Ubicación</th>
-        <th>Piezas</th>
-        <th>Estado</th>
-        <th>Observaciones</th>
-      </tr>
+{% if materials %}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Laboratorio</th><th>Equipo / Material</th><th>Ubicación</th><th>Piezas</th><th>Estado</th><th>Observaciones</th></tr></thead>
+    <tbody>
       {% for m in materials %}
-        <tr>
-          <td>{{ m.lab.name }}</td>
-          <td><a href="/inventory/materials/{{ m.id }}">{{ m.name | smart_title }}</a></td>
-          <td>{{ m.location | smart_title }}</td>
-          <td>{{ m.pieces_text }}</td>
-          <td>{{ m.status | smart_title }}</td>
-          <td>{{ m.notes }}</td>
-        </tr>
+      <tr>
+        <td>{{ m.lab.name }}</td>
+        <td><a class="btn-link" href="/inventory/materials/{{ m.id }}">{{ m.name | smart_title }}</a></td>
+        <td>{{ m.location | smart_title }}</td>
+        <td>{{ m.pieces_text }}</td>
+        <td>{{ m.status | smart_title }}</td>
+        <td>{{ m.notes }}</td>
+      </tr>
       {% endfor %}
-    </table>
-  {% else %}
-    <p>No hay materiales para mostrar.</p>
-  {% endif %}
-</body>
-</html>
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p>No hay materiales para mostrar.</p>
+{% endif %}
+{% endblock %}
