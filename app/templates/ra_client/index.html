@@ -2,8 +2,7 @@
 {% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("RA", url_for('ra_client.ra_client_home'))] %}
 {% block title %}RA cliente{% endblock %}
 {% block extra_js %}
-<script src="https://unpkg.com/html5-qrcode"></script>
-<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% endblock %}
 {% block content %}
 <h1>RA MVP (Cliente ligero)</h1>
@@ -13,10 +12,26 @@
   <div><label>User email</label><input id="userEmail" type="email" value="24310130@utpn.edu.mx"></div>
   <div><label>Material ID</label><input id="materialId" type="number" value="2"></div>
 </div>
-<p><button onclick="getMaterial()">GET Material</button> <button onclick="postEvent()">POST Evento (scan)</button></p>
+<p>
+  <button id="get-material-btn" type="button">GET Material</button>
+  <button id="post-event-btn" type="button">POST Evento (scan)</button>
+</p>
+
 <h2>Escaneo QR</h2>
-<p><button onclick="startCamera()">Iniciar cámara</button> <button onclick="stopCamera()">Detener</button></p>
+<div class="input-grid">
+  <div>
+    <label>Cámara</label>
+    <select id="cameraSelect"></select>
+    <small id="cameraHint">Se intentará usar la cámara trasera por defecto.</small>
+  </div>
+</div>
+<p>
+  <button id="start-camera-btn" type="button">Iniciar cámara</button>
+  <button id="stop-camera-btn" type="button">Detener</button>
+</p>
+
 <div id="reader"></div>
+
 <h2>Resultado</h2>
 <div id="overlayCard" style="display:none; border:1px solid #ccc; padding:15px; width:420px; border-radius:8px;">
   <h3 id="matName"></h3>
