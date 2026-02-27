@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
 </head>
 
-<body class="mode-login">
+<body class="mode-{{ mode or 'login' }}">
   <div class="grid" aria-hidden="true"></div>
 
   <!-- Fondo animado -->
@@ -25,9 +25,8 @@
       <img src="{{ url_for('static', filename='img/coyolabs.png') }}" alt="CoyoLabs Logo">
     </div>
 
-    <!-- Títulos (se actualizan por JS) -->
     <h1 class="title" id="title">Iniciar sesión</h1>
-    <p class="subtitle" id="subtitle">CoyoLabs Universidad — Acceso institucional</p>
+    <p class="subtitle" id="subtitle">Acceso institucional</p>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -42,13 +41,15 @@
     {% endwith %}
 
     <div class="forms">
+      <!-- (opcional) Overlay si lo quieres usar -->
+      <div class="forms-overlay" aria-hidden="true"></div>
 
       <!-- LOGIN -->
       <form class="form form-login" id="loginForm" method="post" action="/auth/login" autocomplete="on">
         <div>
           <label for="email_login">Correo institucional</label>
           <div class="field">
-            <svg class="icon" viewBox="0 0 24 24">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
             </svg>
             <input id="email_login" type="email" name="email" placeholder="tu.correo@utpn.edu.mx" required />
@@ -58,10 +59,19 @@
         <div>
           <label for="password_login">Contraseña</label>
           <div class="field">
-            <svg class="icon" viewBox="0 0 24 24">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 17a2 2 0 0 0 2-2v-1a2 2 0 0 0-4 0v1a2 2 0 0 0 2 2zm6-7h-1V8a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zM9 10V8a3 3 0 0 1 6 0v2H9z"/>
             </svg>
+
             <input id="password_login" type="password" name="password" placeholder="Tu contraseña" required />
+
+            <!-- Ojito -->
+            <button class="toggle-pass" type="button" aria-label="Mostrar contraseña"
+                    data-toggle="password_login">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -80,7 +90,7 @@
         <div>
           <label for="email_reg">Correo institucional (@utpn.edu.mx)</label>
           <div class="field">
-            <svg class="icon" viewBox="0 0 24 24">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
             </svg>
             <input id="email_reg" type="email" name="email" placeholder="tu.correo@utpn.edu.mx" required />
@@ -90,11 +100,43 @@
         <div>
           <label for="password_reg">Contraseña</label>
           <div class="field">
-            <svg class="icon" viewBox="0 0 24 24">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 17a2 2 0 0 0 2-2v-1a2 2 0 0 0-4 0v1a2 2 0 0 0 2 2zm6-7h-1V8a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zM9 10V8a3 3 0 0 1 6 0v2H9z"/>
             </svg>
+
             <input id="password_reg" type="password" name="password" placeholder="Crea tu contraseña" required />
+
+            <!-- Ojito -->
+            <button class="toggle-pass" type="button" aria-label="Mostrar contraseña"
+                    data-toggle="password_reg">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>
+              </svg>
+            </button>
           </div>
+        </div>
+
+        <div>
+          <label for="confirm_password_reg">Confirmar contraseña</label>
+          <div class="field">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 17a2 2 0 0 0 2-2v-1a2 2 0 0 0-4 0v1a2 2 0 0 0 2 2zm6-7h-1V8a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zM9 10V8a3 3 0 0 1 6 0v2H9z"/>
+            </svg>
+
+            <!-- IMPORTANTE: name="confirm_password" para Flask -->
+            <input id="confirm_password_reg" type="password" name="confirm_password"
+                  placeholder="Repite tu contraseña" required />
+
+            <!-- Ojito -->
+            <button class="toggle-pass" type="button" aria-label="Mostrar contraseña"
+                    data-toggle="confirm_password_reg">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>
+              </svg>
+            </button>
+          </div>
+
+          <p class="hint" id="pwHint" aria-live="polite"></p>
         </div>
 
         <button type="submit" class="btn">Registrarme</button>

@@ -1,18 +1,44 @@
 import re
 from flask import current_app
-from app.extensions import db
-from app.services.email_service import send_email
-from app.services.token_service import generate_verify_token, confirm_verify_token
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
+
+from app.extensions import db
 from app.models.user import User
+from app.services.email_service import send_email
+from app.services.token_service import generate_verify_token, confirm_verify_token
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+EMAIL_DOMAIN = "utpn.edu.mx"
+MATRICULA_RE = re.compile(r"^[0-9]+@utpn\.edu\.mx$")
+ADMIN_RE = re.compile(r"^[a-zA-Z]+@utpn\.edu\.mx$")
+
+
+def _render_auth(mode: str = "login"):
+    """
+    Renderiza la vista unificada auth/auth.html.
+    mode: "login" | "register"
+    """
+    mode = (mode or "login").lower()
+    if mode not in {"login", "register"}:
+        mode = "login"
+    return render_template("auth/auth.html", mode=mode)
+
+
+@auth_bp.route("/", methods=["GET"])
+def auth_page():
+    # Si ya está logueado, no muestres la pantalla de acceso
+    if current_user.is_authenticated:
+        return redirect(url_for("auth.me"))
+
+    # permite /auth/?mode=register
+    mode = request.args.get("mode", "login")
+    return _render_auth(mode)
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
-    # Si ya está logueado, no le mostramos el login
     if current_user.is_authenticated:
         return redirect(url_for("auth.me"))
 
@@ -24,43 +50,25 @@ def login():
 
         if not user or not user.check_password(password):
             flash("Credenciales incorrectas.")
-            return redirect(url_for("auth.login"))
+            return redirect(url_for("auth.auth_page", mode="login"))
 
-        # Bloqueo por verificación (FASE 2 hará el email)
+        # Bloqueo por verificación
         if not user.is_verified:
             flash("Cuenta no verificada. Revisa tu correo institucional.")
-            return redirect(url_for("auth.login"))
+            return redirect(url_for("auth.auth_page", mode="login"))
 
         login_user(user)
         return redirect(url_for("auth.me"))
 
-    return render_template("auth/login.html")
-
-
-@auth_bp.route("/logout", methods=["GET"])
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for("auth.login"))
-
-
-@auth_bp.route("/me", methods=["GET"])
-@login_required
-def me():
-    return {
-        "id": current_user.id,
-        "email": current_user.email,
-        "role": current_user.role,
-        "is_verified": current_user.is_verified,
-    }
-
-EMAIL_DOMAIN = "utpn.edu.mx"
-MATRICULA_RE = re.compile(r"^[0-9]+@utpn\.edu\.mx$")
-ADMIN_RE = re.compile(r"^[a-zA-Z]+@utpn\.edu\.mx$")
+    # GET -> vista unificada
+    return redirect(url_for("auth.auth_page", mode="login"))
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
+    if current_user.is_authenticated:
+        return redirect(url_for("auth.me"))
+
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password") or ""
@@ -68,21 +76,21 @@ def register():
         # Validación dominio
         if not email.endswith(f"@{EMAIL_DOMAIN}"):
             flash("Solo se permiten correos institucionales @utpn.edu.mx.")
-            return redirect(url_for("auth.register"))
+            return redirect(url_for("auth.auth_page", mode="register"))
 
         # Validación patrón (matrícula o administrativo)
         if not (MATRICULA_RE.match(email) or ADMIN_RE.match(email)):
             flash("Formato de correo no válido. Usa matrícula@utpn.edu.mx o nombreadministrativo@utpn.edu.mx.")
-            return redirect(url_for("auth.register"))
+            return redirect(url_for("auth.auth_page", mode="register"))
 
         if len(password) < 6:
             flash("La contraseña debe tener al menos 6 caracteres.")
-            return redirect(url_for("auth.register"))
+            return redirect(url_for("auth.auth_page", mode="register"))
 
         existing = User.query.filter_by(email=email).first()
         if existing:
             flash("Ese correo ya está registrado. Si no verificaste tu cuenta, revisa tu correo o solicita reenvío.")
-            return redirect(url_for("auth.login"))
+            return redirect(url_for("auth.auth_page", mode="login"))
 
         # Crear usuario no verificado
         user = User(email=email, role="ALUMNO", is_verified=False)
@@ -94,10 +102,10 @@ def register():
         token = generate_verify_token(email)
         base_url = current_app.config.get("APP_BASE_URL", "http://127.0.0.1:5000")
         verify_link = f"{base_url}/auth/verify/{token}"
+
         print("\n=== VERIFY LINK (DEV) ===")
         print(verify_link)
         print("=== END VERIFY LINK ===\n")
-
 
         subject = "Verifica tu cuenta - Sistema de Laboratorios"
         body = (
@@ -110,9 +118,10 @@ def register():
         send_email(email, subject, body)
 
         flash("Registro exitoso. Revisa tu correo institucional para verificar tu cuenta.")
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("auth.auth_page", mode="login"))
 
-    return render_template("auth/register.html")
+    # GET -> vista unificada
+    return redirect(url_for("auth.auth_page", mode="register"))
 
 
 @auth_bp.route("/verify/<token>", methods=["GET"])
@@ -120,19 +129,37 @@ def verify(token):
     email = confirm_verify_token(token, max_age_seconds=3600)
     if not email:
         flash("Token inválido o expirado. Regístrate de nuevo o solicita reenvío.")
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("auth.auth_page", mode="login"))
 
     user = User.query.filter_by(email=email).first()
     if not user:
         flash("Usuario no encontrado.")
-        return redirect(url_for("auth.register"))
+        return redirect(url_for("auth.auth_page", mode="register"))
 
     if user.is_verified:
         flash("Tu cuenta ya estaba verificada. Puedes iniciar sesión.")
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("auth.auth_page", mode="login"))
 
     user.is_verified = True
     db.session.commit()
 
     flash("Cuenta verificada correctamente. Ya puedes iniciar sesión.")
-    return redirect(url_for("auth.login"))
+    return redirect(url_for("auth.auth_page", mode="login"))
+
+
+@auth_bp.route("/logout", methods=["GET"])
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("auth.auth_page", mode="login"))
+
+
+@auth_bp.route("/me", methods=["GET"])
+@login_required
+def me():
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "role": current_user.role,
+        "is_verified": current_user.is_verified,
+    }

@@ -26,13 +26,11 @@ def create_app():
     def load_user(user_id):
         return User.query.get(int(user_id))
 
-    
     from . import models  # noqa: F401
 
     # Blueprints (por ahora solo auth)
     from .controllers.auth_controller import auth_bp
     app.register_blueprint(auth_bp)
-
 
     from app.controllers.inventory_controller import inventory_bp
     app.register_blueprint(inventory_bp)
@@ -55,7 +53,8 @@ def create_app():
     from app.controllers.reports_controller import reports_bp
     app.register_blueprint(reports_bp)
 
-
+    from app.controllers.ra_client_controller import ra_client_bp
+    app.register_blueprint(ra_client_bp)
     # Ruta de salud para verificar que el servidor está vivo
     @app.get("/health")
     def health():
