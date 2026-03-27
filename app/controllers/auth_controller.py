@@ -133,10 +133,6 @@ def register():
         base_url = current_app.config.get("APP_BASE_URL", "http://127.0.0.1:5000")
         verify_link = f"{base_url}/auth/verify/{token}"
 
-        print("\n=== VERIFY LINK (DEV) ===")
-        print(verify_link)
-        print("=== END VERIFY LINK ===\n")
-
         subject = "Verifica tu cuenta - Sistema de Laboratorios"
         body = (
             "Hola.\n\n"
