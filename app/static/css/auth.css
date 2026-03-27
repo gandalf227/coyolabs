@@ -275,6 +275,11 @@ body.mode-register .btn{
   background: linear-gradient(135deg, #2FAF5A, #00BCD4);
 }
 .btn:hover{ transform: translateY(-2px); filter: brightness(1.03); }
+.btn-secondary{
+  margin-top: 10px;
+  font-size: 13px;
+  padding: 10px 12px;
+}
 
 /* Switch */
 .switch{
@@ -304,6 +309,29 @@ body.mode-register .link:hover{ color: #00BCD4; }
   text-align:center;
   color: rgba(255,255,255,0.72);
   line-height:1.35;
+}
+.verify-email-box{
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+}
+.verify-email-box .note{
+  margin-top: 0;
+}
+.inline-link{
+  display: inline;
+  margin-left: 4px;
+}
+.change-email-panel{
+  margin-top: 8px;
+}
+#changeEmailStatus.good{
+  color: rgba(170, 255, 210, 0.95);
+}
+#changeEmailStatus.bad{
+  color: rgba(255, 190, 190, 0.95);
 }
 
 /* Mobile */

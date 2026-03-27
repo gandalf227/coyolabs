@@ -1,4 +1,7 @@
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+import re
+from datetime import datetime, timedelta
+
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app.extensions import db
@@ -10,6 +13,8 @@ from app.utils.roles import ROLE_PENDING, infer_role_from_email
 
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+EMAIL_CHANGE_LIMIT_PER_HOUR = 3
+INSTITUTIONAL_EMAIL_RE = re.compile(r"^(\d{8}|[a-z]+(?:\.[a-z]+)*)@utpn\.edu\.mx$")
 
 
 def _render_auth(mode: str = "login"):
@@ -20,7 +25,29 @@ def _render_auth(mode: str = "login"):
     mode = (mode or "login").lower()
     if mode not in {"login", "register"}:
         mode = "login"
-    return render_template("auth/auth.html", mode=mode)
+    return render_template(
+        "auth/auth.html",
+        mode=mode,
+        pending_verify_email=session.get("pending_verify_email"),
+    )
+
+
+def _get_pending_verify_user() -> User | None:
+    user_id = session.get("pending_verify_user_id")
+    if not user_id:
+        return None
+    return User.query.get(user_id)
+
+
+def _store_pending_verify_user(user: User) -> None:
+    user_id = getattr(user, "id", None)
+    email = getattr(user, "email", None)
+    if not isinstance(user_id, int):
+        return
+    if not isinstance(email, str):
+        return
+    session["pending_verify_user_id"] = user_id
+    session["pending_verify_email"] = email
 
 
 def _bad_register_request(message: str):
@@ -67,6 +94,7 @@ def login():
 
         # Bloqueo por verificación
         if not user.is_verified:
+            _store_pending_verify_user(user)
             flash("Verifica tu correo")
             return redirect(url_for("auth.auth_page", mode="login"))
 
@@ -129,7 +157,7 @@ def register():
         db.session.commit()
 
         # Generar token y enviar email
-        token = generate_verify_token(email)
+        token = generate_verify_token(email, user.verify_token_version or 0)
         base_url = current_app.config.get("APP_BASE_URL", "http://127.0.0.1:5000")
         verify_link = f"{base_url}/auth/verify/{token}"
 
@@ -143,6 +171,7 @@ def register():
 
         send_email(email, subject, body)
 
+        _store_pending_verify_user(user)
         flash("Verifica tu correo")
         return redirect(url_for("auth.auth_page", mode="login"))
 
@@ -152,15 +181,21 @@ def register():
 
 @auth_bp.route("/verify/<token>", methods=["GET"])
 def verify(token):
-    email = confirm_verify_token(token, max_age_seconds=3600)
-    if not email:
+    token_data = confirm_verify_token(token, max_age_seconds=3600)
+    if not token_data:
         flash("Token inválido o expirado")
         return redirect(url_for("auth.auth_page", mode="login"))
+
+    email = str(token_data.get("email") or "").strip().lower()
+    token_version = int(token_data.get("token_version") or 0)
 
     user = User.query.filter_by(email=email).first()
     if not user:
         flash("Usuario no encontrado.")
         return redirect(url_for("auth.auth_page", mode="register"))
+    if token_version != (user.verify_token_version or 0):
+        flash("Token inválido o expirado")
+        return redirect(url_for("auth.auth_page", mode="login"))
 
     if user.is_verified:
         flash("Correo verificado")
@@ -171,13 +206,80 @@ def verify(token):
 
     user.is_verified = True
     user.verified_at = db.func.now()
+    user.email_change_count = 0
+    user.email_change_window_started_at = None
     db.session.commit()
 
+    session.pop("pending_verify_user_id", None)
+    session.pop("pending_verify_email", None)
     flash("Correo verificado")
     login_user(user)
     if not user.profile_completed:
         return redirect(url_for("profile.complete_profile"))
     return redirect(url_for(resolve_landing_endpoint(user.role)))
+
+
+@auth_bp.route("/change-email", methods=["POST"])
+def change_email():
+    user = _get_pending_verify_user()
+    if not user:
+        return jsonify({"error": "No hay una cuenta pendiente de verificación en esta sesión."}), 401
+
+    if user.is_verified:
+        return jsonify({"error": "La cuenta ya está verificada. No es necesario cambiar correo."}), 400
+
+    now = datetime.utcnow()
+    window_start = user.email_change_window_started_at
+    if not window_start or (now - window_start) >= timedelta(hours=1):
+        user.email_change_window_started_at = now
+        user.email_change_count = 0
+
+    if (user.email_change_count or 0) >= EMAIL_CHANGE_LIMIT_PER_HOUR:
+        return jsonify({"error": "Límite alcanzado: máximo 3 cambios de correo por hora."}), 429
+
+    data = (request.get_json(silent=True) or {}) if request.is_json else request.form
+    new_email = (data.get("email") or "").strip().lower()
+    if not new_email:
+        return jsonify({"error": "El correo es obligatorio."}), 400
+    if not INSTITUTIONAL_EMAIL_RE.match(new_email):
+        return jsonify(
+            {"error": "Formato de correo no válido. Usa matrícula@utpn.edu.mx o nombre.apellido@utpn.edu.mx."}
+        ), 400
+
+    inferred_role = infer_role_from_email(new_email)
+    if inferred_role is None:
+        return jsonify(
+            {"error": "Formato de correo no válido. Usa matrícula@utpn.edu.mx o nombre.apellido@utpn.edu.mx."}
+        ), 400
+
+    existing = User.query.filter(User.email == new_email, User.id != user.id).first()
+    if existing:
+        return jsonify({"error": "Ese correo ya está registrado en otra cuenta."}), 409
+
+    user.email = new_email
+    user.role = inferred_role
+    user.is_verified = False
+    user.verified_at = None
+    user.verify_token_version = (user.verify_token_version or 0) + 1
+    user.email_change_count = (user.email_change_count or 0) + 1
+
+    token = generate_verify_token(user.email, user.verify_token_version)
+    base_url = current_app.config.get("APP_BASE_URL", "http://127.0.0.1:5000")
+    verify_link = f"{base_url}/auth/verify/{token}"
+
+    subject = "Verifica tu cuenta - Sistema de Laboratorios"
+    body = (
+        "Hola.\n\n"
+        "Actualizamos tu correo de acceso. Verifica tu cuenta con este enlace:\n\n"
+        f"{verify_link}\n\n"
+        "Este enlace expira en 1 hora.\n"
+    )
+
+    send_email(user.email, subject, body)
+    db.session.commit()
+
+    _store_pending_verify_user(user)
+    return jsonify({"message": "Correo actualizado y código reenviado."}), 200
 
 
 @auth_bp.route("/logout", methods=["POST"])
