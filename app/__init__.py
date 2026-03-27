@@ -1,5 +1,7 @@
 #app init
-from flask import Flask, app, redirect, request, url_for
+import secrets
+
+from flask import Flask, redirect, request, session, url_for, abort
 from app.utils.roles import is_admin_role, is_staff_role
 
 from app.models.user import User
@@ -35,6 +37,13 @@ def create_app():
         return User.query.get(int(user_id))
 
     from . import models  # noqa: F401
+
+    def _ensure_csrf_token() -> str:
+        token = session.get("_csrf_token")
+        if not token:
+            token = secrets.token_urlsafe(32)
+            session["_csrf_token"] = token
+        return token
 
     from app.controllers.home_controller import home_bp
     app.register_blueprint(home_bp)
@@ -106,8 +115,14 @@ def create_app():
 
         return dict(header_notifications=[], header_unread_notifications=0)
 
+    @app.context_processor
+    def inject_csrf_token():
+        return {"csrf_token": _ensure_csrf_token()}
+
     @app.before_request
     def enforce_profile_completion():
+        _ensure_csrf_token()
+
         if not current_user.is_authenticated:
             return None
 
@@ -128,5 +143,21 @@ def create_app():
             return None
 
         return redirect(url_for("profile.complete_profile"))
+
+    @app.before_request
+    def enforce_csrf():
+        if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+            return None
+
+        endpoint = request.endpoint or ""
+        if endpoint.startswith("api."):
+            return None
+
+        sent_token = request.form.get("csrf_token") or request.headers.get("X-CSRFToken")
+        session_token = session.get("_csrf_token")
+        if not session_token or not sent_token or sent_token != session_token:
+            abort(400, description="CSRF token inválido o faltante.")
+
+        return None
 
     return app
