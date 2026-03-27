@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Reportes", url_for('reports.reports_home')), ("Bitácora", url_for('reports.logbook_admin_view'))] %}
+{% set crumbs = [("Inicio", url_for('dashboard.dashboard_home') if current_user.is_authenticated and is_admin_role(current_user.role) else url_for('home.home_dashboard')), ("Reportes", url_for('reports.reports_home')), ("Bitácora", url_for('reports.logbook_admin_view'))] %}
 {% block title %}Bitácora (Admin){% endblock %}
 
 {% block content %}

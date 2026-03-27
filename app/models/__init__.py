@@ -19,3 +19,4 @@ from .profile_change_request import ProfileChangeRequest  # noqa: F401
 from .critical_action_request import CriticalActionRequest  # noqa: F401
 from .forum_post import ForumPost  # noqa: F401
 from .forum_comment import ForumComment  # noqa: F401
+from .permission import Permission, RolePermission  # noqa: F401

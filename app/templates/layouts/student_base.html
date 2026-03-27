@@ -163,6 +163,25 @@
   </div>
 
   <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+  <script>
+    (function () {
+      const token = "{{ csrf_token }}";
+      if (!token) return;
+
+      const forms = document.querySelectorAll('form[method="post"], form[method="POST"]');
+      forms.forEach((form) => {
+        const action = form.getAttribute('action') || '';
+        if (action.startsWith('/api/')) return;
+        if (form.querySelector('input[name="csrf_token"]')) return;
+
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'csrf_token';
+        hidden.value = token;
+        form.appendChild(hidden);
+      });
+    })();
+  </script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>

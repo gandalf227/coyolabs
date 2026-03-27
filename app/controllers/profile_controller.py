@@ -17,6 +17,7 @@ from app.models.subject import Subject
 from app.models.teacher_academic_load import TeacherAcademicLoad
 from app.models.user import User
 from app.services.audit_service import log_event
+from app.utils.landing import resolve_landing_endpoint
 from app.utils.validators import normalize_and_validate_group_code, normalize_and_validate_phone
 from app.utils.roles import ROLE_TEACHER, ROLE_STUDENT, is_admin_role, normalize_role
 
@@ -378,7 +379,7 @@ def complete_profile():
         db.session.commit()
 
         flash("Perfil completado correctamente.")
-        return redirect(url_for("auth.me"))
+        return redirect(url_for(resolve_landing_endpoint(current_user.role)))
 
     return render_template(
         "profile/complete.html",
