@@ -18,6 +18,9 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     is_banned = db.Column(db.Boolean, nullable=False, default=False)
     verified_at = db.Column(db.DateTime, nullable=True)
+    verify_token_version = db.Column(db.Integer, nullable=False, default=0)
+    email_change_count = db.Column(db.Integer, nullable=False, default=0)
+    email_change_window_started_at = db.Column(db.DateTime, nullable=True)
     profile_completed = db.Column(db.Boolean, nullable=False, default=False)
     career_id = db.Column(db.Integer, db.ForeignKey("careers.id"), nullable=True)
     academic_level = db.Column(db.String(10), nullable=True)  # TSU / ING

@@ -8,15 +8,21 @@ def _serializer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(secret_key=secret, salt=salt)
 
 
-def generate_verify_token(email: str) -> str:
+def generate_verify_token(email: str, token_version: int = 0) -> str:
     s = _serializer()
-    return s.dumps({"email": email})
+    return s.dumps({"email": email, "token_version": int(token_version)})
 
 
-def confirm_verify_token(token: str, max_age_seconds: int = 3600) -> str | None:
+def confirm_verify_token(token: str, max_age_seconds: int = 3600) -> dict[str, str | int] | None:
     s = _serializer()
     try:
         data = s.loads(token, max_age=max_age_seconds)
-        return data.get("email")
+        email = data.get("email")
+        if not email:
+            return None
+        return {
+            "email": email,
+            "token_version": int(data.get("token_version", 0)),
+        }
     except (SignatureExpired, BadSignature):
         return None
