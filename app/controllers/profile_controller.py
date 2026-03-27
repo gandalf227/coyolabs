@@ -23,6 +23,50 @@ from app.utils.roles import ROLE_TEACHER, ROLE_STUDENT, is_admin_role, normalize
 
 profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
 
+ALLOWED_CAREER_LEVEL_CODES: dict[str, tuple[str, ...]] = {
+    "ING. EN MECATRÓNICA": ("TSU", "ING"),
+    "ING INDUSTRIAL": ("TSU", "ING"),
+    "ING. EN LOGÍSTICA INTERNACIONAL": ("TSU", "ING"),
+    "ING. EN TECNOLOGÍAS DE LA INFORMACIÓN E INNOVACIÓN DIGITAL": ("TSU", "ING"),
+    "LIC. EN ARQUITECTURA": ("TSU", "LIC"),
+    "LIC. EN ADMINISTRACIÓN": ("TSU", "LIC"),
+    "LIC EN CONTADURÍA": ("TSU", "LIC"),
+}
+
+
+def _build_profile_catalog_options() -> tuple[list[Career], list[AcademicLevel], dict[int, list[int]]]:
+    careers = Career.query.filter(Career.name.in_(tuple(ALLOWED_CAREER_LEVEL_CODES.keys()))).all()
+    careers_by_name = {career.name: career for career in careers}
+    ordered_careers = [
+        careers_by_name[name]
+        for name in ALLOWED_CAREER_LEVEL_CODES.keys()
+        if name in careers_by_name
+    ]
+
+    academic_levels = (
+        AcademicLevel.query
+        .filter(
+            AcademicLevel.is_active.is_(True),
+            func.upper(AcademicLevel.code).in_(("TSU", "ING", "LIC")),
+        )
+        .all()
+    )
+    levels_by_code = {level.code.upper(): level for level in academic_levels}
+    ordered_level_codes = ("TSU", "ING", "LIC")
+    ordered_levels = [levels_by_code[code] for code in ordered_level_codes if code in levels_by_code]
+
+    career_level_map: dict[int, list[int]] = {}
+    for career in ordered_careers:
+        allowed_codes = ALLOWED_CAREER_LEVEL_CODES.get(career.name, ())
+        allowed_level_ids = [
+            levels_by_code[code].id
+            for code in allowed_codes
+            if code in levels_by_code
+        ]
+        career_level_map[career.id] = allowed_level_ids
+
+    return ordered_careers, ordered_levels, career_level_map
+
 
 def _is_professor_role(role: str | None) -> bool:
     normalized = normalize_role(role)
@@ -333,9 +377,14 @@ def complete_profile():
             flash("La carrera es obligatoria.")
             return redirect(url_for("profile.complete_profile"))
 
+        _, _, career_level_map = _build_profile_catalog_options()
+
         career_obj = Career.query.get(career_id)
         if not career_obj:
             flash("La carrera seleccionada no existe.")
+            return redirect(url_for("profile.complete_profile"))
+        if career_obj.name not in ALLOWED_CAREER_LEVEL_CODES:
+            flash("La carrera seleccionada no está habilitada para este formulario.")
             return redirect(url_for("profile.complete_profile"))
 
         is_professor = _is_professor_role(current_user.role)
@@ -349,6 +398,15 @@ def complete_profile():
         if academic_level_id and not level_obj:
             flash("El nivel académico seleccionado no existe.")
             return redirect(url_for("profile.complete_profile"))
+        if level_obj and level_obj.code.upper() not in {"TSU", "ING", "LIC"}:
+            flash("El nivel académico seleccionado no está habilitado.")
+            return redirect(url_for("profile.complete_profile"))
+
+        if level_obj:
+            allowed_level_ids = set(career_level_map.get(career_obj.id, []))
+            if level_obj.id not in allowed_level_ids:
+                flash("La combinación de carrera y nivel no es válida.")
+                return redirect(url_for("profile.complete_profile"))
 
         if not is_professor and not is_student:
             flash("Tu rol no está habilitado para completar este perfil.", "error")
@@ -381,10 +439,12 @@ def complete_profile():
         flash("Perfil completado correctamente.")
         return redirect(url_for(resolve_landing_endpoint(current_user.role)))
 
+    careers, academic_levels, career_level_map = _build_profile_catalog_options()
     return render_template(
         "profile/complete.html",
         is_professor=_is_professor_role(current_user.role),
         is_student=normalize_role(current_user.role) == ROLE_STUDENT,
-        careers=Career.query.order_by(Career.name.asc()).all(),
-        academic_levels=AcademicLevel.query.filter(AcademicLevel.is_active.is_(True)).order_by(AcademicLevel.name.asc()).all(),
+        careers=careers,
+        academic_levels=academic_levels,
+        career_level_map=career_level_map,
     )
