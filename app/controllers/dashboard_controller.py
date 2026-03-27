@@ -122,7 +122,7 @@ def dashboard_home():
     )
 
     return render_template(
-        "home/dashboard.html",
+        "dashboard/home.html",
         active_page="dashboard",
         total_inventory=total_inventory,
         reservations_today=reservations_today,

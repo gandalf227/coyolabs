@@ -1,0 +1,63 @@
+{% extends "layouts/student_base.html" %}
+{% set crumbs = [("Inicio", url_for('home.home_dashboard'))] %}
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+<header class="topbar">
+  <div class="topbar-left">
+    <p class="page-kicker">Inicio</p>
+    <h1>Bienvenido a CoyoLabs</h1>
+    <p class="page-subtitle">Accede rápidamente a los módulos principales del sistema.</p>
+  </div>
+</header>
+
+{% if pending_users_count > 0 %}
+<section class="toolbar-card toolbar-card--compact" style="margin-bottom:16px;">
+  <p class="flash-line">
+    <span class="status-badge status-warn">INFO</span>
+    Hay {{ pending_users_count }} usuarios pendientes de alta.
+    {% if current_user.is_authenticated and is_staff_role(current_user.role) %}
+      <a href="{{ url_for('users.pending_users') }}" class="item-link" style="margin-left:6px;">Revisar</a>
+    {% endif %}
+  </p>
+</section>
+{% endif %}
+
+<section class="kpi-grid" style="display:grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap:14px; margin-bottom:18px;">
+  <article class="kpi-card" style="background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--stroke); border-radius: 20px; padding: 18px;">
+    <div class="kpi-label" style="color:var(--text-dim); font-size:.88rem;">Inventario total</div>
+    <div class="kpi-value" style="font-size:1.55rem; font-weight:800;">{{ total_inventory }}</div>
+    <div class="kpi-sub" style="color:var(--text-soft); font-size:.88rem;">Materiales registrados</div>
+  </article>
+  <article class="kpi-card" style="background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--stroke); border-radius: 20px; padding: 18px;">
+    <div class="kpi-label" style="color:var(--text-dim); font-size:.88rem;">Reservas hoy</div>
+    <div class="kpi-value" style="font-size:1.55rem; font-weight:800;">{{ reservations_today }}</div>
+    <div class="kpi-sub" style="color:var(--text-soft); font-size:.88rem;">Actividad del día</div>
+  </article>
+  <article class="kpi-card" style="background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--stroke); border-radius: 20px; padding: 18px;">
+    <div class="kpi-label" style="color:var(--text-dim); font-size:.88rem;">Mis reservas</div>
+    <div class="kpi-value" style="font-size:1.55rem; font-weight:800;">{{ my_reservations_count }}</div>
+    <div class="kpi-sub" style="color:var(--text-soft); font-size:.88rem;">Historial personal</div>
+  </article>
+  <article class="kpi-card" style="background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--stroke); border-radius: 20px; padding: 18px;">
+    <div class="kpi-label" style="color:var(--text-dim); font-size:.88rem;">Mis adeudos abiertos</div>
+    <div class="kpi-value" style="font-size:1.55rem; font-weight:800;">{{ my_open_debts_count }}</div>
+    <div class="kpi-sub" style="color:var(--text-soft); font-size:.88rem;">Seguimiento personal</div>
+  </article>
+</section>
+
+<section class="toolbar-card">
+  <div class="topbar" style="margin-bottom:0;">
+    <div class="topbar-left">
+      <p class="page-kicker">Navegación rápida</p>
+      <h2 style="font-size:1.35rem; margin-bottom:0;">Accesos directos</h2>
+    </div>
+  </div>
+  <div style="display:grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap:14px; margin-top:16px;">
+    <a class="quick-link" href="{{ url_for('inventory.inventory_list') }}"><div class="quick-card"><strong>Inventario</strong><span>Consulta de materiales</span></div></a>
+    <a class="quick-link" href="{{ url_for('reservations.reservations_home') }}"><div class="quick-card"><strong>Reservaciones</strong><span>Solicitudes y agenda</span></div></a>
+    <a class="quick-link" href="{{ url_for('forum.forum_home') }}"><div class="quick-card"><strong>Foro</strong><span>Comunidad y avisos</span></div></a>
+    <a class="quick-link" href="{{ url_for('profile.my_profile') }}"><div class="quick-card"><strong>Mi perfil</strong><span>Datos personales</span></div></a>
+  </div>
+</section>
+{% endblock %}

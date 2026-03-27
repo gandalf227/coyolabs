@@ -46,6 +46,7 @@
 
       <!-- LOGIN -->
       <form class="form form-login" id="loginForm" method="post" action="/auth/login" autocomplete="on">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div>
           <label for="email_login">Correo institucional</label>
           <div class="field">
@@ -87,6 +88,7 @@
 
       <!-- REGISTER -->
       <form class="form form-register" id="registerForm" method="post" action="/auth/register" autocomplete="on">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div>
           <label for="email_reg">Correo institucional (@utpn.edu.mx)</label>
           <div class="field">
