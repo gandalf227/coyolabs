@@ -38,11 +38,17 @@
 
 
           {% set is_admin_nav = current_user.is_authenticated and is_admin_role(current_user.role) %}
-          <a href="{{ url_for('dashboard.dashboard_home') if is_admin_nav else url_for('home.home_dashboard') }}"
-             class="nav-item {% if active_page in ['home', 'dashboard'] %}active{% endif %}">
+          <a href="{{ url_for('home.home_dashboard') }}"
+             class="nav-item {% if active_page == 'home' %}active{% endif %}">
             <i class="ph ph-house nav-icon"></i>
-            <span class="nav-label">{{ 'Dashboard' if is_admin_nav else 'Home' }}</span>
+            <span class="nav-label">Inicio</span>
           </a>
+          {% if is_admin_nav %}
+          <a href="{{ url_for('dashboard.dashboard_home') }}" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+            <i class="ph ph-gauge nav-icon"></i>
+            <span class="nav-label">Dashboard</span>
+          </a>
+          {% endif %}
           <a href="{{ url_for('inventory.inventory_list') }}" class="nav-item {% if active_page == 'inventory' %}active{% endif %}">
             <i class="ph ph-package nav-icon"></i>
             <span class="nav-label">Inventario</span>
@@ -163,6 +169,25 @@
   </div>
 
   <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+  <script>
+    (function () {
+      const token = "{{ csrf_token }}";
+      if (!token) return;
+
+      const forms = document.querySelectorAll('form[method="post"], form[method="POST"]');
+      forms.forEach((form) => {
+        const action = form.getAttribute('action') || '';
+        if (action.startsWith('/api/')) return;
+        if (form.querySelector('input[name="csrf_token"]')) return;
+
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'csrf_token';
+        hidden.value = token;
+        form.appendChild(hidden);
+      });
+    })();
+  </script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>
