@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from flask import Blueprint, render_template, request
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from flask_login import current_user, login_required
 
