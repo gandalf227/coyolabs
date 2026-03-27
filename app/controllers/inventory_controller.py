@@ -1,5 +1,5 @@
 from math import ceil
-from flask import Blueprint, render_template, request, abort
+from flask import Blueprint, render_template, request, abort, current_app
 
 
 from app.models.lab import Lab
@@ -74,6 +74,8 @@ def material_detail(material_id: int):
 @inventory_bp.route("/admin-check", methods=["GET"])
 @min_role_required("STAFF")
 def admin_check():
+    env = (current_app.config.get("ENV") or "").strip().lower()
+    if env not in {"development", "dev", "local", "test", "testing"}:
+        abort(404)
     return "OK: STAFF access", 200
-
 

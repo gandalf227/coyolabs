@@ -610,8 +610,10 @@ def superadmin_soft_delete_admin(user_id: int):
         return redirect(url_for("users.admin_panel"))
 
     user = User.query.get_or_404(user_id)
-    if normalize_role(user.role) != ROLE_ADMIN:
-        flash("Solo se permite desactivar (soft delete) cuentas ADMIN.", "error")
+    target_role = normalize_role(user.role)
+
+    if target_role == ROLE_SUPERADMIN:
+        flash("No se permite eliminar cuentas SUPERADMIN.", "error")
         return redirect(url_for("users.admin_panel"))
 
     if user.id == current_user.id:
@@ -621,11 +623,11 @@ def superadmin_soft_delete_admin(user_id: int):
     user.is_active = False
     user.is_banned = True
     _log_admin_event(
-        action="ADMIN_SOFT_DELETED",
-        description=f"{current_user.email} desactivó admin {user.email}",
-        metadata={"user_id": user.id},
+        action="USER_SOFT_DELETED",
+        description=f"{current_user.email} desactivó usuario {user.email}",
+        metadata={"user_id": user.id, "target_role": target_role},
     )
     db.session.commit()
 
-    flash("Cuenta ADMIN desactivada (soft delete).", "success")
+    flash("Usuario desactivado (soft delete).", "success")
     return redirect(url_for("users.admin_panel"))

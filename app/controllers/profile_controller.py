@@ -311,7 +311,7 @@ def update_phone():
 def complete_profile():
     if current_user.profile_completed:
         flash("Tu perfil ya está completo.")
-        return redirect(url_for("auth.me"))
+        return redirect(url_for(resolve_landing_endpoint(current_user.role)))
 
     if request.method == "POST":
         full_name = (request.form.get("full_name") or "").strip()
@@ -352,7 +352,7 @@ def complete_profile():
 
         if not is_professor and not is_student:
             flash("Tu rol no está habilitado para completar este perfil.", "error")
-            return redirect(url_for("auth.me"))
+            return redirect(url_for(resolve_landing_endpoint(current_user.role)))
 
         if not phone:
             flash("El teléfono es obligatorio.")

@@ -113,8 +113,8 @@
               <form method="post" action="{{ url_for('users.admin_disable_user', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Desactivar</button></form>
               <form method="post" action="{{ url_for('users.admin_unban_user', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Desbloquear</button></form>
               <form method="post" action="{{ url_for('users.admin_ban_user', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Bloquear</button></form>
-              {% if is_superadmin and user.role == 'ADMIN' %}
-              <form method="post" action="{{ url_for('users.superadmin_soft_delete_admin', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Soft delete ADMIN</button></form>
+              {% if is_superadmin and user.id != current_user.id and user.role != 'SUPERADMIN' %}
+              <form method="post" action="{{ url_for('users.superadmin_soft_delete_admin', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Soft delete usuario</button></form>
               {% endif %}
             </div>
           </td>
