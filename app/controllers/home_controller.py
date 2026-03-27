@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta
 
-from flask import Blueprint, redirect, render_template, url_for
+from flask import Blueprint, render_template, request
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
-from flask_login import current_user
-from flask import request
+from flask_login import current_user, login_required
 
 from app.utils.authz import min_role_required
 from app.utils.roles import is_admin_role, is_staff_role
@@ -23,11 +22,7 @@ home_bp = Blueprint("home", __name__, url_prefix="/home")
 @home_bp.route("/labs", methods=["GET"])
 @min_role_required("STUDENT")
 def labs_view():
-    if is_admin_role(current_user.role):
-        return redirect(url_for("dashboard.dashboard_home"))
-
     from datetime import datetime, time
-    from flask import request
 
     date_str = request.args.get("date")
     time_str = request.args.get("time")
@@ -57,11 +52,8 @@ def labs_view():
     )
 
 @home_bp.route("/", methods=["GET"])
-@min_role_required("STUDENT")
+@login_required
 def home_dashboard():
-    if is_admin_role(current_user.role):
-        return redirect(url_for("dashboard.dashboard_home"))
-
     today = datetime.now().date()
     yesterday = today - timedelta(days=1)
 
