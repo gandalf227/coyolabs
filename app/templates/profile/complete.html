@@ -79,44 +79,52 @@
     </form>
   </main>
   <script>
-    (function () {
-      const careerSelect = document.getElementById("career_id");
-      const levelSelect = document.getElementById("academic_level_id");
-      const allLevelOptions = Array.from(levelSelect.querySelectorAll("option"))
-        .filter(option => option.value)
-        .map(option => ({ value: option.value, label: option.textContent }));
-      const careerLevelMap = {{ career_level_map | tojson }};
+  const careerLevelMap = JSON.parse('{{ career_level_map | tojson | safe }}');
 
-      function renderLevelOptions() {
-        const selectedCareerId = careerSelect.value;
-        const allowedLevelIds = (careerLevelMap[selectedCareerId] || []).map(String);
-        const previousValue = levelSelect.value;
+  (function () {
+    const careerSelect = document.getElementById("career_id");
+    const levelSelect = document.getElementById("academic_level_id");
 
-        levelSelect.innerHTML = "";
-        const placeholder = document.createElement("option");
-        placeholder.value = "";
-        placeholder.textContent = "Selecciona nivel";
-        levelSelect.appendChild(placeholder);
+    if (!careerSelect || !levelSelect) return;
 
-        allLevelOptions
-          .filter(option => allowedLevelIds.includes(option.value))
-          .forEach(option => {
-            const opt = document.createElement("option");
-            opt.value = option.value;
-            opt.textContent = option.label;
-            levelSelect.appendChild(opt);
-          });
+    const allLevelOptions = Array.from(levelSelect.querySelectorAll("option"))
+      .filter(option => option.value)
+      .map(option => ({
+        value: String(option.value),
+        label: option.textContent
+      }));
 
-        if (allowedLevelIds.includes(previousValue)) {
-          levelSelect.value = previousValue;
-        } else {
-          levelSelect.value = "";
-        }
+    function renderLevelOptions() {
+      const selectedCareerId = String(careerSelect.value || "");
+      const allowedLevelIds = (careerLevelMap[selectedCareerId] || []).map(String);
+      const previousValue = String(levelSelect.value || "");
+
+      levelSelect.innerHTML = "";
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Selecciona nivel";
+      levelSelect.appendChild(placeholder);
+
+      allLevelOptions
+        .filter(option => allowedLevelIds.includes(option.value))
+        .forEach(option => {
+          const opt = document.createElement("option");
+          opt.value = option.value;
+          opt.textContent = option.label;
+          levelSelect.appendChild(opt);
+        });
+
+      if (allowedLevelIds.includes(previousValue)) {
+        levelSelect.value = previousValue;
+      } else {
+        levelSelect.value = "";
       }
+    }
 
-      careerSelect.addEventListener("change", renderLevelOptions);
-      renderLevelOptions();
-    })();
-  </script>
+    careerSelect.addEventListener("change", renderLevelOptions);
+    renderLevelOptions();
+  })();
+</script>
 </body>
 </html>
