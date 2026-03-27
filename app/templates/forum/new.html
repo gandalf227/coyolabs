@@ -1,0 +1,42 @@
+{% extends "layouts/student_base.html" %}
+{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Foro", url_for('forum.forum_home')), ("Nueva publicación", url_for('forum.create_post'))] %}
+{% block title %}Nueva publicación{% endblock %}
+
+{% block content %}
+<header class="topbar">
+  <div class="topbar-left">
+    <p class="page-kicker">Foro</p>
+    <h1>Nueva publicación</h1>
+  </div>
+</header>
+
+<section class="table-card">
+  <form method="post" class="form-grid" style="gap:12px;">
+    <label>Título
+      <input type="text" name="title" maxlength="180" required>
+    </label>
+
+    <label>Categoría
+      <select name="category">
+        {% for c in categories %}
+          <option value="{{ c }}">{{ c }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Contenido
+      <textarea name="content" rows="7" required></textarea>
+    </label>
+
+    <label style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" name="is_anonymous" value="1">
+      Publicar como anónimo (solo SUPERADMIN puede ver la identidad real)
+    </label>
+
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-primary" type="submit">Publicar</button>
+      <a class="btn btn-outline" href="{{ url_for('forum.forum_home') }}">Cancelar</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

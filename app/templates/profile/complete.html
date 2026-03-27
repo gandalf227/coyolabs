@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Completar perfil | CoyoLabs</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Poppins', sans-serif; background: #f6f8fc; margin: 0; }
+    .container { max-width: 620px; margin: 40px auto; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 8px 30px rgba(0,0,0,.08); }
+    h1 { margin-top: 0; }
+    .field { margin-bottom: 14px; }
+    label { display: block; margin-bottom: 6px; font-weight: 500; }
+    input, textarea, select { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cfd6e4; border-radius: 8px; }
+    textarea { min-height: 90px; resize: vertical; }
+    button { background: #204eea; color: #fff; border: none; border-radius: 8px; padding: 10px 16px; font-weight: 600; cursor: pointer; }
+    .flash { background: #fff8d5; border: 1px solid #f1e09f; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Completa tu perfil</h1>
+    <p>Antes de continuar en CoyoLabs, captura tu información.</p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash" role="alert" aria-live="polite">
+          {% for message in messages %}
+            <div>{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('profile.complete_profile') }}">
+      <div class="field">
+        <label for="full_name">Nombre completo *</label>
+        <input id="full_name" name="full_name" required>
+      </div>
+
+      <div class="field">
+        <label for="matricula">Matrícula *</label>
+        <input id="matricula" name="matricula" required>
+      </div>
+
+      <div class="field">
+        <label for="career_id">Carrera *</label>
+        <select id="career_id" name="career_id" required>
+          <option value="">Selecciona una carrera</option>
+          {% for career in careers %}
+          <option value="{{ career.id }}">{{ career.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="academic_level_id">Nivel {% if is_student %}*{% else %}(si aplica){% endif %}</label>
+        <select id="academic_level_id" name="academic_level_id" {% if is_student %}required{% endif %}>
+          <option value="">Selecciona nivel</option>
+          {% for level in academic_levels %}
+          <option value="{{ level.id }}">{{ level.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="phone">Teléfono *</label>
+        <input id="phone" name="phone" required>
+      </div>
+
+      <div class="field">
+        <label>
+          <input type="checkbox" name="confirm_data" value="1" required style="width:auto; margin-right:8px;">
+          Confirmo que mis datos son correctos
+        </label>
+      </div>
+
+      <button type="submit">Guardar</button>
+    </form>
+  </main>
+</body>
+</html>

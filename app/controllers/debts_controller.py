@@ -1,36 +1,75 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
 
+from app.utils.roles import is_admin_role
+from app.utils.authz import min_role_required
+from app.utils.permission_required import permission_required
+
 from app.extensions import db
 from app.models.debt import Debt
 from app.models.user import User
 from app.models.material import Material
-from app.utils.authz import min_role_required
 
 
 debts_bp = Blueprint("debts", __name__, url_prefix="/debts")
 
 
+# -------------------------
+# HOME
+# -------------------------
+@debts_bp.route("/", methods=["GET"])
+@min_role_required("STUDENT")
+def debts_home():
+    if is_admin_role(current_user.role):
+        return redirect(url_for("debts.admin_list"))
+
+    return redirect(url_for("debts.my_debts"))
+
+
+# -------------------------
+# VER ADEUDOS PROPIOS
+# -------------------------
 @debts_bp.route("/my", methods=["GET"])
-@min_role_required("USER")
+@min_role_required("STUDENT")
+@permission_required("debts.view_own")
 def my_debts():
-    debts = (Debt.query
-             .filter(Debt.user_id == current_user.id)
-             .order_by(Debt.created_at.desc())
-             .all())
-    return render_template("debts/my_debts.html", debts=debts)
+    debts = (
+        Debt.query
+        .filter(Debt.user_id == current_user.id)
+        .order_by(Debt.created_at.desc())
+        .all()
+    )
+
+    return render_template(
+        "debts/my_debts.html",
+        debts=debts,
+        active_page="debts"
+    )
 
 
+# -------------------------
+# VER TODOS LOS ADEUDOS
+# STAFF = SOLO VER
+# -------------------------
 @debts_bp.route("/admin", methods=["GET"])
-@min_role_required("ADMIN")
+@min_role_required("STAFF")
+@permission_required("debts.view_all")
 def admin_list():
-    # Lista simple para admins: últimos adeudos
     debts = Debt.query.order_by(Debt.created_at.desc()).limit(200).all()
-    return render_template("debts/admin_list.html", debts=debts)
+
+    return render_template(
+        "debts/admin_list.html",
+        debts=debts,
+        active_page="debts"
+    )
 
 
+# -------------------------
+# CREAR ADEUDO (SOLO ADMIN REAL)
+# -------------------------
 @debts_bp.route("/admin/create", methods=["GET", "POST"])
 @min_role_required("ADMIN")
+@permission_required("debts.create")
 def admin_create():
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
@@ -55,19 +94,25 @@ def admin_create():
             status="OPEN",
             reason=reason or None,
         )
+
         db.session.add(debt)
         db.session.commit()
 
         flash("Adeudo creado.", "success")
         return redirect(url_for("debts.admin_list"))
 
-    return render_template("debts/admin_create.html")
+    return render_template("debts/admin_create.html", active_page="debts")
 
 
+# -------------------------
+# CERRAR ADEUDO
+# -------------------------
 @debts_bp.route("/admin/<int:debt_id>/close", methods=["POST"])
 @min_role_required("ADMIN")
+@permission_required("debts.close")
 def admin_close(debt_id: int):
     debt = Debt.query.get(debt_id)
+
     if not debt:
         flash("Adeudo no encontrado.", "error")
         return redirect(url_for("debts.admin_list"))

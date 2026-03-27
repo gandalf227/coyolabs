@@ -5,13 +5,23 @@ from app.extensions import db
 from app.models.software import Software
 from app.models.lab import Lab
 from app.utils.authz import min_role_required
+from app.utils.roles import is_admin_role
 
 
 software_bp = Blueprint("software", __name__, url_prefix="/software")
 
 
 @software_bp.route("/", methods=["GET"])
-@min_role_required("USER")
+@min_role_required("STUDENT")
+def software_home():
+    if is_admin_role(current_user.role):
+        return redirect(url_for("software.admin_new"))
+
+    return redirect(url_for("software.list_software"))
+
+
+@software_bp.route("/list", methods=["GET"])
+@min_role_required("STUDENT")
 def list_software():
     lab_id = request.args.get("lab_id", type=int)
 
@@ -22,7 +32,13 @@ def list_software():
         q = q.filter(Software.lab_id == lab_id)
 
     items = q.order_by(Software.name.asc()).all()
-    return render_template("software/list.html", items=items, labs=labs, selected_lab=lab_id)
+    return render_template(
+        "software/list.html",
+        items=items,
+        labs=labs,
+        selected_lab=lab_id,
+        active_page="software"
+    )
 
 
 @software_bp.route("/admin/new", methods=["GET", "POST"])
@@ -63,11 +79,11 @@ def admin_new():
         flash("Software agregado.", "success")
         return redirect(url_for("software.list_software"))
 
-    return render_template("software/admin_new.html", labs=labs)
+    return render_template("software/admin_new.html", labs=labs, active_page="software")
 
 
 @software_bp.route("/<int:software_id>/request-update", methods=["POST"])
-@min_role_required("USER")
+@min_role_required("STUDENT")
 def request_update(software_id: int):
     s = Software.query.get(software_id)
     if not s:

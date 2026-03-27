@@ -1,0 +1,591 @@
+{% extends "layouts/student_base.html" %}
+{% set crumbs = [("Inicio", url_for('home.home_dashboard'))] %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<style>
+.kpi-grid{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap:14px;
+  margin-bottom:18px;
+}
+
+.kpi-card{
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--stroke);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: var(--shadow-md);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.kpi-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.kpi-icon{
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  font-size:1.15rem;
+}
+
+.kpi-icon.gold{ background: rgba(199,159,51,0.14); color: var(--gold-dark); }
+.kpi-icon.red{ background: rgba(200,91,91,0.14); color: #9f3f3f; }
+.kpi-icon.blue{ background: rgba(77,136,217,0.14); color: #2f65b1; }
+
+.kpi-label{
+  color: var(--text-dim);
+  font-size: .88rem;
+}
+
+.kpi-value{
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.kpi-sub{
+  color: var(--text-soft);
+  font-size: .88rem;
+}
+
+.dashboard-grid{
+  display:grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap:18px;
+}
+
+.stack{
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+}
+
+.mini-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.mini-item{
+  border:1px solid var(--stroke);
+  background: rgba(255,255,255,0.38);
+  border-radius:16px;
+  padding:14px;
+}
+
+.mini-top{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.mini-meta{
+  color: var(--text-dim);
+  font-size:.86rem;
+  margin-top:6px;
+}
+
+.quick-grid{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap:14px;
+}
+
+.quick-link{
+  display:block;
+  text-decoration:none;
+}
+
+.quick-card{
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: var(--shadow-md);
+  transition: transform .18s ease, border-color .18s ease;
+}
+
+.quick-card:hover{
+  transform: translateY(-2px);
+  border-color: rgba(199,159,51,0.25);
+}
+
+.quick-card strong{
+  display:block;
+  margin-top:8px;
+  color: var(--text);
+}
+
+.quick-card span{
+  color: var(--text-dim);
+  font-size:.9rem;
+}
+
+.dashboard-notice-grid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap:12px;
+  margin-bottom:18px;
+}
+
+.dashboard-notice{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  border-radius:18px;
+  text-decoration:none;
+  border:1px solid var(--stroke);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  box-shadow: var(--shadow-md);
+  transition: transform .18s ease, border-color .18s ease;
+}
+
+.dashboard-notice:hover{
+  transform: translateY(-2px);
+}
+
+.notice-icon{
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  font-size:1.1rem;
+  flex-shrink:0;
+}
+
+.dashboard-notice strong{
+  display:block;
+  color: var(--text);
+  margin-bottom:3px;
+}
+
+.dashboard-notice span{
+  font-size:.88rem;
+  color: var(--text-dim);
+}
+
+.notice-warn .notice-icon{
+  background: rgba(212,166,61,0.14);
+  color: #8c6914;
+}
+
+.notice-danger-soft .notice-icon{
+  background: rgba(173,94,118,0.14);
+  color: #8f4e63;
+}
+
+.notice-stock .notice-icon{
+  background: rgba(199,159,51,0.12);
+  color: var(--gold-dark);
+}
+
+@media (max-width: 1200px){
+  .kpi-grid,
+  .quick-grid{
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .dashboard-grid,
+  .dashboard-notice-grid{
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px){
+  .kpi-grid,
+  .quick-grid{
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <p class="page-kicker">Panel general</p>
+    <h1>Dashboard institucional</h1>
+    <p class="page-subtitle">Resumen ejecutivo del sistema y accesos rápidos.</p>
+  </div>
+</header>
+
+<section class="dashboard-notice-grid">
+  {% if pending_users_count > 0 %}
+  <a href="{{ url_for('users.pending_users') }}" class="dashboard-notice notice-warn">
+    <div class="notice-icon">
+      <i class="ph ph-user-list"></i>
+    </div>
+    <div>
+      <strong>{{ pending_users_count }} usuarios por dar de alta</strong>
+      <span>Asigna rol: maestro, staff o admin</span>
+    </div>
+  </a>
+  {% endif %}
+
+  {% if pending_today > 0 %}
+  <a href="{{ url_for('reservations.admin_queue') }}" class="dashboard-notice notice-warn">
+    <div class="notice-icon">
+      <i class="ph ph-clock-countdown"></i>
+    </div>
+    <div>
+      <strong>{{ pending_today }} pendientes</strong>
+      <span>Reservas esperando revisión</span>
+    </div>
+  </a>
+  {% endif %}
+
+  {% if open_debts > 0 %}
+  <a href="{{ url_for('debts.admin_list') }}" class="dashboard-notice notice-danger-soft">
+    <div class="notice-icon">
+      <i class="ph ph-warning-circle"></i>
+    </div>
+    <div>
+      <strong>{{ open_debts }} adeudos activos</strong>
+      <span>Usuarios con deuda pendiente</span>
+    </div>
+  </a>
+  {% endif %}
+
+  {% if low_stock_count > 0 %}
+  <a href="{{ url_for('inventory.inventory_list') }}" class="dashboard-notice notice-stock">
+    <div class="notice-icon">
+      <i class="ph ph-package"></i>
+    </div>
+    <div>
+      <strong>{{ low_stock_count }} con stock bajo</strong>
+      <span>Materiales que requieren revisión</span>
+    </div>
+  </a>
+  {% endif %}
+</section>
+
+<section class="kpi-grid">
+  <article class="kpi-card">
+    <div class="kpi-head">
+      <span class="kpi-label">Inventario total</span>
+      <div class="kpi-icon gold"><i class="ph ph-package"></i></div>
+    </div>
+    <div class="kpi-value">{{ total_inventory }}</div>
+    <div class="kpi-sub">Materiales registrados en el sistema</div>
+  </article>
+
+  <article class="kpi-card">
+    <div class="kpi-head">
+      <span class="kpi-label">Reservas hoy</span>
+      <div class="kpi-icon blue"><i class="ph ph-calendar-check"></i></div>
+    </div>
+    <div class="kpi-value">{{ reservations_today }}</div>
+    <div class="kpi-sub">{{ approved_today }} aprobadas · {{ pending_today }} pendientes</div>
+  </article>
+
+  <article class="kpi-card">
+    <div class="kpi-head">
+      <span class="kpi-label">Tickets abiertos</span>
+      <div class="kpi-icon gold"><i class="ph ph-ticket"></i></div>
+    </div>
+    <div class="kpi-value">{{ open_tickets }}</div>
+    <div class="kpi-sub">{{ closed_with_debt }} cerrados con adeudo</div>
+  </article>
+
+  <article class="kpi-card">
+    <div class="kpi-head">
+      <span class="kpi-label">Adeudos activos</span>
+      <div class="kpi-icon red"><i class="ph ph-warning-circle"></i></div>
+    </div>
+    <div class="kpi-value">{{ open_debts }}</div>
+    <div class="kpi-sub">{{ low_stock_count }} materiales con stock bajo</div>
+  </article>
+</section>
+
+<section class="toolbar-card">
+  <div class="topbar" style="margin-bottom:0;">
+    <div class="topbar-left">
+      <p class="page-kicker">Navegación rápida</p>
+      <h2 style="font-size:1.4rem; margin-bottom:0;">Accesos directos</h2>
+    </div>
+  </div>
+
+  <div class="quick-grid" style="margin-top:16px;">
+    <a class="quick-link" href="{{ url_for('inventory.inventory_list') }}">
+      <div class="quick-card">
+        <i class="ph ph-package nav-icon"></i>
+        <strong>Inventario</strong>
+        <span>Gestión de materiales</span>
+      </div>
+    </a>
+
+    <a class="quick-link" href="{{ url_for('reservations.reservations_home') }}">
+      <div class="quick-card">
+        <i class="ph ph-calendar-check nav-icon"></i>
+        <strong>Reservaciones</strong>
+        <span>Solicitudes y tickets</span>
+      </div>
+    </a>
+
+    <a class="quick-link" href="{{ url_for('debts.debts_home') }}">
+      <div class="quick-card">
+        <i class="ph ph-warning-circle nav-icon"></i>
+        <strong>Adeudos</strong>
+        <span>Seguimiento de deudores</span>
+      </div>
+    </a>
+
+    <a class="quick-link" href="{{ url_for('lostfound.lostfound_home') }}">
+      <div class="quick-card">
+        <i class="ph ph-suitcase nav-icon"></i>
+        <strong>Objetos perdidos</strong>
+        <span>Consulta y control</span>
+      </div>
+    </a>
+  </div>
+</section>
+
+<section class="dashboard-grid">
+  <section class="stack">
+    <section class="table-card">
+      <div class="topbar" style="margin-bottom:14px;">
+        <div class="topbar-left">
+          <p class="page-kicker">Actividad</p>
+          <h2 style="font-size:1.4rem; margin-bottom:0;">Reservas de hoy y ayer</h2>
+        </div>
+      </div>
+
+      {% if recent_reservations %}
+      <div class="mini-list">
+        {% for r in recent_reservations %}
+          {% set badge_class = "status-bad" %}
+          {% if r.status == "APPROVED" %}
+            {% set badge_class = "status-ok" %}
+          {% elif r.status == "PENDING" %}
+            {% set badge_class = "status-warn" %}
+          {% endif %}
+        <div class="mini-item">
+          <div class="mini-top">
+            <strong>Reserva #{{ r.id }} · {{ r.room }}</strong>
+            <span class="status-badge {{ badge_class }}">{{ r.status }}</span>
+          </div>
+          <div class="mini-meta">
+            {{ r.user.email if r.user else '-' }} · {{ r.date }} · {{ r.start_time }} - {{ r.end_time }}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <section class="empty-state">
+        <i class="ph ph-calendar empty-icon"></i>
+        <h3>Sin reservas recientes</h3>
+        <p>No hay actividad reciente.</p>
+      </section>
+      {% endif %}
+    </section>
+
+    <section class="table-card">
+      <div class="topbar" style="margin-bottom:14px;">
+        <div class="topbar-left">
+          <p class="page-kicker">Ranking</p>
+          <h2 style="font-size:1.4rem; margin-bottom:0;">Materiales más usados</h2>
+        </div>
+      </div>
+
+      {% if top_materials %}
+      <div class="table-wrap">
+        <table class="inventory-table" style="min-width:620px;">
+          <thead>
+            <tr>
+              <th>Material</th>
+              <th>Total solicitado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in top_materials %}
+            <tr>
+              <td>{{ m[0] }}</td>
+              <td>{{ m[1] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <section class="empty-state">
+        <i class="ph ph-package empty-icon"></i>
+        <h3>Sin datos</h3>
+        <p>Aún no hay uso de materiales registrado.</p>
+      </section>
+      {% endif %}
+    </section>
+  </section>
+
+  <section class="stack">
+    <section class="table-card">
+      <div class="topbar" style="margin-bottom:14px;">
+        <div class="topbar-left">
+          <p class="page-kicker">Tickets</p>
+          <h2 style="font-size:1.4rem; margin-bottom:0;">Hoy y ayer</h2>
+        </div>
+      </div>
+
+      {% if recent_tickets %}
+      <div class="mini-list">
+        {% for t in recent_tickets %}
+          {% set ticket_badge = "status-bad" %}
+          {% if t.status == "OPEN" %}
+            {% set ticket_badge = "status-warn" %}
+          {% elif t.status == "CLOSED" %}
+            {% set ticket_badge = "status-ok" %}
+          {% endif %}
+        <div class="mini-item">
+          <div class="mini-top">
+            <strong>Ticket #{{ t.id }}</strong>
+            <span class="status-badge {{ ticket_badge }}">{{ t.status }}</span>
+          </div>
+          <div class="mini-meta">
+            {{ t.owner_user.email if t.owner_user else '-' }} · {{ t.room or '-' }} · {{ t.opened_at }}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <section class="empty-state">
+        <i class="ph ph-ticket empty-icon"></i>
+        <h3>Sin tickets</h3>
+        <p>No hay tickets recientes.</p>
+      </section>
+      {% endif %}
+    </section>
+
+    <section class="table-card">
+      <div class="topbar" style="margin-bottom:14px;">
+        <div class="topbar-left">
+          <p class="page-kicker">Riesgo</p>
+          <h2 style="font-size:1.4rem; margin-bottom:0;">Usuarios con más adeudos</h2>
+        </div>
+      </div>
+
+      {% if top_debtors %}
+      <div class="table-wrap">
+        <table class="inventory-table" style="min-width:620px;">
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Adeudos abiertos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in top_debtors %}
+            <tr>
+              <td>{{ d[0] }}</td>
+              <td>{{ d[1] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <section class="empty-state">
+        <i class="ph ph-warning-circle empty-icon"></i>
+        <h3>Sin deudores</h3>
+        <p>No hay adeudos abiertos actualmente.</p>
+      </section>
+      {% endif %}
+    </section>
+
+    <section class="table-card">
+      <div class="topbar" style="margin-bottom:14px;">
+        <div class="topbar-left">
+          <p class="page-kicker">Uso</p>
+          <h2 style="font-size:1.4rem; margin-bottom:0;">Laboratorios más usados</h2>
+        </div>
+      </div>
+
+      {% if top_rooms %}
+      <div class="table-wrap">
+        <table class="inventory-table" style="min-width:620px;">
+          <thead>
+            <tr>
+              <th>Salón/Lab</th>
+              <th>Reservas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for room in top_rooms %}
+            <tr>
+              <td>{{ room[0] }}</td>
+              <td>{{ room[1] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <section class="empty-state">
+        <i class="ph ph-buildings empty-icon"></i>
+        <h3>Sin datos</h3>
+        <p>No hay uso de laboratorios registrado.</p>
+      </section>
+      {% endif %}
+    </section>
+  </section>
+</section>
+
+<section class="table-card" style="margin-top:18px;">
+  <div class="topbar" style="margin-bottom:14px;">
+    <div class="topbar-left">
+      <p class="page-kicker">Adeudos</p>
+      <h2 style="font-size:1.4rem; margin-bottom:0;">Hoy y ayer</h2>
+    </div>
+  </div>
+
+  {% if recent_debts %}
+  <div class="table-wrap">
+    <table class="inventory-table" style="min-width:980px;">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Usuario</th>
+          <th>Material</th>
+          <th>Status</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in recent_debts %}
+          {% set debt_badge = "status-ok" %}
+          {% if d.status == "OPEN" %}
+            {% set debt_badge = "status-bad" %}
+          {% endif %}
+        <tr>
+          <td>#{{ d.id }}</td>
+          <td>{{ d.user.email if d.user else '-' }}</td>
+          <td>{{ d.material.name if d.material else '-' }}</td>
+          <td>
+            <span class="status-badge {{ debt_badge }}">{{ d.status }}</span>
+          </td>
+          <td>{{ d.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <section class="empty-state">
+    <i class="ph ph-warning empty-icon"></i>
+    <h3>Sin adeudos recientes</h3>
+    <p>No hay actividad reciente en adeudos.</p>
+  </section>
+  {% endif %}
+</section>
+
+{% endblock %}

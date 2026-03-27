@@ -11,7 +11,7 @@ with app.app_context():
     if existing:
         print("Ya existe ese usuario.")
     else:
-        u = User(email=email, role="ALUMNO", is_verified=False)
+        u = User(email=email, role="STUDENT", is_verified=False)
         u.set_password("1234")
         db.session.add(u)
         db.session.commit()

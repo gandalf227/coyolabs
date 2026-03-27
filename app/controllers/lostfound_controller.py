@@ -5,13 +5,23 @@ from app.extensions import db
 from app.models.lost_found import LostFound
 from app.models.material import Material
 from app.utils.authz import min_role_required
+from app.utils.roles import is_admin_role
 
 
 lostfound_bp = Blueprint("lostfound", __name__, url_prefix="/lostfound")
 
 
 @lostfound_bp.route("/", methods=["GET"])
-@min_role_required("USER")
+@min_role_required("STUDENT")
+def lostfound_home():
+    if is_admin_role(current_user.role):
+        return redirect(url_for("lostfound.admin_new"))
+
+    return redirect(url_for("lostfound.list_items"))
+
+
+@lostfound_bp.route("/list", methods=["GET"])
+@min_role_required("STUDENT")
 def list_items():
     status = (request.args.get("status") or "").strip().upper()
 
@@ -20,16 +30,22 @@ def list_items():
         q = q.filter(LostFound.status == status)
 
     items = q.order_by(LostFound.created_at.desc()).all()
-    return render_template("lostfound/list.html", items=items, status=status)
+    return render_template(
+        "lostfound/list.html",
+        items=items,
+        status=status,
+        active_page="lostfound"
+    )
 
 
 @lostfound_bp.route("/<int:item_id>", methods=["GET"])
-@min_role_required("USER")
+@min_role_required("STUDENT")
 def detail(item_id: int):
     item = LostFound.query.get(item_id)
     if not item:
         abort(404)
-    return render_template("lostfound/detail.html", item=item)
+
+    return render_template("lostfound/detail.html", item=item, active_page="lostfound")
 
 
 @lostfound_bp.route("/admin/new", methods=["GET", "POST"])
@@ -74,7 +90,7 @@ def admin_new():
         flash("Registro creado.", "success")
         return redirect(url_for("lostfound.detail", item_id=item.id))
 
-    return render_template("lostfound/admin_new.html")
+    return render_template("lostfound/admin_new.html", active_page="lostfound")
 
 
 @lostfound_bp.route("/admin/<int:item_id>/status", methods=["POST"])

@@ -1,18 +1,15 @@
-import re
-from flask import current_app
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import login_user, logout_user, login_required, current_user
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required, login_user, logout_user
 
 from app.extensions import db
 from app.models.user import User
 from app.services.email_service import send_email
-from app.services.token_service import generate_verify_token, confirm_verify_token
+from app.services.token_service import confirm_verify_token, generate_verify_token
+from app.utils.landing import resolve_landing_endpoint
+from app.utils.roles import ROLE_PENDING, infer_role_from_email
+
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
-
-EMAIL_DOMAIN = "utpn.edu.mx"
-MATRICULA_RE = re.compile(r"^[0-9]+@utpn\.edu\.mx$")
-ADMIN_RE = re.compile(r"^[a-zA-Z]+@utpn\.edu\.mx$")
 
 
 def _render_auth(mode: str = "login"):
@@ -38,7 +35,7 @@ def _bad_register_request(message: str):
 def auth_page():
     # Si ya está logueado, no muestres la pantalla de acceso
     if current_user.is_authenticated:
-        return redirect(url_for("auth.me"))
+        return redirect(url_for(resolve_landing_endpoint(current_user.role)))
 
     # permite /auth/?mode=register
     mode = request.args.get("mode", "login")
@@ -48,7 +45,7 @@ def auth_page():
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for("auth.me"))
+        return redirect(url_for(resolve_landing_endpoint(current_user.role)))
 
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
@@ -60,13 +57,27 @@ def login():
             flash("Credenciales incorrectas.")
             return redirect(url_for("auth.auth_page", mode="login"))
 
+        if not user.is_active:
+            flash("Tu cuenta está desactivada. Contacta al administrador.")
+            return redirect(url_for("auth.auth_page", mode="login"))
+
+        if user.is_banned:
+            flash("Tu cuenta está bloqueada. Contacta al administrador.")
+            return redirect(url_for("auth.auth_page", mode="login"))
+
         # Bloqueo por verificación
         if not user.is_verified:
-            flash("Cuenta no verificada. Revisa tu correo institucional.")
+            flash("Verifica tu correo")
+            return redirect(url_for("auth.auth_page", mode="login"))
+
+        if user.role == ROLE_PENDING:
+            flash("Cuenta pendiente de aprobación por administrador.")
             return redirect(url_for("auth.auth_page", mode="login"))
 
         login_user(user)
-        return redirect(url_for("auth.me"))
+        if not user.profile_completed:
+            return redirect(url_for("profile.complete_profile"))
+        return redirect(url_for(resolve_landing_endpoint(user.role)))
 
     # GET -> vista unificada
     return redirect(url_for("auth.auth_page", mode="login"))
@@ -75,10 +86,10 @@ def login():
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for("auth.me"))
+        return redirect(url_for(resolve_landing_endpoint(current_user.role)))
 
     if request.method == "POST":
-        data = request.get_json(silent=True) if request.is_json else request.form
+        data = (request.get_json(silent=True) or {}) if request.is_json else request.form
 
         email = (data.get("email") or "").strip().lower()
         password = data.get("password") or ""
@@ -95,14 +106,11 @@ def register():
         if password != confirm_password:
             return _bad_register_request("Las contraseñas no coinciden.")
 
-        # Validación dominio
-        if not email.endswith(f"@{EMAIL_DOMAIN}"):
-            flash("Solo se permiten correos institucionales @utpn.edu.mx.")
-            return redirect(url_for("auth.auth_page", mode="register"))
-
-        # Validación patrón (matrícula o administrativo)
-        if not (MATRICULA_RE.match(email) or ADMIN_RE.match(email)):
-            flash("Formato de correo no válido. Usa matrícula@utpn.edu.mx o nombreadministrativo@utpn.edu.mx.")
+        inferred_role = infer_role_from_email(email)
+        if inferred_role is None:
+            flash(
+                "Formato de correo no válido. Usa matrícula@utpn.edu.mx o nombre.apellido@utpn.edu.mx."
+            )
             return redirect(url_for("auth.auth_page", mode="register"))
 
         if len(password) < 6:
@@ -115,7 +123,7 @@ def register():
             return redirect(url_for("auth.auth_page", mode="login"))
 
         # Crear usuario no verificado
-        user = User(email=email, role="ALUMNO", is_verified=False)
+        user = User(email=email, role=inferred_role, is_verified=False)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
@@ -139,7 +147,7 @@ def register():
 
         send_email(email, subject, body)
 
-        flash("Registro exitoso. Revisa tu correo institucional para verificar tu cuenta.")
+        flash("Verifica tu correo")
         return redirect(url_for("auth.auth_page", mode="login"))
 
     # GET -> vista unificada
@@ -150,7 +158,7 @@ def register():
 def verify(token):
     email = confirm_verify_token(token, max_age_seconds=3600)
     if not email:
-        flash("Token inválido o expirado. Regístrate de nuevo o solicita reenvío.")
+        flash("Token inválido o expirado")
         return redirect(url_for("auth.auth_page", mode="login"))
 
     user = User.query.filter_by(email=email).first()
@@ -159,17 +167,24 @@ def verify(token):
         return redirect(url_for("auth.auth_page", mode="register"))
 
     if user.is_verified:
-        flash("Tu cuenta ya estaba verificada. Puedes iniciar sesión.")
-        return redirect(url_for("auth.auth_page", mode="login"))
+        flash("Correo verificado")
+        login_user(user)
+        if not user.profile_completed:
+            return redirect(url_for("profile.complete_profile"))
+        return redirect(url_for(resolve_landing_endpoint(user.role)))
 
     user.is_verified = True
+    user.verified_at = db.func.now()
     db.session.commit()
 
-    flash("Cuenta verificada correctamente. Ya puedes iniciar sesión.")
-    return redirect(url_for("auth.auth_page", mode="login"))
+    flash("Correo verificado")
+    login_user(user)
+    if not user.profile_completed:
+        return redirect(url_for("profile.complete_profile"))
+    return redirect(url_for(resolve_landing_endpoint(user.role)))
 
 
-@auth_bp.route("/logout", methods=["GET"])
+@auth_bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
     logout_user()

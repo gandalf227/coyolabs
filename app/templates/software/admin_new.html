@@ -1,46 +1,17 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Nuevo software (Admin)</title>
-</head>
-<body>
-  <h1>Agregar software (Admin)</h1>
+{% extends "layouts/student_base.html" %}
+{% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Software", url_for('software.list_software')), ("Nuevo", url_for('software.admin_new'))] %}
+{% block title %}Nuevo software{% endblock %}
+{% block content %}
+<header class="topbar"><div class="topbar-left"><p class="page-kicker">Software</p><h1>Agregar software (Admin)</h1><p class="page-subtitle">Registra un nuevo software para catálogo institucional.</p></div></header>
 
-  <p><a href="/software/">Volver</a></p>
-
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <ul>
-        {% for category, msg in messages %}
-          <li>{{ msg }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
-
-  <form method="post">
-    <label>Laboratorio (opcional):</label><br>
-    <select name="lab_id">
-      <option value="">-- Sin lab --</option>
-      {% for lab in labs %}
-        <option value="{{ lab.id }}">{{ lab.name }}</option>
-      {% endfor %}
-    </select><br><br>
-
-    <label>Nombre (obligatorio):</label><br>
-    <input type="text" name="name" size="60" required><br><br>
-
-    <label>Versión (opcional):</label><br>
-    <input type="text" name="version" size="20"><br><br>
-
-    <label>Tipo de licencia (opcional):</label><br>
-    <input type="text" name="license_type" size="30"><br><br>
-
-    <label>Notas (opcional):</label><br>
-    <textarea name="notes" rows="3" cols="70"></textarea><br><br>
-
-    <button type="submit">Guardar</button>
+<section class="toolbar-card">
+  <form method="post" class="toolbar" style="grid-template-columns: repeat(2, minmax(280px, 1fr));">
+    <div class="toolbar-group"><label for="lab_id">Laboratorio (opcional)</label><div class="select-wrap"><select id="lab_id" name="lab_id"><option value="">-- Sin lab --</option>{% for lab in labs %}<option value="{{ lab.id }}">{{ lab.name }}</option>{% endfor %}</select><i class="ph ph-caret-down select-arrow"></i></div></div>
+    <div class="toolbar-group"><label for="name">Nombre (obligatorio)</label><div class="search-box"><i class="ph ph-app-window search-icon"></i><input id="name" type="text" name="name" required></div></div>
+    <div class="toolbar-group"><label for="version">Versión (opcional)</label><div class="search-box"><i class="ph ph-git-branch search-icon"></i><input id="version" type="text" name="version"></div></div>
+    <div class="toolbar-group"><label for="license_type">Tipo de licencia (opcional)</label><div class="search-box"><i class="ph ph-seal-check search-icon"></i><input id="license_type" type="text" name="license_type"></div></div>
+    <div class="toolbar-group" style="grid-column: 1 / -1;"><label for="notes">Notas (opcional)</label><div class="search-box" style="height: auto; min-height: 120px; align-items: flex-start; padding-top: 14px;"><i class="ph ph-note-pencil search-icon" style="margin-top:2px;"></i><textarea id="notes" name="notes" rows="4" style="width:100%; border:none; background:transparent; outline:none; color:var(--text); resize:vertical;"></textarea></div></div>
+    <div class="toolbar-actions" style="grid-column: 1 / -1;"><button type="submit" class="btn btn-gold">Guardar</button><a href="{{ url_for('software.list_software') }}" class="btn btn-ghost">Volver</a></div>
   </form>
-</body>
-</html>
+</section>
+{% endblock %}

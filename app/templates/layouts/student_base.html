@@ -2,80 +2,167 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Portal alumno{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Portal institucional{% endblock %}</title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css">
-
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/student.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
   {% block extra_css %}{% endblock %}
 </head>
-<body class="student-shell">
-  <div id="user-panel" class="student-user-panel" hidden>
-    <div class="student-user-panel-inner">
-      <p class="student-user-email">{{ current_user.email }}</p>
-      <p class="student-user-role">Rol: {{ current_user.role }}</p>
-      <a class="student-logout-link" href="{{ url_for('auth.logout') }}">Cerrar sesión</a>
-    </div>
-  </div>
+<body>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="{{ url_for('static', filename='js/ui-animations.js') }}"></script>
+  <div class="app-layout">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-top">
+        <div class="brand">
+          <button id="btnCollapse" class="sidebar-collapse-btn" type="button" aria-label="Colapsar menú">
+            <i class="ph ph-caret-left"></i>
+          </button>
 
-  <div id="wrapper" class="student-wrapper">
-    <div id="top-links-wrapper" class="student-top-links collapsed-by-default" aria-label="Navegación principal">
-      <nav id="top-links" class="student-top-links-inner">
-        <a href="{{ url_for('inventory.inventory_list') }}"><b>01.</b> inventario</a>
-        <a href="{{ url_for('software.list_software') }}"><b>02.</b> software</a>
-        <a href="{{ url_for('reservations.my_reservations') }}"><b>03.</b> reservas</a>
-        <a href="{{ url_for('lostfound.list_items') }}"><b>04.</b> perdidos</a>
-        <a href="{{ url_for('debts.my_debts') }}"><b>05.</b> adeudos</a>
-        <a href="{{ url_for('ra_client.ra_client_home') }}"><b>06.</b> ra</a>
-      </nav>
-    </div>
+          <a href="{{ url_for('inventory.inventory_list') }}" class="brand-link">
+            <div class="brand-logo-shell">
+              <img src="{{ url_for('static', filename='img/coyolabs.png') }}" alt="CoyoLabs Logo" class="brand-logo">
+            </div>
 
-    <button id="toggle-top-links" type="button" aria-label="Mostrar u ocultar navegación">×</button>
-    <button id="user-trigger" type="button" aria-label="Abrir panel de usuario">
-      <i class="ph ph-book-open-text"></i>
-    </button>
+            <div class="brand-text">
+              <h2>CoyoLabs</h2>
+              <p>Sistema institucional</p>
+            </div>
+          </a>
+        </div>
+      </div>
+      <div class="sidebar-scroll">
+        <nav class="sidebar-nav">
+          <p class="nav-section-title">Principal</p>
 
-    <div id="navstrip" class="student-navstrip">
-      {% if crumbs %}
-        <span class="crumbs">
-          {% for label, href in crumbs %}
-            {% if not loop.last %}
-              <a href="{{ href }}">{{ label }}</a>
-              <span>•</span>
-            {% else %}
-              <a href="{{ href }}" aria-current="page">{{ label }}</a>
-            {% endif %}
-          {% endfor %}
-        </span>
-      {% else %}
-        <span class="crumbs">
-          <a href="{{ url_for('inventory.inventory_list') }}">Inicio</a>
-        </span>
-      {% endif %}
-    </div>
 
-    <div id="innerwrapper" class="student-innerwrapper">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <section class="student-flash-stack" aria-label="Mensajes del sistema">
-            {% for category, msg in messages %}
-              <article class="student-flash {{ category or 'info' }}">{{ msg }}</article>
-            {% endfor %}
+          {% set is_admin_nav = current_user.is_authenticated and is_admin_role(current_user.role) %}
+          <a href="{{ url_for('dashboard.dashboard_home') if is_admin_nav else url_for('home.home_dashboard') }}"
+             class="nav-item {% if active_page in ['home', 'dashboard'] %}active{% endif %}">
+            <i class="ph ph-house nav-icon"></i>
+            <span class="nav-label">{{ 'Dashboard' if is_admin_nav else 'Home' }}</span>
+          </a>
+          <a href="{{ url_for('inventory.inventory_list') }}" class="nav-item {% if active_page == 'inventory' %}active{% endif %}">
+            <i class="ph ph-package nav-icon"></i>
+            <span class="nav-label">Inventario</span>
+          </a>
+
+          <a href="{{ url_for('profile.my_profile') }}" class="nav-item {% if active_page == 'profile' %}active{% endif %}">
+            <i class="ph ph-user-circle nav-icon"></i>
+            <span class="nav-label">Mi perfil</span>
+          </a>
+
+          {% if current_user.is_authenticated and is_admin_role(current_user.role) %}
+    <a href="{{ url_for('reports.reports_home') }}" class="nav-item {% if active_page == 'reports' %}active{% endif %}">
+      <i class="ph ph-chart-bar nav-icon"></i>
+      <span class="nav-label">Reportes</span>
+    </a>
+    <a href="{{ url_for('users.admin_panel') }}" class="nav-item {% if active_page == 'users' %}active{% endif %}">
+      <i class="ph ph-users-three nav-icon"></i>
+      <span class="nav-label">Usuarios</span>
+    </a>
+  {% endif %}
+
+          <a href="{{ url_for('ra_client.ra_client_home') }}" class="nav-item {% if active_page == 'ra_client' %}active{% endif %}">
+            <i class="ph ph-qr-code nav-icon"></i>
+            <span class="nav-label">RA Cliente</span>
+          </a>
+
+          <p class="nav-section-title">Servicios</p>
+
+          <div class="nav-submenu nav-submenu-static">
+            <a href="{{ url_for('software.software_home') }}" class="nav-subitem {% if active_page == 'software' %}active{% endif %}">
+              <i class="ph ph-app-window nav-subicon"></i>
+              <span>Software</span>
+            </a>
+
+            <a href="{{ url_for('reservations.reservations_home') }}" class="nav-subitem {% if active_page == 'reservations' %}active{% endif %}">
+              <i class="ph ph-calendar-check nav-subicon"></i>
+              <span>Reservaciones</span>
+            </a>
+
+            <a href="{{ url_for('debts.debts_home') }}" class="nav-subitem {% if active_page == 'debts' %}active{% endif %}">
+              <i class="ph ph-warning-circle nav-subicon"></i>
+              <span>Adeudos</span>
+            </a>
+
+            <a href="{{ url_for('inventory_requests.my_daily_request') }}" class="nav-subitem {% if active_page == 'inventory_requests' %}active{% endif %}">
+              <i class="ph ph-clipboard-text nav-subicon"></i>
+              <span>Pedidos diarios</span>
+            </a>
+
+            <a href="{{ url_for('forum.forum_home') }}" class="nav-subitem {% if active_page == 'forum' %}active{% endif %}">
+              <i class="ph ph-chats-circle nav-subicon"></i>
+              <span>Foro</span>
+            </a>
+
+            <a href="{{ url_for('lostfound.lostfound_home') }}" class="nav-subitem {% if active_page == 'lostfound' %}active{% endif %}">
+              <i class="ph ph-suitcase nav-subicon"></i>
+              <span>Objetos perdidos</span>
+            </a>
+            <form method="post" action="{{ url_for('auth.logout') }}" style="margin:0;">
+              <button type="submit" class="sidebar-logout" style="background:none;border:none;cursor:pointer;">
+                <i class="ph ph-sign-out"></i>
+                <span>Cerrar sesión</span>
+              </button>
+            </form>
+          </div>
+        </nav>
+      </div>
+      <div class="sidebar-footer">
+        <div class="sidebar-footer-card">
+          <span class="footer-label">{{ current_user.email if current_user.is_authenticated else 'Usuario' }}</span>
+          <strong>{{ current_user.role if current_user.is_authenticated else 'Sin sesión' }}</strong>
+        </div>
+      </div>
+    </aside>
+
+
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+    <main class="main-content">
+      <div class="mobile-topbar">
+        <button id="btnToggleSidebar" class="mobile-menu-btn" type="button" aria-label="Abrir menú">
+          <i class="ph ph-list"></i>
+        </button>
+      </div>
+
+      <section class="page-shell">
+        {% if crumbs %}
+          <section class="toolbar-card toolbar-card--compact">
+            <div class="crumbs">
+              {% for label, href in crumbs %}
+                <a href="{{ href }}" class="item-link" {% if loop.last %}aria-current="page"{% endif %}>{{ label }}</a>
+                {% if not loop.last %}
+                  <span class="crumb-separator">•</span>
+                {% endif %}
+              {% endfor %}
+            </div>
           </section>
         {% endif %}
-      {% endwith %}
 
-      <main class="student-page-card">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <section class="toolbar-card toolbar-card--compact">
+              {% for category, msg in messages %}
+                <p class="flash-line">
+                  <span class="status-badge {% if category == 'success' %}status-ok{% elif category in ['warning', 'warn', 'info'] %}status-warn{% else %}status-bad{% endif %}">
+                    {{ (category or 'info') | upper }}
+                  </span>
+                  {{ msg }}
+                </p>
+              {% endfor %}
+            </section>
+          {% endif %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
-      </main>
-    </div>
+      </section>
+    </main>
   </div>
 
-  <script src="{{ url_for('static', filename='js/student.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -6,7 +6,7 @@ class Debt(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # Usuario que debe (normalmente USER/alumno)
+    # Usuario que debe (normalmente STUDENT)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     user = db.relationship("User", backref="debts")
 

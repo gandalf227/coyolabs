@@ -1,16 +1,13 @@
-import json
-from flask import Blueprint, jsonify, request, abort
-from flask_login import current_user
+from flask import Blueprint, jsonify, request
 
 
 from app.extensions import db
 from app.models.material import Material
-from app.models.logbook import LogbookEvent
+from app.services.audit_service import log_event
 from app.utils.security import api_key_required
 
 from app.models.user import User
 from app.services.debt_service import user_has_open_debts
-from app.utils.authz import min_role_required 
 
 
 
@@ -113,18 +110,18 @@ def ra_event():
         if not m:
             return jsonify({"error": "material_id no existe"}), 400
 
-    evt = LogbookEvent(
+    log_event(
+        module="RA",
+        action=f"RA_{event_type.upper()}",
         user_id=user.id,
         material_id=material_id,
-        action=f"RA_{event_type.upper()}",
+        entity_label=f"Material #{material_id}" if material_id is not None else "RA event",
         description="Evento generado desde RA",
-        metadata_json=json.dumps(metadata, ensure_ascii=False) if metadata is not None else None,
+        metadata={"metadata": metadata} if metadata is not None else None,
     )
-
-    db.session.add(evt)
     db.session.commit()
 
-    return jsonify({"ok": True, "event_id": evt.id}), 201
+    return jsonify({"ok": True}), 201
 
 @api_bp.route("/ra/materials/<int:material_id>", methods=["GET"])
 @api_key_required
@@ -133,4 +130,3 @@ def ra_get_material(material_id: int):
     if not m:
         return jsonify({"error": "Material no encontrado"}), 404
     return jsonify(material_to_dict(m)), 200
-

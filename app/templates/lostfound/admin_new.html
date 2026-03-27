@@ -1,41 +1,35 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Nuevo objeto perdido (Admin)</title>
-</head>
-<body>
-  <h1>Nuevo registro (Admin)</h1>
+{% extends "layouts/student_base.html" %}
+{% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Objetos perdidos", url_for('lostfound.list_items')), ("Nuevo", url_for('lostfound.admin_new'))] %}
+{% block title %}Nuevo objeto perdido{% endblock %}
 
-  <p><a href="/lostfound/">Volver</a></p>
+{% block content %}
+<header class="topbar">
+  <div class="topbar-left">
+    <p class="page-kicker">Objetos perdidos</p>
+    <h1>Nuevo registro (Admin)</h1>
+    <p class="page-subtitle">Registra un objeto reportado y su información de soporte.</p>
+  </div>
+</header>
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <ul>
-        {% for category, msg in messages %}
-          <li>{{ msg }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
+<section class="toolbar-card">
+  <form method="post" class="toolbar" style="grid-template-columns: repeat(2, minmax(280px, 1fr));">
+    <div class="toolbar-group"><label for="title">Título (obligatorio)</label><div class="search-box"><i class="ph ph-tag search-icon"></i><input id="title" type="text" name="title" required></div></div>
+    <div class="toolbar-group"><label for="material_id">Material ID (opcional)</label><div class="search-box"><i class="ph ph-hash search-icon"></i><input id="material_id" type="number" name="material_id"></div></div>
+    <div class="toolbar-group"><label for="location">Ubicación (opcional)</label><div class="search-box"><i class="ph ph-map-pin search-icon"></i><input id="location" type="text" name="location"></div></div>
+    <div class="toolbar-group"><label for="evidence_ref">Evidencia (URL/texto)</label><div class="search-box"><i class="ph ph-link search-icon"></i><input id="evidence_ref" type="text" name="evidence_ref"></div></div>
 
-  <form method="post">
-    <label>Título (obligatorio):</label><br>
-    <input type="text" name="title" size="60" required><br><br>
+    <div class="toolbar-group" style="grid-column: 1 / -1;">
+      <label for="description">Descripción (opcional)</label>
+      <div class="search-box" style="height: auto; min-height: 128px; align-items: flex-start; padding-top: 14px;">
+        <i class="ph ph-note-pencil search-icon" style="margin-top: 2px;"></i>
+        <textarea id="description" name="description" rows="4" style="width:100%; border:none; background:transparent; outline:none; color:var(--text); font-size:.96rem; resize:vertical;"></textarea>
+      </div>
+    </div>
 
-    <label>Descripción (opcional):</label><br>
-    <textarea name="description" rows="4" cols="70"></textarea><br><br>
-
-    <label>Ubicación (opcional):</label><br>
-    <input type="text" name="location" size="60"><br><br>
-
-    <label>Evidencia (opcional: URL/texto):</label><br>
-    <input type="text" name="evidence_ref" size="60"><br><br>
-
-    <label>Material ID (opcional):</label><br>
-    <input type="number" name="material_id"><br><br>
-
-    <button type="submit">Crear</button>
+    <div class="toolbar-actions" style="grid-column: 1 / -1;">
+      <button type="submit" class="btn btn-gold"><i class="ph ph-plus-circle"></i><span>Crear</span></button>
+      <a class="btn btn-ghost" href="{{ url_for('lostfound.list_items') }}"><i class="ph ph-arrow-left"></i><span>Volver</span></a>
+    </div>
   </form>
-</body>
-</html>
+</section>
+{% endblock %}

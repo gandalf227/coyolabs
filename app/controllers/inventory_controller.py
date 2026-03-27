@@ -12,7 +12,7 @@ inventory_bp = Blueprint("inventory", __name__, url_prefix="/inventory")
 
 
 @inventory_bp.route("/", methods=["GET"])
-@min_role_required("USER")
+@min_role_required("STUDENT")
 def inventory_list():
     lab_id = request.args.get("lab_id", type=int)
     q = (request.args.get("q") or "").strip()
@@ -59,21 +59,21 @@ def inventory_list():
         total=total,
         total_pages=total_pages,
         per_page=PER_PAGE,
+        active_page="inventory",
     )
 
 
 @inventory_bp.route("/materials/<int:material_id>", methods=["GET"])
-@min_role_required("USER")
+@min_role_required("STUDENT")
 def material_detail(material_id: int):
     m = Material.query.get(material_id)
     if not m:
         abort(404)
-    return render_template("inventory/material_detail.html", material=m)
+    return render_template("inventory/material_detail.html", material=m, active_page="inventory")
 
 @inventory_bp.route("/admin-check", methods=["GET"])
-@min_role_required("ADMIN")
+@min_role_required("STAFF")
 def admin_check():
-    return "OK: ADMIN access", 200
-
+    return "OK: STAFF access", 200
 
 

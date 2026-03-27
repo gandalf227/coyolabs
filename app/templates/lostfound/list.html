@@ -2,11 +2,20 @@
 {% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Objetos perdidos", url_for('lostfound.list_items'))] %}
 {% block title %}Objetos perdidos{% endblock %}
 {% block content %}
-<h1>Objetos perdidos</h1>
-<p>Filtrar: <a class="btn-link" href="/lostfound/">Todos</a> · <a class="btn-link" href="/lostfound/?status=REPORTED">REPORTED</a> · <a class="btn-link" href="/lostfound/?status=IN_STORAGE">IN_STORAGE</a> · <a class="btn-link" href="/lostfound/?status=RETURNED">RETURNED</a></p>
-{% if items|length == 0 %}<p>No hay registros.</p>{% else %}
-<div class="table-wrap"><table><thead><tr><th>ID</th><th>Título</th><th>Estado</th><th>Ubicación</th><th>Creado</th><th>Ver</th></tr></thead><tbody>
-{% for it in items %}<tr><td>{{ it.id }}</td><td>{{ it.title }}</td><td>{{ it.status }}</td><td>{{ it.location }}</td><td>{{ it.created_at }}</td><td><a class="btn-link" href="/lostfound/{{ it.id }}">Detalle</a></td></tr>{% endfor %}
-</tbody></table></div>
+<header class="topbar"><div class="topbar-left"><p class="page-kicker">Objetos perdidos</p><h1>Objetos perdidos</h1><p class="page-subtitle">Consulta reportes y estado de resguardo o devolución.</p></div></header>
+
+<section class="toolbar-card">
+  <div class="toolbar-actions">
+    <a class="btn {% if not status %}btn-gold{% else %}btn-ghost{% endif %}" href="{{ url_for('lostfound.list_items') }}">Todos</a>
+    <a class="btn {% if status == 'REPORTED' %}btn-gold{% else %}btn-ghost{% endif %}" href="{{ url_for('lostfound.list_items', status='REPORTED') }}">REPORTED</a>
+    <a class="btn {% if status == 'IN_STORAGE' %}btn-gold{% else %}btn-ghost{% endif %}" href="{{ url_for('lostfound.list_items', status='IN_STORAGE') }}">IN_STORAGE</a>
+    <a class="btn {% if status == 'RETURNED' %}btn-gold{% else %}btn-ghost{% endif %}" href="{{ url_for('lostfound.list_items', status='RETURNED') }}">RETURNED</a>
+  </div>
+</section>
+
+{% if items|length == 0 %}
+  <section class="empty-state"><i class="ph ph-suitcase empty-icon"></i><h3>Sin registros</h3><p>No hay objetos perdidos para mostrar.</p></section>
+{% else %}
+  <section class="table-card"><div class="table-wrap"><table class="inventory-table" style="min-width:900px;"><thead><tr><th>ID</th><th>Título</th><th>Estado</th><th>Ubicación</th><th>Creado</th><th>Ver</th></tr></thead><tbody>{% for it in items %}<tr><td>{{ it.id }}</td><td>{{ it.title }}</td><td><span class="status-badge {% if it.status == 'RETURNED' %}status-ok{% elif it.status == 'IN_STORAGE' %}status-warn{% else %}status-neutral{% endif %}">{{ it.status }}</span></td><td>{{ it.location or '-' }}</td><td>{{ it.created_at }}</td><td><a class="action-btn" href="{{ url_for('lostfound.detail', item_id=it.id) }}"><i class="ph ph-eye"></i></a></td></tr>{% endfor %}</tbody></table></div></section>
 {% endif %}
 {% endblock %}

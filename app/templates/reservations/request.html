@@ -1,18 +1,656 @@
 {% extends "layouts/student_base.html" %}
 {% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Mis reservas", url_for('reservations.my_reservations')), ("Solicitar", url_for('reservations.request_reservation'))] %}
 {% block title %}Solicitar reserva{% endblock %}
+
 {% block content %}
-<h1>Solicitar reserva</h1>
-<form method="post" class="input-grid">
-  <div><label>Salón/Laboratorio</label><select name="room" required><option value="">-- Selecciona --</option>{% for r in rooms %}<option value="{{ r }}">{{ r }}</option>{% endfor %}</select></div>
-  <div><label>Grupo</label><input type="text" name="group_name" placeholder="Ej: 3A" required></div>
-  <div><label>Nombre del profesor</label><input type="text" name="teacher_name" required></div>
-  <div><label>Materia</label><input type="text" name="subject" required></div>
-  <div><label>Fecha</label><input type="date" name="date" required></div>
-  <div><label>Hora inicio</label><input type="time" name="start_time" required></div>
-  <div><label>Hora fin</label><input type="time" name="end_time" required></div>
-  <div style="grid-column:1/-1;"><label>Motivo (opcional)</label><textarea name="purpose" rows="3"></textarea></div>
-  <div style="grid-column:1/-1;"><label><input type="checkbox" name="signed" value="1" required style="width:auto;"> Confirmo que la información es correcta</label></div>
-  <div><button type="submit">Enviar solicitud</button></div>
-</form>
+<header class="topbar">
+  <div class="topbar-left">
+    <p class="page-kicker">Reservaciones</p>
+    <h1>Solicitar reserva</h1>
+    <p class="page-subtitle">Completa todos los datos para enviar tu solicitud. Debajo puedes consultar la ocupación semanal de los salones.</p>
+  </div>
+</header>
+
+<style>
+.material-search {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+#materialSearch {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.1);
+  background: #fffdfa;
+  color: var(--text);
+}
+
+#materialSearch:focus {
+  outline: none;
+  border-color: rgba(212, 175, 55, 0.85);
+  box-shadow: 0 0 0 3px rgba(224, 177, 44, 0.12);
+}
+
+.autocomplete-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  background: white;
+  border-radius: 10px;
+  max-height: 220px;
+  overflow: auto;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  z-index: 20;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.autocomplete-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+
+.autocomplete-item:hover {
+  background: #f1ede4;
+}
+
+.autocomplete-item.out-of-stock {
+  cursor: not-allowed;
+  background: rgba(207, 77, 77, 0.06);
+}
+
+.autocomplete-item.out-of-stock:hover {
+  background: rgba(207, 77, 77, 0.1);
+}
+
+.cart-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cart-empty {
+  padding: 14px;
+  border: 1px dashed rgba(0,0,0,0.12);
+  border-radius: 10px;
+  color: var(--text-dim, #728078);
+  background: rgba(255,255,255,0.5);
+}
+
+.cart-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f7f4ec;
+  margin-bottom: 2px;
+  animation: fadeIn .2s ease;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.cart-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cart-item-name {
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.cart-item-meta {
+  font-size: 12px;
+  color: var(--text-dim, #728078);
+}
+
+.cart-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.qty-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: #e0b12c;
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform .12s ease, opacity .12s ease;
+}
+
+.qty-btn:hover {
+  opacity: .92;
+}
+
+.qty-btn:active {
+  transform: scale(0.96);
+}
+
+.qty-value {
+  min-width: 24px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.cart-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.65);
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.cart-summary strong {
+  color: var(--text);
+}
+
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  background: #1f7a4f;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: .25s ease;
+  z-index: 50;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<section class="toolbar-card">
+  <form method="post" class="toolbar" style="grid-template-columns: repeat(2, minmax(280px, 1fr));">
+    <div class="toolbar-group">
+      <label>Salón/Laboratorio</label>
+      <div class="select-wrap">
+        <select name="room" required>
+          <option value="">-- Selecciona --</option>
+          {% for r in rooms %}
+          <option value="{{ r }}">{{ r }}</option>
+          {% endfor %}
+        </select>
+        <i class="ph ph-caret-down select-arrow"></i>
+      </div>
+    </div>
+
+    <div class="toolbar-group">
+      <label>Grupo</label>
+      {% if is_professor %}
+        {% if professor_subjects %}
+          <div class="select-wrap">
+            <select name="group_name" id="groupSelect" required>
+              <option value="">Selecciona un grupo</option>
+            </select>
+            <i class="ph ph-caret-down select-arrow"></i>
+          </div>
+        {% else %}
+          <div class="search-box">
+            <i class="ph ph-warning-circle search-icon"></i>
+            <input type="text" value="No tienes grupos asignados" readonly>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="search-box">
+          <i class="ph ph-users search-icon"></i>
+          <input type="text" name="group_name" placeholder="Ej: 3A" required>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="toolbar-group">
+      <label>Nombre del profesor</label>
+      <div class="search-box">
+        <i class="ph ph-user search-icon"></i>
+        <input type="text" name="teacher_name" required>
+      </div>
+    </div>
+
+    <div class="toolbar-group">
+      <label>Materia</label>
+      {% if is_professor %}
+        {% if professor_subjects %}
+          <div class="select-wrap">
+            <select name="subject" id="subjectSelect" required>
+              <option value="">Selecciona una materia</option>
+              {% for professor_subject in professor_subjects %}
+              <option value="{{ professor_subject }}">{{ professor_subject }}</option>
+              {% endfor %}
+            </select>
+            <i class="ph ph-caret-down select-arrow"></i>
+          </div>
+        {% else %}
+          <div class="search-box">
+            <i class="ph ph-warning-circle search-icon"></i>
+            <input type="text" value="No tienes materias asignadas" readonly>
+          </div>
+          <small style="display:block; margin-top:6px; opacity:.8;">
+            Completa/actualiza tus materias para poder reservar como profesor.
+          </small>
+        {% endif %}
+      {% else %}
+        <div class="search-box">
+          <i class="ph ph-book search-icon"></i>
+          <input type="text" name="subject" required>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="toolbar-group">
+      <label>Fecha</label>
+      <div class="search-box">
+        <i class="ph ph-calendar search-icon"></i>
+        <input type="date" name="date" required>
+      </div>
+    </div>
+
+    <div class="toolbar-group">
+      <label>Hora inicio</label>
+      <div class="search-box">
+        <i class="ph ph-clock search-icon"></i>
+        <input type="time" name="start_time" required>
+      </div>
+    </div>
+
+    <div class="toolbar-group">
+      <label>Hora fin</label>
+      <div class="search-box">
+        <i class="ph ph-clock-countdown search-icon"></i>
+        <input type="time" name="end_time" required>
+      </div>
+    </div>
+
+    <div class="toolbar-group" style="grid-column:1/-1;">
+      <label>Motivo (opcional)</label>
+      <div class="search-box" style="height: auto; min-height: 110px; align-items:flex-start; padding-top: 14px;">
+        <i class="ph ph-note-pencil search-icon" style="margin-top:2px;"></i>
+        <textarea name="purpose" rows="3" style="width:100%; border:none; background:transparent; outline:none; color:var(--text);"></textarea>
+      </div>
+    </div>
+
+    <div class="toolbar-group" style="grid-column:1/-1;">
+      <label>
+        <input type="checkbox" name="signed" value="1" required style="width:auto; margin-right:8px;">
+        Confirmo que la información es correcta
+      </label>
+    </div>
+
+    <div class="toolbar-group" style="grid-column:1/-1;">
+      <label>
+        <input type="checkbox" id="toggleMaterials" style="margin-right:8px;">
+        Solicitar materiales para esta práctica
+      </label>
+    </div>
+
+    <div id="materialsSection" style="display:none; grid-column:1/-1;">
+      <h3 style="margin-top:10px;">Materiales</h3>
+
+      <div class="material-search">
+        <input type="text" id="materialSearch" placeholder="Buscar material...">
+        <div id="autocompleteList" class="autocomplete-list"></div>
+      </div>
+
+      <div id="cartContainer" class="cart-container">
+        <div class="cart-empty">Aún no agregas materiales.</div>
+      </div>
+
+      <div class="cart-summary">
+        <span><strong id="cartKinds">0</strong> materiales distintos</span>
+        <strong id="cartTotal">0 piezas</strong>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+        <button type="button" id="clearCartBtn" class="btn btn-ghost">Vaciar carrito</button>
+      </div>
+
+      <div id="cartHiddenInputs"></div>
+    </div>
+
+    <div class="toolbar-actions" style="grid-column:1/-1;">
+      <button type="submit" class="btn btn-gold" {% if is_professor and not professor_subjects %}disabled title="No tienes materias asignadas"{% endif %}>Enviar solicitud</button>
+      <a href="{{ url_for('reservations.my_reservations') }}" class="btn btn-ghost">Cancelar</a>
+    </div>
+  </form>
+</section>
+
+<section class="table-card" style="margin-top: 24px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:16px;">
+    <div>
+      <p class="page-kicker">Calendario semanal</p>
+      <h2 style="margin:0;">Ocupación de salones</h2>
+      <p class="page-subtitle" style="margin-top:6px;">
+        Semana del {{ week_start.strftime('%d/%m/%Y') }} al {{ week_end.strftime('%d/%m/%Y') }}
+      </p>
+    </div>
+
+    <form method="get" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+      <div class="toolbar-group" style="min-width:220px; margin:0;">
+        <label>Filtrar por salón</label>
+        <div class="select-wrap">
+          <select name="calendar_room">
+            <option value="">Todos</option>
+            {% for r in rooms %}
+            <option value="{{ r }}" {% if selected_calendar_room == r %}selected{% endif %}>{{ r }}</option>
+            {% endfor %}
+          </select>
+          <i class="ph ph-caret-down select-arrow"></i>
+        </div>
+      </div>
+
+      <input type="hidden" name="week_start" value="{{ week_start.isoformat() }}">
+      <button type="submit" class="btn btn-ghost">Aplicar</button>
+    </form>
+  </div>
+
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+    <a class="btn btn-ghost" href="{{ url_for('reservations.request_reservation', week_start=prev_week.isoformat(), calendar_room=selected_calendar_room) }}">
+      ← Semana anterior
+    </a>
+
+    <a class="btn btn-ghost" href="{{ url_for('reservations.request_reservation', week_start=next_week.isoformat(), calendar_room=selected_calendar_room) }}">
+      Semana siguiente →
+    </a>
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table class="data-table" style="min-width:1200px;">
+      <thead>
+        <tr>
+          <th style="min-width:110px;">Salón</th>
+          {% for day in week_days %}
+          <th style="min-width:150px;">
+            {{ day.strftime('%A')|capitalize }}<br>
+            <span style="font-weight:400; opacity:.8;">{{ day.strftime('%d/%m') }}</span>
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for room in calendar_rooms %}
+        <tr>
+          <td><strong>{{ room }}</strong></td>
+
+          {% for day in week_days %}
+          <td style="vertical-align:top;">
+            {% set items = week_schedule[room][day] %}
+            {% if items %}
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                {% for item in items %}
+                <div style="border:1px solid var(--stroke); border-radius:12px; padding:10px; background:var(--panel-2);">
+                  <div style="font-weight:700; margin-bottom:4px;">
+                    {{ item.start_time.strftime('%H:%M') }} - {{ item.end_time.strftime('%H:%M') }}
+                  </div>
+                  <div style="font-size:.92rem; opacity:.92;">{{ item.subject }}</div>
+                  <div style="font-size:.85rem; opacity:.76;">{{ item.group_name }} · {{ item.teacher_name }}</div>
+                </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <span style="opacity:.55;">Disponible</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div id="toast" class="toast">Material agregado</div>
+
+<script>
+const materials = {{ materials_json | safe }};
+const professorGroupsBySubject = {{ professor_groups_by_subject | tojson if is_professor else "{}" }};
+let cart = JSON.parse(localStorage.getItem("reservation_cart") || "{}");
+
+const toggle = document.getElementById("toggleMaterials");
+const section = document.getElementById("materialsSection");
+const search = document.getElementById("materialSearch");
+const list = document.getElementById("autocompleteList");
+const cartContainer = document.getElementById("cartContainer");
+const cartHiddenInputs = document.getElementById("cartHiddenInputs");
+const cartTotal = document.getElementById("cartTotal");
+const cartKinds = document.getElementById("cartKinds");
+const clearCartBtn = document.getElementById("clearCartBtn");
+const subjectSelect = document.getElementById("subjectSelect");
+const groupSelect = document.getElementById("groupSelect");
+
+function renderGroupOptionsForSelectedSubject() {
+  if (!subjectSelect || !groupSelect) return;
+
+  const selectedSubject = subjectSelect.value;
+  const groups = professorGroupsBySubject[selectedSubject] || [];
+  const previousValue = groupSelect.value;
+
+  groupSelect.innerHTML = "";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = groups.length ? "Selecciona un grupo" : "Sin grupos para esta materia";
+  groupSelect.appendChild(placeholder);
+
+  groups.forEach((groupCode) => {
+    const option = document.createElement("option");
+    option.value = groupCode;
+    option.textContent = groupCode;
+    groupSelect.appendChild(option);
+  });
+
+  if (groups.includes(previousValue)) {
+    groupSelect.value = previousValue;
+  }
+}
+
+if (subjectSelect && groupSelect) {
+  subjectSelect.addEventListener("change", renderGroupOptionsForSelectedSubject);
+  renderGroupOptionsForSelectedSubject();
+}
+
+if (toggle && section) {
+  toggle.addEventListener("change", () => {
+    section.style.display = toggle.checked ? "block" : "none";
+  });
+}
+
+function persistCart() {
+  localStorage.setItem("reservation_cart", JSON.stringify(cart));
+}
+
+search.addEventListener("input", () => {
+  const value = search.value.trim().toLowerCase();
+  list.innerHTML = "";
+
+  if (!value) return;
+
+  materials
+    .filter(m => m.name.toLowerCase().includes(value))
+    .slice(0, 8)
+    .forEach(m => {
+      const item = document.createElement("div");
+      const available = parseInt(m.pieces_qty || 0, 10);
+      const inCart = cart[m.id]?.qty || 0;
+      const isOut = available <= 0;
+
+      item.className = "autocomplete-item";
+      if (isOut) item.classList.add("out-of-stock");
+
+      item.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+          <div style="${isOut ? 'opacity:.5;' : ''}">
+            <div>${m.name}</div>
+            <div style="font-size:12px; opacity:.7;">
+              ${available} disponibles${inCart > 0 ? ` · en carrito: ${inCart}` : ""}
+            </div>
+          </div>
+          <div style="font-size:12px; font-weight:600; ${isOut ? 'color:#cf4d4d;' : 'opacity:.7;'}">
+            ${isOut ? 'Sin stock' : 'Agregar'}
+          </div>
+        </div>
+      `;
+
+      if (!isOut) {
+        item.onclick = () => addToCart(m);
+      } else {
+        item.onclick = () => showToast("Material sin stock");
+      }
+
+      list.appendChild(item);
+    });
+});
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".material-search")) {
+    list.innerHTML = "";
+  }
+});
+
+function addToCart(material) {
+  const available = parseInt(material.pieces_qty || 0, 10);
+
+  if (available <= 0) {
+    showToast("No hay stock disponible");
+    return;
+  }
+
+  if (!cart[material.id]) {
+    cart[material.id] = { ...material, qty: 1 };
+    showToast("Material agregado");
+  } else {
+    if (cart[material.id].qty >= available) {
+      showToast(`Solo hay ${available} disponibles`);
+      return;
+    }
+    cart[material.id].qty++;
+    showToast("Cantidad actualizada");
+  }
+
+  persistCart();
+  renderCart();
+
+  search.value = "";
+  list.innerHTML = "";
+}
+
+function updateQty(id, delta) {
+  const item = cart[id];
+  if (!item) return;
+
+  const available = parseInt(item.pieces_qty || 0, 10);
+  const nextQty = item.qty + delta;
+
+  if (nextQty <= 0) {
+    delete cart[id];
+    persistCart();
+    renderCart();
+    showToast("Material eliminado");
+    return;
+  }
+
+  if (nextQty > available) {
+    showToast(`Solo hay ${available} disponibles`);
+    return;
+  }
+
+  item.qty = nextQty;
+  persistCart();
+  renderCart();
+}
+
+function clearCart() {
+  cart = {};
+  persistCart();
+  renderCart();
+  showToast("Carrito vaciado");
+}
+
+function renderCart() {
+  const items = Object.values(cart);
+  cartContainer.innerHTML = "";
+  cartHiddenInputs.innerHTML = "";
+
+  if (!items.length) {
+    cartContainer.innerHTML = '<div class="cart-empty">Aún no agregas materiales.</div>';
+    cartTotal.innerText = "0 piezas";
+    cartKinds.innerText = "0";
+    return;
+  }
+
+  let total = 0;
+
+  items.forEach(item => {
+    total += item.qty;
+
+    const row = document.createElement("div");
+    row.className = "cart-item";
+    row.innerHTML = `
+      <div class="cart-item-left">
+        <span class="cart-item-name">${item.name}</span>
+        <span class="cart-item-meta">${item.qty} seleccionados · ${item.pieces_qty} disponibles</span>
+      </div>
+
+      <div class="cart-controls">
+        <button type="button" class="qty-btn" onclick="updateQty(${item.id}, -1)">-</button>
+        <span class="qty-value">${item.qty}</span>
+        <button type="button" class="qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
+      </div>
+    `;
+    cartContainer.appendChild(row);
+
+    const hiddenId = document.createElement("input");
+    hiddenId.type = "hidden";
+    hiddenId.name = "material_id[]";
+    hiddenId.value = item.id;
+
+    const hiddenQty = document.createElement("input");
+    hiddenQty.type = "hidden";
+    hiddenQty.name = "quantity[]";
+    hiddenQty.value = item.qty;
+
+    cartHiddenInputs.appendChild(hiddenId);
+    cartHiddenInputs.appendChild(hiddenQty);
+  });
+
+  cartTotal.innerText = `${total} piezas`;
+  cartKinds.innerText = String(items.length);
+}
+
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  toast.innerText = msg;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 1800);
+}
+
+if (clearCartBtn) {
+  clearCartBtn.addEventListener("click", clearCart);
+}
+
+renderCart();
+</script>
 {% endblock %}

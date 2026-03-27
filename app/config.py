@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
+    ENV = os.getenv("APP_ENV", os.getenv("FLASK_ENV", "development")).strip().lower()
+
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
     SECURITY_PASSWORD_SALT = os.getenv("SECURITY_PASSWORD_SALT", "dev-salt")
 
@@ -31,3 +33,15 @@ class Config:
     APP_BASE_URL = os.getenv("APP_BASE_URL", "http://127.0.0.1:5000")
 
     RA_API_KEY = os.getenv("RA_API_KEY", "dev-ra-key-cambia-esto")
+
+    _INSECURE_DEFAULTS = {
+        "SECRET_KEY": "dev-secret",
+        "SECURITY_PASSWORD_SALT": "dev-salt",
+        "RA_API_KEY": "dev-ra-key-cambia-esto",
+    }
+    if ENV not in {"development", "dev", "local", "test", "testing"}:
+        for _name, _default in _INSECURE_DEFAULTS.items():
+            if os.getenv(_name, _default) == _default:
+                raise RuntimeError(
+                    f"Configuración insegura: {_name} usa valor por defecto en entorno '{ENV}'."
+                )

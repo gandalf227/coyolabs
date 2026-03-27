@@ -1,14 +1,98 @@
 {% extends "layouts/student_base.html" %}
 {% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Mis reservas", url_for('reservations.my_reservations'))] %}
 {% block title %}Mis reservas{% endblock %}
+
 {% block content %}
-<h1>Mis reservas</h1>
-<p><a class="btn-link" href="{{ url_for('reservations.request_reservation') }}">Solicitar reserva</a></p>
+<header class="topbar">
+  <div class="topbar-left">
+    <p class="page-kicker">Reservaciones</p>
+    <h1>Mis reservas</h1>
+    <p class="page-subtitle">Seguimiento de solicitudes, materiales solicitados y estado del ticket asociado.</p>
+  </div>
+</header>
+
+<section class="toolbar-card">
+  <div class="toolbar-actions">
+    <a class="btn btn-gold" href="{{ url_for('reservations.request_reservation') }}">Solicitar reserva</a>
+    {% if current_user.role in ['ADMIN', 'SUPERADMIN'] %}
+      <a class="btn btn-ghost" href="{{ url_for('reservations.admin_queue') }}">Cola admin</a>
+    {% endif %}
+  </div>
+</section>
+
 {% if reservations|length == 0 %}
-  <p>No tienes reservas.</p>
+  <section class="empty-state">
+    <i class="ph ph-calendar-x empty-icon"></i>
+    <h3>Sin reservas</h3>
+    <p>No tienes reservas registradas.</p>
+  </section>
 {% else %}
-<div class="table-wrap"><table><thead><tr><th>ID</th><th>Salón/Lab</th><th>Fecha</th><th>Inicio</th><th>Fin</th><th>Status</th><th>Nota admin</th></tr></thead><tbody>
-{% for r in reservations %}<tr><td>{{ r.id }}</td><td>{{ r.room }}</td><td>{{ r.date }}</td><td>{{ r.start_time }}</td><td>{{ r.end_time }}</td><td>{{ r.status }}</td><td>{{ r.admin_note }}</td></tr>{% endfor %}
-</tbody></table></div>
+<section class="table-card">
+  <div class="table-wrap">
+    <table class="inventory-table" style="min-width: 1400px;">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Salón/Lab</th>
+          <th>Fecha</th>
+          <th>Inicio</th>
+          <th>Fin</th>
+          <th>Materiales</th>
+          <th>Ticket</th>
+          <th>Status</th>
+          <th>Nota admin</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reservations %}
+        {% set ticket = (r.lab_tickets|sort(attribute='opened_at', reverse=True)|first) if r.lab_tickets else None %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td>{{ r.room }}</td>
+          <td>{{ r.date }}</td>
+          <td>{{ r.start_time }}</td>
+          <td>{{ r.end_time }}</td>
+
+          <td>
+            {% if r.items %}
+              <ul style="padding-left:16px; margin:0;">
+                {% for item in r.items[:3] %}
+                  <li>
+                    {{ item.material.name if item.material else ('ID ' ~ item.material_id) }}
+                    ({{ item.quantity_requested }})
+                  </li>
+                {% endfor %}
+                {% if r.items|length > 3 %}
+                  <li>+{{ r.items|length - 3 }} más...</li>
+                {% endif %}
+              </ul>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+
+          <td>
+            {% if ticket %}
+              <span class="status-badge {% if ticket.status == 'OPEN' %}status-warn{% elif ticket.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
+                {{ ticket.status }}
+              </span>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+
+          <td>
+            <span class="status-badge {% if r.status == 'APPROVED' %}status-ok{% elif r.status == 'PENDING' %}status-warn{% else %}status-bad{% endif %}">
+              {{ r.status }}
+            </span>
+          </td>
+
+          <td>{{ r.admin_note or '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endif %}
 {% endblock %}

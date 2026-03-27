@@ -1,0 +1,389 @@
+import re
+
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
+
+from app.extensions import db
+from app.models.academic_level import AcademicLevel
+from app.models.career import Career
+from app.models.debt import Debt
+from app.models.lab_ticket import LabTicket
+from app.models.notification import Notification
+from app.models.profile_change_request import ProfileChangeRequest
+from app.models.reservation import Reservation
+from app.models.subject import Subject
+from app.models.teacher_academic_load import TeacherAcademicLoad
+from app.models.user import User
+from app.services.audit_service import log_event
+from app.utils.validators import normalize_and_validate_group_code, normalize_and_validate_phone
+from app.utils.roles import ROLE_TEACHER, ROLE_STUDENT, is_admin_role, normalize_role
+
+profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
+
+
+def _is_professor_role(role: str | None) -> bool:
+    normalized = normalize_role(role)
+    return normalized == ROLE_TEACHER
+
+
+@profile_bp.route("/", methods=["GET"])
+@login_required
+def my_profile():
+    reservations = (
+        Reservation.query
+        .filter(Reservation.user_id == current_user.id)
+        .order_by(Reservation.created_at.desc())
+        .all()
+    )
+
+    tickets = (
+        LabTicket.query
+        .options(joinedload(LabTicket.reservation))
+        .filter(LabTicket.owner_user_id == current_user.id)
+        .order_by(LabTicket.opened_at.desc())
+        .all()
+    )
+
+    debts = (
+        Debt.query
+        .options(joinedload(Debt.material))
+        .filter(Debt.user_id == current_user.id)
+        .order_by(Debt.created_at.desc())
+        .all()
+    )
+
+    available_subjects = []
+    teacher_loads = []
+    catalog_filters = {"q": "", "career_id": "", "level": ""}
+    catalog_careers = []
+    catalog_levels = []
+    if _is_professor_role(current_user.role):
+        q = (request.args.get("q") or "").strip()
+        selected_career_id = request.args.get("career_id", type=int)
+        selected_level = (request.args.get("level") or "").strip().upper()
+
+        catalog_filters = {
+            "q": q,
+            "career_id": str(selected_career_id or ""),
+            "level": selected_level,
+        }
+
+        teacher_loads = (
+            TeacherAcademicLoad.query
+            .options(joinedload(TeacherAcademicLoad.subject).joinedload(Subject.career))
+            .filter(TeacherAcademicLoad.teacher_id == current_user.id)
+            .order_by(TeacherAcademicLoad.group_code.asc())
+            .all()
+        )
+        catalog_q = (
+            Subject.query
+            .options(joinedload(Subject.career), joinedload(Subject.academic_level))
+            .filter(Subject.is_active.is_(True))
+        )
+        if q:
+            like = f"%{q.lower()}%"
+            catalog_q = catalog_q.filter(func.lower(Subject.name).like(like))
+        if selected_career_id:
+            catalog_q = catalog_q.filter(Subject.career_id == selected_career_id)
+        if selected_level:
+            catalog_q = catalog_q.filter(func.upper(Subject.level) == selected_level)
+
+        available_subjects = (
+            catalog_q
+            .order_by(Subject.name.asc(), Subject.level.asc(), Subject.quarter.asc())
+            .all()
+        )
+        catalog_careers = Career.query.order_by(Career.name.asc()).all()
+        catalog_levels = (
+            db.session.query(func.upper(Subject.level))
+            .filter(Subject.is_active.is_(True), Subject.level.isnot(None))
+            .distinct()
+            .order_by(func.upper(Subject.level))
+            .all()
+        )
+        catalog_levels = [row[0] for row in catalog_levels if row and row[0]]
+
+    return render_template(
+        "profile/my_profile.html",
+        reservations=reservations,
+        tickets=tickets,
+        debts=debts,
+        active_page="profile",
+        is_professor=_is_professor_role(current_user.role),
+        teacher_loads=teacher_loads,
+        available_subjects=available_subjects,
+        catalog_filters=catalog_filters,
+        catalog_careers=catalog_careers,
+        catalog_levels=catalog_levels,
+    )
+
+
+@profile_bp.route("/teaching-load/add", methods=["POST"])
+@login_required
+def add_teaching_load():
+    if not _is_professor_role(current_user.role):
+        flash("Solo profesores pueden gestionar carga académica.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    subject_id = request.form.get("subject_id", type=int)
+    group_code, group_error = normalize_and_validate_group_code(request.form.get("group_code"))
+
+    if not subject_id:
+        flash("La materia es obligatoria.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    if group_error:
+        flash(group_error, "error")
+        return redirect(url_for("profile.my_profile"))
+
+    subject = Subject.query.get(subject_id)
+    if not subject:
+        flash("Materia no encontrada.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    existing = TeacherAcademicLoad.query.filter_by(
+        teacher_id=current_user.id,
+        subject_id=subject_id,
+        group_code=group_code,
+    ).first()
+    if existing:
+        flash("Esa asignación ya existe.", "warning")
+        return redirect(url_for("profile.my_profile"))
+
+    load = TeacherAcademicLoad(
+        teacher_id=current_user.id,
+        subject_id=subject_id,
+        group_code=group_code,
+    )
+    db.session.add(load)
+    db.session.commit()
+
+    flash("Carga académica agregada.", "success")
+    return redirect(url_for("profile.my_profile"))
+
+
+@profile_bp.route("/teaching-load/<int:load_id>/remove", methods=["POST"])
+@login_required
+def remove_teaching_load(load_id: int):
+    if not _is_professor_role(current_user.role):
+        flash("Solo docentes TEACHER pueden gestionar carga académica.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    load = TeacherAcademicLoad.query.get_or_404(load_id)
+    if load.teacher_id != current_user.id:
+        flash("No autorizado.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    db.session.delete(load)
+    db.session.commit()
+
+    flash("Asignación eliminada.", "success")
+    return redirect(url_for("profile.my_profile"))
+
+
+@profile_bp.route("/request-update", methods=["POST"])
+@login_required
+def request_profile_update():
+    legacy_phone = (request.form.get("requested_phone") or "").strip()
+    if legacy_phone:
+        flash("Endpoint legacy detectado: redirigiendo al flujo principal de cambio de teléfono.", "info")
+        return request_phone_change()
+
+    if is_admin_role(current_user.role):
+        flash("Tu cuenta administrativa no requiere solicitud de actualización de perfil.", "info")
+        return redirect(url_for("profile.my_profile"))
+
+    pending = (
+        ProfileChangeRequest.query
+        .filter(ProfileChangeRequest.user_id == current_user.id)
+        .filter(ProfileChangeRequest.request_type == "PROFILE_CHANGE")
+        .filter(ProfileChangeRequest.status == "PENDING")
+        .first()
+    )
+    if pending:
+        flash("Ya tienes una solicitud de actualización de perfil pendiente.", "warning")
+        return redirect(url_for("profile.my_profile"))
+
+    req = ProfileChangeRequest(
+        user_id=current_user.id,
+        request_type="PROFILE_CHANGE",
+        reason="DEPRECATED endpoint /profile/request-update",
+        status="PENDING",
+    )
+    db.session.add(req)
+
+    admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
+    for admin in admins:
+        notif = Notification(
+            user_id=admin.id,
+            title="Solicitud de actualización de perfil",
+            message=f"{current_user.email} generó una solicitud de perfil (canal unificado).",
+            link=url_for("users.profile_change_requests"),
+        )
+        db.session.add(notif)
+
+    db.session.commit()
+    log_event(
+        module="PROFILE",
+        action="LEGACY_ENDPOINT_USED",
+        user_id=current_user.id,
+        entity_label="/profile/request-update",
+        description="Uso de endpoint legacy de actualización de perfil (redirigir a flujos principales)",
+        metadata={"deprecated": True, "preferred_flows": ["/profile/phone-change/request", "/profile/complete"]},
+    )
+    flash("Solicitud registrada. Nota: este endpoint es legacy/deprecated; usa los flujos nuevos de perfil.", "warning")
+    return redirect(url_for("profile.my_profile"))
+
+
+@profile_bp.route("/phone-change/request", methods=["POST"])
+@login_required
+def request_phone_change():
+    if _is_professor_role(current_user.role):
+        flash("Como profesor puedes editar tu teléfono directamente.", "info")
+        return redirect(url_for("profile.my_profile"))
+
+    phone_raw = request.form.get("requested_phone")
+    reason = (request.form.get("reason") or "").strip()
+
+    phone, phone_error = normalize_and_validate_phone(phone_raw)
+    if phone_error:
+        flash(phone_error, "error")
+        return redirect(url_for("profile.my_profile"))
+
+    pending = (
+        ProfileChangeRequest.query
+        .filter(ProfileChangeRequest.user_id == current_user.id)
+        .filter(ProfileChangeRequest.request_type == "PHONE_CHANGE")
+        .filter(ProfileChangeRequest.status == "PENDING")
+        .first()
+    )
+    if pending:
+        flash("Ya tienes una solicitud de cambio de teléfono pendiente.", "warning")
+        return redirect(url_for("profile.my_profile"))
+
+    req = ProfileChangeRequest(
+        user_id=current_user.id,
+        request_type="PHONE_CHANGE",
+        requested_phone=phone,
+        reason=reason or None,
+        status="PENDING",
+    )
+    db.session.add(req)
+
+    admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
+    for admin in admins:
+        notif = Notification(
+            user_id=admin.id,
+            title="Solicitud de cambio de teléfono",
+            message=f"{current_user.email} solicitó actualización de teléfono.",
+            link=url_for("users.profile_change_requests"),
+        )
+        db.session.add(notif)
+
+    db.session.commit()
+    flash("Solicitud de cambio de teléfono enviada.", "success")
+    return redirect(url_for("profile.my_profile"))
+
+
+@profile_bp.route("/phone/update", methods=["POST"])
+@login_required
+def update_phone():
+    if not _is_professor_role(current_user.role):
+        flash("Solo profesores pueden editar teléfono directamente.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    phone, phone_error = normalize_and_validate_phone(request.form.get("phone"))
+    if phone_error:
+        flash(phone_error, "error")
+        return redirect(url_for("profile.my_profile"))
+
+    current_user.phone = phone
+    db.session.commit()
+    flash("Teléfono actualizado.", "success")
+    return redirect(url_for("profile.my_profile"))
+
+
+@profile_bp.route("/complete", methods=["GET", "POST"])
+@login_required
+def complete_profile():
+    if current_user.profile_completed:
+        flash("Tu perfil ya está completo.")
+        return redirect(url_for("auth.me"))
+
+    if request.method == "POST":
+        full_name = (request.form.get("full_name") or "").strip()
+        matricula = (request.form.get("matricula") or "").strip()
+        career_id = request.form.get("career_id", type=int)
+        academic_level_id = request.form.get("academic_level_id", type=int)
+        phone = (request.form.get("phone") or "").strip()
+        confirm_data = request.form.get("confirm_data") == "1"
+
+        if not full_name:
+            flash("El nombre completo es obligatorio.")
+            return redirect(url_for("profile.complete_profile"))
+
+        if not matricula:
+            flash("La matrícula es obligatoria.")
+            return redirect(url_for("profile.complete_profile"))
+
+        if not career_id:
+            flash("La carrera es obligatoria.")
+            return redirect(url_for("profile.complete_profile"))
+
+        career_obj = Career.query.get(career_id)
+        if not career_obj:
+            flash("La carrera seleccionada no existe.")
+            return redirect(url_for("profile.complete_profile"))
+
+        is_professor = _is_professor_role(current_user.role)
+        is_student = normalize_role(current_user.role) == ROLE_STUDENT
+
+        if is_student and not academic_level_id:
+            flash("El nivel académico es obligatorio para estudiantes.")
+            return redirect(url_for("profile.complete_profile"))
+
+        level_obj = AcademicLevel.query.get(academic_level_id) if academic_level_id else None
+        if academic_level_id and not level_obj:
+            flash("El nivel académico seleccionado no existe.")
+            return redirect(url_for("profile.complete_profile"))
+
+        if not is_professor and not is_student:
+            flash("Tu rol no está habilitado para completar este perfil.", "error")
+            return redirect(url_for("auth.me"))
+
+        if not phone:
+            flash("El teléfono es obligatorio.")
+            return redirect(url_for("profile.complete_profile"))
+
+        if not confirm_data:
+            flash("Debes confirmar que tus datos son correctos para continuar.")
+            return redirect(url_for("profile.complete_profile"))
+
+        current_user.full_name = full_name
+        current_user.matricula = matricula
+        current_user.career_id = career_obj.id
+        current_user.academic_level_id = level_obj.id if level_obj else None
+        current_user.academic_level = level_obj.code if level_obj else None
+        current_user.career = career_obj.name
+        current_user.career_year = None
+        current_user.phone = phone
+        if not _is_professor_role(current_user.role):
+            current_user.professor_subjects = None
+        current_user.profile_completed = True
+        current_user.profile_data_confirmed = True
+        current_user.profile_confirmed_at = db.func.now()
+
+        db.session.commit()
+
+        flash("Perfil completado correctamente.")
+        return redirect(url_for("auth.me"))
+
+    return render_template(
+        "profile/complete.html",
+        is_professor=_is_professor_role(current_user.role),
+        is_student=normalize_role(current_user.role) == ROLE_STUDENT,
+        careers=Career.query.order_by(Career.name.asc()).all(),
+        academic_levels=AcademicLevel.query.filter(AcademicLevel.is_active.is_(True)).order_by(AcademicLevel.name.asc()).all(),
+    )

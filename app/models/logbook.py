@@ -16,6 +16,8 @@ class LogbookEvent(db.Model):
 
     # Acción/evento
     action = db.Column(db.String(80), nullable=False)  # ej: "LOGIN", "LOGOUT", "RA_SCAN"
+    module = db.Column(db.String(50), nullable=True, index=True)  # RESERVATIONS / USERS / INVENTORY / PROFILE
+    entity_label = db.Column(db.String(160), nullable=True)  # identificador legible del evento
     description = db.Column(db.Text, nullable=True)    # texto libre
 
     # Metadata extra (JSON en texto para MVP)
