@@ -1,47 +1,44 @@
-import smtplib
-from email.message import EmailMessage
-from flask import current_app
+import os
+import resend
+
+resend.api_key = (os.getenv("RESEND_API_KEY") or "").strip()
 
 
-def send_email(to_email: str, subject: str, body: str) -> bool:
-    """
-    Envia email por SMTP (Office365). Si no hay credenciales configuradas,
-    imprime el contenido en consola como fallback.
-    """
-    cfg = current_app.config
+def send_verification_email(to_email: str, verify_url: str):
+    from_email = (os.getenv("MAIL_DEFAULT_SENDER") or "").strip()
 
-    username = cfg.get("MAIL_USERNAME")
-    password = cfg.get("MAIL_PASSWORD")
-    server = cfg.get("MAIL_SERVER")
-    port = cfg.get("MAIL_PORT")
-    use_tls = cfg.get("MAIL_USE_TLS")
-    sender = cfg.get("MAIL_DEFAULT_SENDER") or username
+    if not resend.api_key:
+        raise RuntimeError("RESEND_API_KEY no está configurada.")
 
-    # Fallback si no está configurado
-    if not username or not password:
-        print("\n=== EMAIL FALLBACK (NO SMTP CONFIG) ===")
-        print("TO:", to_email)
-        print("SUBJECT:", subject)
-        print("BODY:\n", body)
-        print("=== END EMAIL FALLBACK ===\n")
-        return False
+    if not from_email:
+        raise RuntimeError("MAIL_DEFAULT_SENDER no está configurado.")
 
-    msg = EmailMessage()
-    msg["From"] = sender
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.set_content(body)
+    params: resend.Emails.SendParams = {
+        "from": f"CoyoLabs <{from_email}>",
+        "to": [to_email],
+        "subject": "Verifica tu cuenta - Sistema de Laboratorios",
+        "html": f"""
+        <div style="font-family: Arial, sans-serif; color: #111; line-height: 1.6;">
+            <h2 style="margin-bottom: 8px;">CoyoLabs</h2>
+            <p>Hola.</p>
+            <p>Para activar tu cuenta institucional, haz clic en el siguiente botón:</p>
+            <p>
+                <a href="{verify_url}"
+                   style="display:inline-block;padding:12px 20px;background:#03A9F4;color:#fff;text-decoration:none;border-radius:8px;">
+                   Verificar cuenta
+                </a>
+            </p>
+            <p>Si el botón no funciona, abre este enlace:</p>
+            <p><a href="{verify_url}">{verify_url}</a></p>
+            <p>Este enlace expira en 1 hora.</p>
+        </div>
+        """,
+        "text": (
+            "Hola.\n\n"
+            "Para activar tu cuenta institucional, abre este enlace:\n\n"
+            f"{verify_url}\n\n"
+            "Este enlace expira en 1 hora.\n"
+        ),
+    }
 
-    try:
-        with smtplib.SMTP(server, port, timeout=20) as smtp:
-            if use_tls:
-                smtp.starttls()
-            smtp.login(username, password)
-            smtp.send_message(msg)
-        return True
-    except Exception as e:
-        # Si Office365 bloquea o hay error de credenciales, no rompemos el flujo.
-        print("\n=== ERROR ENVIANDO EMAIL ===")
-        print(e)
-        print("=== FIN ERROR EMAIL ===\n")
-        return False
+    return resend.Emails.send(params)

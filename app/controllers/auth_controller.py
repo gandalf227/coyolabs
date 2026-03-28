@@ -6,7 +6,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 
 from app.extensions import db
 from app.models.user import User
-from app.services.email_service import send_email
+from app.services.email_service import send_verification_email
 from app.services.token_service import confirm_verify_token, generate_verify_token
 from app.utils.landing import resolve_landing_endpoint
 from app.utils.roles import ROLE_PENDING, infer_role_from_email
@@ -18,10 +18,6 @@ INSTITUTIONAL_EMAIL_RE = re.compile(r"^(\d{8}|[a-z]+(?:\.[a-z]+)*)@utpn\.edu\.mx
 
 
 def _render_auth(mode: str = "login"):
-    """
-    Renderiza la vista unificada auth/auth.html.
-    mode: "login" | "register"
-    """
     mode = (mode or "login").lower()
     if mode not in {"login", "register"}:
         mode = "login"
@@ -60,11 +56,9 @@ def _bad_register_request(message: str):
 
 @auth_bp.route("/", methods=["GET"])
 def auth_page():
-    # Si ya está logueado, no muestres la pantalla de acceso
     if current_user.is_authenticated:
         return redirect(url_for(resolve_landing_endpoint(current_user.role)))
 
-    # permite /auth/?mode=register
     mode = request.args.get("mode", "login")
     return _render_auth(mode)
 
@@ -92,7 +86,6 @@ def login():
             flash("Tu cuenta está bloqueada. Contacta al administrador.")
             return redirect(url_for("auth.auth_page", mode="login"))
 
-        # Bloqueo por verificación
         if not user.is_verified:
             _store_pending_verify_user(user)
             flash("Verifica tu correo")
@@ -107,7 +100,6 @@ def login():
             return redirect(url_for("profile.complete_profile"))
         return redirect(url_for(resolve_landing_endpoint(user.role)))
 
-    # GET -> vista unificada
     return redirect(url_for("auth.auth_page", mode="login"))
 
 
@@ -150,32 +142,31 @@ def register():
             flash("Ese correo ya está registrado. Si no verificaste tu cuenta, revisa tu correo o solicita reenvío.")
             return redirect(url_for("auth.auth_page", mode="login"))
 
-        # Crear usuario no verificado
         user = User(email=email, role=inferred_role, is_verified=False)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
 
-        # Generar token y enviar email
         token = generate_verify_token(email, user.verify_token_version or 0)
         base_url = current_app.config.get("APP_BASE_URL", "http://127.0.0.1:5000")
         verify_link = f"{base_url}/auth/verify/{token}"
 
-        subject = "Verifica tu cuenta - Sistema de Laboratorios"
-        body = (
-            "Hola.\n\n"
-            "Para activar tu cuenta institucional, abre este enlace:\n\n"
-            f"{verify_link}\n\n"
-            "Este enlace expira en 1 hora.\n"
-        )
-
-        send_email(email, subject, body)
+        try:
+            result = send_verification_email(email, verify_link)
+            print("=== EMAIL ENVIADO CON RESEND ===")
+            print(result)
+            print("=== FIN EMAIL ===")
+        except Exception as e:
+            print("=== ERROR ENVIANDO EMAIL CON RESEND ===")
+            print(e)
+            print("=== FIN ERROR EMAIL ===")
+            flash("La cuenta se creó, pero no se pudo enviar el correo de verificación.")
+            return redirect(url_for("auth.auth_page", mode="login"))
 
         _store_pending_verify_user(user)
         flash("Verifica tu correo")
         return redirect(url_for("auth.auth_page", mode="login"))
 
-    # GET -> vista unificada
     return redirect(url_for("auth.auth_page", mode="register"))
 
 
@@ -267,19 +258,21 @@ def change_email():
     base_url = current_app.config.get("APP_BASE_URL", "http://127.0.0.1:5000")
     verify_link = f"{base_url}/auth/verify/{token}"
 
-    subject = "Verifica tu cuenta - Sistema de Laboratorios"
-    body = (
-        "Hola.\n\n"
-        "Actualizamos tu correo de acceso. Verifica tu cuenta con este enlace:\n\n"
-        f"{verify_link}\n\n"
-        "Este enlace expira en 1 hora.\n"
-    )
+    try:
+        result = send_verification_email(user.email, verify_link)
+        print("=== EMAIL REENVIADO CON RESEND ===")
+        print(result)
+        print("=== FIN EMAIL ===")
+    except Exception as e:
+        print("=== ERROR REENVIANDO EMAIL CON RESEND ===")
+        print(e)
+        print("=== FIN ERROR EMAIL ===")
+        return jsonify({"error": "No se pudo reenviar el correo de verificación."}), 500
 
-    send_email(user.email, subject, body)
     db.session.commit()
 
     _store_pending_verify_user(user)
-    return jsonify({"message": "Correo actualizado y código reenviado."}), 200
+    return jsonify({"message": "Correo actualizado y verificación reenviada."}), 200
 
 
 @auth_bp.route("/logout", methods=["POST"])

@@ -21,17 +21,11 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Email (SMTP Gmail)
-    MAIL_SERVER = (os.getenv("MAIL_SERVER") or "smtp.gmail.com").strip()
-    MAIL_PORT = int((os.getenv("MAIL_PORT") or "587").strip())
-    MAIL_USE_TLS = (os.getenv("MAIL_USE_TLS") or "true").strip().lower() == "true"
-    MAIL_USE_SSL = (os.getenv("MAIL_USE_SSL") or "false").strip().lower() == "true"
-    MAIL_USERNAME = (os.getenv("MAIL_USERNAME") or "").strip()
-    MAIL_PASSWORD = (os.getenv("MAIL_PASSWORD") or "").strip()
-    MAIL_DEFAULT_SENDER = (os.getenv("MAIL_DEFAULT_SENDER") or MAIL_USERNAME).strip()
+    RESEND_API_KEY = (os.getenv("RESEND_API_KEY") or "").strip()
+    MAIL_DEFAULT_SENDER = (os.getenv("MAIL_DEFAULT_SENDER") or "").strip()
 
     APP_BASE_URL = (
-        os.getenv("APP_BASE_URL") or "https://pillowless-ernest-adamantly.ngrok-free.dev"
+        os.getenv("APP_BASE_URL") or "http://127.0.0.1:5000"
     ).strip().rstrip("/")
 
     RA_API_KEY = (os.getenv("RA_API_KEY") or "dev-ra-key-cambia-esto").strip()
