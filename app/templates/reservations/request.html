@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Mis reservas", url_for('reservations.my_reservations')), ("Solicitar", url_for('reservations.request_reservation'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Mis reservas", url_for('reservations.my_reservations')), ("Solicitar", url_for('reservations.request_reservation'))] %}
 {% block title %}Solicitar reserva{% endblock %}
 
 {% block content %}
@@ -227,7 +227,7 @@
       <label>Nombre del profesor</label>
       <div class="search-box">
         <i class="ph ph-user search-icon"></i>
-        <input type="text" name="teacher_name" required>
+          <input class="form-control" type="text" name="teacher_name" placeholder="Nombre del docente responsable" required>
       </div>
     </div>
 
@@ -256,7 +256,7 @@
       {% else %}
         <div class="search-box">
           <i class="ph ph-book search-icon"></i>
-          <input type="text" name="subject" required>
+          <input class="form-control" type="text" name="subject" placeholder="Ejemplo: Programación Web" required>
         </div>
       {% endif %}
     </div>
@@ -265,7 +265,7 @@
       <label>Fecha</label>
       <div class="search-box">
         <i class="ph ph-calendar search-icon"></i>
-        <input type="date" name="date" required>
+        <input class="form-control" type="date" name="date" required>
       </div>
     </div>
 
@@ -273,7 +273,7 @@
       <label>Hora inicio</label>
       <div class="search-box">
         <i class="ph ph-clock search-icon"></i>
-        <input type="time" name="start_time" required>
+        <input class="form-control" type="time" name="start_time" required>
       </div>
     </div>
 
@@ -281,7 +281,7 @@
       <label>Hora fin</label>
       <div class="search-box">
         <i class="ph ph-clock-countdown search-icon"></i>
-        <input type="time" name="end_time" required>
+        <input class="form-control" type="time" name="end_time" required>
       </div>
     </div>
 
@@ -289,20 +289,20 @@
       <label>Motivo (opcional)</label>
       <div class="search-box" style="height: auto; min-height: 110px; align-items:flex-start; padding-top: 14px;">
         <i class="ph ph-note-pencil search-icon" style="margin-top:2px;"></i>
-        <textarea name="purpose" rows="3" style="width:100%; border:none; background:transparent; outline:none; color:var(--text);"></textarea>
+        <textarea class="form-control" name="purpose" rows="3" placeholder="Objetivo de la práctica o actividad"></textarea>
       </div>
     </div>
 
     <div class="toolbar-group" style="grid-column:1/-1;">
-      <label>
-        <input type="checkbox" name="signed" value="1" required style="width:auto; margin-right:8px;">
+      <label class="form-check">
+        <input type="checkbox" name="signed" value="1" required>
         Confirmo que la información es correcta
       </label>
     </div>
 
     <div class="toolbar-group" style="grid-column:1/-1;">
-      <label>
-        <input type="checkbox" id="toggleMaterials" style="margin-right:8px;">
+      <label class="form-check">
+        <input type="checkbox" id="toggleMaterials">
         Solicitar materiales para esta práctica
       </label>
     </div>
@@ -311,7 +311,7 @@
       <h3 style="margin-top:10px;">Materiales</h3>
 
       <div class="material-search">
-        <input type="text" id="materialSearch" placeholder="Buscar material...">
+        <input class="form-control" type="text" id="materialSearch" placeholder="Buscar material por nombre, código o ubicación">
         <div id="autocompleteList" class="autocomplete-list"></div>
       </div>
 

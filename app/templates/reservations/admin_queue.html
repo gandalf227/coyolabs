@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Reservas admin", url_for('reservations.admin_queue'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Reservas admin", url_for('reservations.admin_queue'))] %}
 {% block title %}Reservas pendientes (Admin){% endblock %}
 {% block content %}
 <header class="topbar">
@@ -69,12 +69,12 @@
 
           <td>
             <form method="post" action="{{ url_for('reservations.admin_approve', res_id=r.id) }}" style="display:flex; gap:8px; margin-bottom:8px;">
-              <input type="text" name="admin_note" placeholder="nota" class="btn-ghost" style="height:38px; border-radius:10px; border:1px solid var(--stroke); color:var(--text); background:rgba(255,255,255,0.04); padding:0 10px;">
+              <input type="text" name="admin_note" placeholder="Nota administrativa (opcional)" class="form-control" style="min-height:38px; border-radius:10px;">
               <button type="submit" class="btn btn-gold" style="height:38px; border-radius:10px;">Aprobar</button>
             </form>
 
             <form method="post" action="{{ url_for('reservations.admin_reject', res_id=r.id) }}" style="display:flex; gap:8px;">
-              <input type="text" name="admin_note" placeholder="nota" class="btn-ghost" style="height:38px; border-radius:10px; border:1px solid var(--stroke); color:var(--text); background:rgba(255,255,255,0.04); padding:0 10px;">
+              <input type="text" name="admin_note" placeholder="Motivo del rechazo (opcional)" class="form-control" style="min-height:38px; border-radius:10px;">
               <button type="submit" class="btn btn-ghost" style="height:38px; border-radius:10px;">Rechazar</button>
             </form>
           </td>

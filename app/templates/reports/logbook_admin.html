@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Reportes", url_for('reports.reports_home')), ("Bitácora", url_for('reports.logbook_admin_view'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Reportes", url_for('reports.reports_home')), ("Bitácora", url_for('reports.logbook_admin_view'))] %}
 {% block title %}Bitácora (Admin){% endblock %}
 
 {% block content %}
@@ -15,18 +15,18 @@
   <form method="get" action="{{ url_for('reports.logbook_admin_view') }}" class="toolbar" style="grid-template-columns: repeat(4, minmax(190px, 1fr)) auto;">
     <div class="toolbar-group">
       <label for="action">Acción contiene</label>
-      <div class="search-box"><i class="ph ph-lightning search-icon"></i><input type="text" id="action" name="action" value="{{ action or '' }}" placeholder="RA_SCAN, LOGIN, ..."></div>
+      <div class="search-box"><i class="ph ph-lightning search-icon"></i><input type="text" id="action" name="action" value="{{ action or '' }}" placeholder="Ejemplo: RA_SCAN o LOGIN"></div>
     </div>
     <div class="toolbar-group">
       <label for="module">Módulo</label>
-      <div class="search-box"><i class="ph ph-squares-four search-icon"></i><input type="text" id="module" name="module" value="{{ module or '' }}" placeholder="RESERVATIONS, USERS, ..."></div>
+      <div class="search-box"><i class="ph ph-squares-four search-icon"></i><input type="text" id="module" name="module" value="{{ module or '' }}" placeholder="Ejemplo: RESERVATIONS o USERS"></div>
     </div>
     <div class="toolbar-group">
-      <label for="user_id">User ID</label>
+      <label for="user_id">ID de usuario</label>
       <div class="search-box"><i class="ph ph-user search-icon"></i><input type="number" id="user_id" name="user_id" value="{{ user_id or '' }}"></div>
     </div>
     <div class="toolbar-group">
-      <label for="material_id">Material ID</label>
+      <label for="material_id">ID de material</label>
       <div class="search-box"><i class="ph ph-hash search-icon"></i><input type="number" id="material_id" name="material_id" value="{{ material_id or '' }}"></div>
     </div>
     <div class="toolbar-actions">
