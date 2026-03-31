@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Reservas admin", url_for('reservations.admin_queue')), ("Historial aprobadas", url_for('reservations.admin_approved_history'))] %}
+{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Reservas admin", url_for('reservations.admin_queue')), ("Historial aprobadas", url_for('reservations.admin_approved_history'))] %}
 {% block title %}Historial de reservas aprobadas{% endblock %}
 
 {% block content %}
