@@ -15,7 +15,7 @@
 <tr><td><strong>Creado</strong></td><td>{{ item.created_at }}</td></tr>
 </tbody></table></div></section>
 
-{% if current_user.is_authenticated and current_user.role in ['ADMIN', 'SUPERADMIN'] %}
+{% if current_user.is_authenticated and is_admin_role(current_user.role) %}
 <section class="toolbar-card">
   <h3 style="margin-bottom: 10px;">Acciones (Admin)</h3>
   <form method="post" action="{{ url_for('lostfound.admin_set_status', item_id=item.id) }}" class="toolbar" style="grid-template-columns: 1fr 1fr auto;">
