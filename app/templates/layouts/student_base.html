@@ -20,7 +20,7 @@
             <i class="ph ph-caret-left"></i>
           </button>
 
-          <a href="{{ url_for('inventory.inventory_list') }}" class="brand-link">
+          <a href="{{ url_for('root_home') }}" class="brand-link">
             <div class="brand-logo-shell">
               <img src="{{ url_for('static', filename='img/coyolabs.png') }}" alt="CoyoLabs Logo" class="brand-logo">
             </div>
@@ -38,7 +38,7 @@
 
 
           {% set is_admin_nav = current_user.is_authenticated and is_admin_role(current_user.role) %}
-          <a href="{{ url_for('home.home_dashboard') }}"
+          <a href="{{ url_for('root_home') }}"
              class="nav-item {% if active_page == 'home' %}active{% endif %}">
             <i class="ph ph-house nav-icon"></i>
             <span class="nav-label">Inicio</span>
@@ -162,6 +162,10 @@
             </section>
           {% endif %}
         {% endwith %}
+
+        {% if current_user.is_authenticated and active_page not in ['home', 'dashboard'] %}
+          {% include "components/back_button.html" %}
+        {% endif %}
 
         {% block content %}{% endblock %}
       </section>

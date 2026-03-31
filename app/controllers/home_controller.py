@@ -5,6 +5,7 @@ from sqlalchemy.orm import joinedload
 from flask_login import current_user, login_required
 
 from app.utils.authz import min_role_required
+from app.utils.roles import is_admin_role
 
 from app.models.reservation import Reservation
 from app.models.debt import Debt
@@ -93,6 +94,9 @@ def labs_view():
 @home_bp.route("/", methods=["GET"])
 @login_required
 def home_dashboard():
+    if is_admin_role(current_user.role):
+        return redirect(url_for("dashboard.dashboard_home"))
+
     selected_date, selected_time = _parse_home_filters()
 
     user = current_user

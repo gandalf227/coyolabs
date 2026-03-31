@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard'))] %}
+{% set crumbs = [("Inicio", url_for('root_home'))] %}
 {% block title %}{{ "Dashboard" if active_page == "dashboard" else "Inicio" }}{% endblock %}
 
 {% block content %}

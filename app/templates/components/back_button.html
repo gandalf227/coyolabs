@@ -1,0 +1,9 @@
+<section class="toolbar-card toolbar-card--compact back-nav">
+  <a
+    class="btn btn-ghost btn-back"
+    href="{{ back_href if back_href is defined else (request.referrer or url_for('root_home')) }}"
+  >
+    <i class="ph ph-arrow-left"></i>
+    <span>{{ back_label if back_label is defined else "Volver" }}</span>
+  </a>
+</section>

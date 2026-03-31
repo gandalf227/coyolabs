@@ -3,6 +3,7 @@ import secrets
 
 from flask import Flask, redirect, request, session, url_for, abort
 from app.utils.roles import is_admin_role, is_staff_role
+from app.utils.landing import resolve_landing_endpoint
 
 from app.models.user import User
 from .config import Config
@@ -90,6 +91,12 @@ def create_app():
 
     from app.controllers.forum_controller import forum_bp
     app.register_blueprint(forum_bp)
+    @app.get("/")
+    def root_home():
+        if not current_user.is_authenticated:
+            return redirect(url_for("auth.auth_page"))
+        return redirect(url_for(resolve_landing_endpoint(current_user.role)))
+
     # Ruta de salud para verificar que el servidor está vivo
     @app.get("/health")
     def health():

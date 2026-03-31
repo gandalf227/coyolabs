@@ -20,7 +20,7 @@
 <body>
   <main class="container">
     <h1>Completa tu perfil</h1>
-    <p>Antes de continuar en CoyoLabs, captura tu información.</p>
+    <p>Antes de continuar en CoyoLabs, registra tu información académica y de contacto.</p>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -35,12 +35,12 @@
     <form method="post" action="{{ url_for('profile.complete_profile') }}">
       <div class="field">
         <label for="full_name">Nombre completo *</label>
-        <input id="full_name" name="full_name" required>
+        <input id="full_name" name="full_name" placeholder="Ejemplo: María Fernanda López Díaz" required>
       </div>
 
       <div class="field">
         <label for="matricula">Matrícula *</label>
-        <input id="matricula" name="matricula" required>
+        <input id="matricula" name="matricula" placeholder="Ejemplo: 24310116" required>
       </div>
 
       <div class="field">
@@ -65,7 +65,7 @@
 
       <div class="field">
         <label for="phone">Teléfono *</label>
-        <input id="phone" name="phone" required>
+        <input id="phone" name="phone" placeholder="Ejemplo: 311-123-4567" required>
       </div>
 
       <div class="field">
@@ -75,7 +75,7 @@
         </label>
       </div>
 
-      <button type="submit">Guardar</button>
+      <button type="submit">Guardar perfil</button>
     </form>
   </main>
 
