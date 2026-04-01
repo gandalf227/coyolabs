@@ -39,53 +39,58 @@
     </div>
 
     <div class="toolbar-card" style="margin:0;">
-      <h3 style="margin-top:0;">Actualización de datos</h3>
-      {% if is_admin_role(current_user.role) %}
-        <p style="margin-top:0; color:var(--text-dim);">
-          Tu cuenta tiene privilegios administrativos ({{ current_user.role }}). No necesitas solicitar actualización de perfil.
-        </p>
-      {% elif is_professor %}
-        <p style="margin-top:0; color:var(--text-dim);">
-          Como profesor, puedes actualizar directamente tu teléfono.
-        </p>
-        <form method="post" action="{{ url_for('profile.update_phone') }}" class="toolbar" style="grid-template-columns:1fr auto;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <div class="toolbar-group">
-            <label>Teléfono</label>
-            <div class="search-box">
-              <i class="ph ph-phone search-icon"></i>
-              <input type="text" name="phone" value="{{ current_user.phone or '' }}" required>
-            </div>
+      <h3 style="margin-top:0;">Editar perfil</h3>
+      <p style="margin-top:0; color:var(--text-dim);">
+        Puedes actualizar únicamente tu nombre completo y teléfono.
+      </p>
+      <form method="post" action="{{ url_for('profile.update_basic_profile') }}" class="toolbar" style="grid-template-columns:1fr 1fr;">
+        <div class="toolbar-group">
+          <label>Nombre completo</label>
+          <div class="search-box">
+            <i class="ph ph-user search-icon"></i>
+            <input type="text" name="full_name" value="{{ current_user.full_name or '' }}" placeholder="Ingresa tu nombre completo" required>
           </div>
-          <div class="toolbar-actions" style="align-self:end;">
-            <button type="submit" class="btn btn-gold">Actualizar teléfono</button>
+        </div>
+
+        <div class="toolbar-group">
+          <label>Teléfono</label>
+          <div class="search-box">
+            <i class="ph ph-phone search-icon"></i>
+            <input type="text" name="phone" value="{{ current_user.phone or '' }}" placeholder="Ejemplo: 555-123-4567" required>
           </div>
-        </form>
-      {% else %}
-        <p style="margin-top:0; color:var(--text-dim);">
-          Para mantener la integridad institucional, debes solicitar al administrador cualquier cambio de teléfono.
-        </p>
-        <form method="post" action="{{ url_for('profile.request_phone_change') }}" class="toolbar" style="grid-template-columns:1fr;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <div class="toolbar-group">
-            <label>Teléfono solicitado</label>
-            <div class="search-box">
-              <i class="ph ph-phone search-icon"></i>
-              <input type="text" name="requested_phone" placeholder="Ej.: 555-123-4567" required>
-            </div>
+        </div>
+
+        <div class="toolbar-group">
+          <label>Matrícula (solo lectura)</label>
+          <div class="search-box">
+            <i class="ph ph-identification-card search-icon"></i>
+            <input type="text" name="matricula" value="{{ current_user.matricula or 'No registrada' }}" readonly>
           </div>
-          <div class="toolbar-group">
-            <label>Motivo (opcional)</label>
-            <div class="search-box">
-              <i class="ph ph-note-pencil search-icon"></i>
-              <input type="text" name="reason" placeholder="Describe brevemente el motivo">
-            </div>
+        </div>
+
+        <div class="toolbar-group">
+          <label>Carrera (solo lectura)</label>
+          <div class="search-box">
+            <i class="ph ph-graduation-cap search-icon"></i>
+            <input type="text" name="career" value="{{ current_user.career or 'No registrada' }}" readonly>
           </div>
-          <button type="submit" class="btn btn-gold">
-            Solicitar cambio de teléfono
-          </button>
-        </form>
-      {% endif %}
+        </div>
+
+        <div class="toolbar-group">
+          <label>Nivel académico (solo lectura)</label>
+          <div class="search-box">
+            <i class="ph ph-book-open search-icon"></i>
+            <input type="text" name="academic_level" value="{{ current_user.academic_level or 'No registrado' }}" readonly>
+          </div>
+        </div>
+
+        <div class="toolbar-actions" style="align-self:end; justify-self:end;">
+          <button type="submit" class="btn btn-gold">Guardar cambios</button>
+        </div>
+      </form>
+      <p style="margin:10px 0 0 0; color:var(--text-dim);">
+        Para modificar estos datos, contacta a administración.
+      </p>
     </div>
   </div>
 </section>

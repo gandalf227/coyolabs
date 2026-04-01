@@ -73,6 +73,11 @@ def _is_professor_role(role: str | None) -> bool:
     return normalized == ROLE_TEACHER
 
 
+def _normalize_full_name(raw_name: str | None) -> str:
+    value = re.sub(r"\s+", " ", (raw_name or "").strip())
+    return value
+
+
 @profile_bp.route("/", methods=["GET"])
 @login_required
 def my_profile():
@@ -347,6 +352,66 @@ def update_phone():
     current_user.phone = phone
     db.session.commit()
     flash("Teléfono actualizado.", "success")
+    return redirect(url_for("profile.my_profile"))
+
+
+@profile_bp.route("/update-basic", methods=["POST"])
+@login_required
+def update_basic_profile():
+    full_name = _normalize_full_name(request.form.get("full_name"))
+    phone, phone_error = normalize_and_validate_phone(request.form.get("phone"))
+
+    if not full_name:
+        flash("El nombre completo es obligatorio.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    if phone_error:
+        flash(phone_error, "error")
+        return redirect(url_for("profile.my_profile"))
+
+    blocked_attempts = []
+    restricted_fields = {
+        "matricula": current_user.matricula or "",
+        "career": current_user.career or "",
+        "academic_level": current_user.academic_level or "",
+    }
+    for field_name, current_value in restricted_fields.items():
+        submitted_value = (request.form.get(field_name) or "").strip()
+        if submitted_value and submitted_value != str(current_value):
+            blocked_attempts.append(field_name)
+
+    changed_fields = []
+    if full_name != (current_user.full_name or ""):
+        changed_fields.append("full_name")
+    if phone != (current_user.phone or ""):
+        changed_fields.append("phone")
+
+    current_user.full_name = full_name
+    current_user.phone = phone
+    db.session.commit()
+
+    log_event(
+        module="PROFILE",
+        action="PROFILE_UPDATED",
+        user_id=current_user.id,
+        entity_label=f"User #{current_user.id}",
+        description="Actualización de perfil por el usuario",
+        metadata={
+            "changed_fields": changed_fields,
+            "blocked_fields_attempted": blocked_attempts,
+        },
+    )
+    db.session.commit()
+
+    if blocked_attempts:
+        flash("Se guardaron tus cambios permitidos. Los datos académicos solo pueden modificarse por administración.", "warning")
+        return redirect(url_for("profile.my_profile"))
+
+    if not changed_fields:
+        flash("No detectamos cambios en tu perfil.", "info")
+        return redirect(url_for("profile.my_profile"))
+
+    flash("Tu perfil se actualizó correctamente.", "success")
     return redirect(url_for("profile.my_profile"))
 
 

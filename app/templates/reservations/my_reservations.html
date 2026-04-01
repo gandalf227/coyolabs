@@ -14,7 +14,7 @@
 <section class="toolbar-card">
   <div class="toolbar-actions">
     <a class="btn btn-gold" href="{{ url_for('reservations.request_reservation') }}">Solicitar reserva</a>
-    {% if current_user.role in ['ADMIN', 'SUPERADMIN'] %}
+    {% if is_admin_role(current_user.role) %}
       <a class="btn btn-ghost" href="{{ url_for('reservations.admin_queue') }}">Cola admin</a>
     {% endif %}
   </div>
