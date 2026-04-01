@@ -83,7 +83,12 @@
 <body>
   <main class="container">
     <h1>Completa tu perfil</h1>
-    <p>Antes de continuar en CoyoLabs, registra tu información académica y de contacto.</p>
+
+    {% if is_teacher %}
+      <p>Antes de continuar en CoyoLabs, registra tu información de contacto y los datos básicos de tu perfil como profesor.</p>
+    {% else %}
+      <p>Antes de continuar en CoyoLabs, registra tu información académica y de contacto.</p>
+    {% endif %}
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -108,6 +113,7 @@
         >
       </div>
 
+      {% if is_student %}
       <div class="field">
         <label for="matricula">Matrícula *</label>
         <input
@@ -117,32 +123,43 @@
           required
         >
       </div>
+      {% endif %}
 
       <div class="field">
-        <label for="career_id">Carrera *</label>
-        <select id="career_id" name="career_id" required>
-          <option value="">Selecciona una carrera</option>
+        <label for="career_id">
+          {% if is_teacher %}Área académica / Carrera{% else %}Carrera *{% endif %}
+        </label>
+        <select id="career_id" name="career_id" {% if is_student %}required{% endif %}>
+          <option value="">
+            {% if is_teacher %}Selecciona un área o carrera{% else %}Selecciona una carrera{% endif %}
+          </option>
           {% for career in careers %}
           <option value="{{ career.id }}">{{ career.name }}</option>
           {% endfor %}
         </select>
       </div>
 
+      {% if is_student %}
       <div class="field">
-        <label for="academic_level_id">
-          Nivel {% if is_student %}*{% else %}(si aplica){% endif %}
-        </label>
-        <select
-          id="academic_level_id"
-          name="academic_level_id"
-          {% if is_student %}required{% endif %}
-        >
+        <label for="academic_level_id">Nivel académico *</label>
+        <select id="academic_level_id" name="academic_level_id" required>
           <option value="">Selecciona nivel</option>
           {% for level in academic_levels %}
           <option value="{{ level.id }}">{{ level.name }}</option>
           {% endfor %}
         </select>
       </div>
+      {% else %}
+      <div class="field">
+        <label for="academic_level_id">Nivel académico (si aplica)</label>
+        <select id="academic_level_id" name="academic_level_id">
+          <option value="">Selecciona nivel</option>
+          {% for level in academic_levels %}
+          <option value="{{ level.id }}">{{ level.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
 
       <div class="field">
         <label for="phone">Teléfono *</label>
@@ -165,6 +182,7 @@
     </form>
   </main>
 
+  {% if is_student %}
   <script id="career-level-map" type="application/json">
     {{ career_level_map | tojson }}
   </script>
@@ -224,5 +242,6 @@
       renderLevelOptions();
     })();
   </script>
+  {% endif %}
 </body>
 </html>
