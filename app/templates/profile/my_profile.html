@@ -1,6 +1,18 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Mi perfil", url_for('profile.my_profile'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Mi perfil", url_for('profile.my_profile'))] %}
 {% block title %}Mi perfil{% endblock %}
+
+{% set status_map = {
+  "APPROVED": "Aprobado",
+  "PENDING": "Pendiente",
+  "REJECTED": "Rechazado",
+  "IN_PROGRESS": "En curso",
+  "COMPLETED": "Completado",
+  "OPEN": "Abierto",
+  "CLOSED": "Cerrado",
+  "PAID": "Pagado",
+  "CANCELLED": "Cancelado"
+} %}
 
 {% block content %}
 <header class="topbar">
@@ -17,7 +29,7 @@
       <h3 style="margin-top:0;">Resumen de cuenta</h3>
       <div style="display:grid; gap:8px;">
         <div><strong>Nombre completo:</strong> {{ current_user.full_name or '-' }}</div>
-        <div><strong>Email:</strong> {{ current_user.email }}</div>
+        <div><strong>Correo electrónico:</strong> {{ current_user.email }}</div>
         <div><strong>Rol:</strong> {{ current_user.role }}</div>
         <div><strong>Matrícula:</strong> {{ current_user.matricula or '-' }}</div>
         <div><strong>Teléfono:</strong> {{ current_user.phone or '-' }}</div>
@@ -37,6 +49,7 @@
           Como profesor, puedes actualizar directamente tu teléfono.
         </p>
         <form method="post" action="{{ url_for('profile.update_phone') }}" class="toolbar" style="grid-template-columns:1fr auto;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <div class="toolbar-group">
             <label>Teléfono</label>
             <div class="search-box">
@@ -50,14 +63,15 @@
         </form>
       {% else %}
         <p style="margin-top:0; color:var(--text-dim);">
-          Para mantener integridad institucional, debes solicitar al administrador cualquier cambio de teléfono.
+          Para mantener la integridad institucional, debes solicitar al administrador cualquier cambio de teléfono.
         </p>
         <form method="post" action="{{ url_for('profile.request_phone_change') }}" class="toolbar" style="grid-template-columns:1fr;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <div class="toolbar-group">
             <label>Teléfono solicitado</label>
             <div class="search-box">
               <i class="ph ph-phone search-icon"></i>
-              <input type="text" name="requested_phone" placeholder="Ej: 555-123-4567" required>
+              <input type="text" name="requested_phone" placeholder="Ej.: 555-123-4567" required>
             </div>
           </div>
           <div class="toolbar-group">
@@ -85,7 +99,7 @@
       <label>Buscar materia</label>
       <div class="search-box">
         <i class="ph ph-magnifying-glass search-icon"></i>
-        <input type="text" name="q" value="{{ catalog_filters.q }}" placeholder="Nombre de materia">
+        <input type="text" name="q" value="{{ catalog_filters.q }}" placeholder="Nombre de la materia">
       </div>
     </div>
 
@@ -121,11 +135,12 @@
   </form>
 
   <form method="post" action="{{ url_for('profile.add_teaching_load') }}" class="toolbar" style="grid-template-columns: 1.2fr .8fr auto; margin-top:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="toolbar-group">
       <label>Materia</label>
       <div class="select-wrap">
         <select name="subject_id" required>
-          <option value="">Selecciona materia</option>
+          <option value="">Selecciona una materia</option>
           {% for s in available_subjects %}
           <option value="{{ s.id }}">{{ s.name }} · {{ s.career.name if s.career else '-' }} · {{ s.level }} C{{ s.quarter }}</option>
           {% endfor %}
@@ -135,10 +150,10 @@
     </div>
 
     <div class="toolbar-group">
-      <label>Grupo (MAYÚSCULAS)</label>
+      <label>Grupo (en mayúsculas)</label>
       <div class="search-box">
         <i class="ph ph-users search-icon"></i>
-        <input type="text" name="group_code" placeholder="Ej: 3A" required>
+        <input type="text" name="group_code" placeholder="Ej.: 3A" required>
       </div>
     </div>
 
@@ -170,6 +185,7 @@
           <td>{{ load.group_code }}</td>
           <td>
             <form method="post" action="{{ url_for('profile.remove_teaching_load', load_id=load.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <button type="submit" class="btn btn-ghost">Quitar</button>
             </form>
           </td>
@@ -179,7 +195,7 @@
     </table>
   </div>
   {% else %}
-    <p style="margin-top:10px;">Aún no registras materias/grupos.</p>
+    <p style="margin-top:10px;">Aún no registras materias ni grupos.</p>
   {% endif %}
 </section>
 {% endif %}
@@ -187,18 +203,18 @@
 <section class="table-card" style="margin-top:16px;">
   <h3 style="margin:0 0 12px 0;">Mis reservaciones</h3>
   {% if reservations|length == 0 %}
-    <p>Sin reservaciones registradas.</p>
+    <p>No tienes reservaciones registradas.</p>
   {% else %}
   <div class="table-wrap">
     <table class="inventory-table" style="min-width: 900px;">
       <thead>
         <tr>
           <th>ID</th>
-          <th>Salón/Lab</th>
+          <th>Salón/Laboratorio</th>
           <th>Fecha</th>
           <th>Inicio</th>
           <th>Fin</th>
-          <th>Status</th>
+          <th>Estado</th>
           <th>Motivo</th>
         </tr>
       </thead>
@@ -212,7 +228,7 @@
           <td>{{ r.end_time }}</td>
           <td>
             <span class="status-badge {% if r.status == 'APPROVED' %}status-ok{% elif r.status == 'PENDING' %}status-warn{% else %}status-bad{% endif %}">
-              {{ r.status }}
+              {{ status_map.get(r.status, r.status) }}
             </span>
           </td>
           <td>{{ r.purpose or '-' }}</td>
@@ -227,17 +243,17 @@
 <section class="table-card" style="margin-top:16px;">
   <h3 style="margin:0 0 12px 0;">Mis tickets / solicitudes</h3>
   {% if tickets|length == 0 %}
-    <p>Sin tickets registrados.</p>
+    <p>No tienes tickets registrados.</p>
   {% else %}
   <div class="table-wrap">
     <table class="inventory-table" style="min-width: 1000px;">
       <thead>
         <tr>
-          <th>ID Ticket</th>
+          <th>ID de ticket</th>
           <th>Reserva asociada</th>
-          <th>Salón/Lab</th>
+          <th>Salón/Laboratorio</th>
           <th>Fecha</th>
-          <th>Status</th>
+          <th>Estado</th>
           <th>Apertura</th>
           <th>Cierre</th>
         </tr>
@@ -251,7 +267,7 @@
           <td>{{ t.date or (t.reservation.date if t.reservation else '-') }}</td>
           <td>
             <span class="status-badge {% if t.status == 'OPEN' %}status-warn{% elif t.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
-              {{ t.status }}
+              {{ status_map.get(t.status, t.status) }}
             </span>
           </td>
           <td>{{ t.opened_at }}</td>
@@ -267,7 +283,7 @@
 <section class="table-card" style="margin-top:16px;">
   <h3 style="margin:0 0 12px 0;">Mis adeudos</h3>
   {% if debts|length == 0 %}
-    <p>Sin adeudos registrados.</p>
+    <p>No tienes adeudos registrados.</p>
   {% else %}
   <div class="table-wrap">
     <table class="inventory-table" style="min-width: 1000px;">
@@ -276,9 +292,9 @@
           <th>ID</th>
           <th>Material</th>
           <th>Razón</th>
-          <th>Status</th>
+          <th>Estado</th>
           <th>Creado</th>
-          <th>Abierto/Pagado</th>
+          <th>Situación</th>
         </tr>
       </thead>
       <tbody>
@@ -289,7 +305,7 @@
           <td>{{ d.reason or '-' }}</td>
           <td>
             <span class="status-badge {% if d.status == 'OPEN' %}status-bad{% else %}status-ok{% endif %}">
-              {{ d.status }}
+              {{ status_map.get(d.status, d.status) }}
             </span>
           </td>
           <td>{{ d.created_at }}</td>
