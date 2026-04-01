@@ -411,14 +411,6 @@ def create_admin_account():
             description=f"{current_user.email} creó admin {email}",
             metadata={"email": email, "role": ROLE_ADMIN},
         )
-        log_event(
-            module="USERS",
-            action="ADMIN_CREATED",
-            user_id=current_user.id,
-            entity_label=f"User {email}",
-            description=f"Cuenta ADMIN creada: {email}",
-            metadata={"email": email, "role": ROLE_ADMIN},
-        )
         db.session.commit()
 
         flash(f"Cuenta ADMIN creada para {email}.", "success")
