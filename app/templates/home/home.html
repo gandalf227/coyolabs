@@ -93,7 +93,7 @@
         <div class="list-item">
           <div class="list-head">
             <strong>{{ r.room }}</strong>
-            <span class="chip chip-{{ r.status }}">{{ r.status }}</span>
+            <span class="chip chip-{{ r.status }}">{{ r.status|status_label }}</span>
           </div>
           <div class="meta">
             <span><i class="ph ph-calendar"></i> {{ r.date.strftime('%d/%m/%Y') }}</span>
@@ -120,7 +120,7 @@
         <div class="list-item">
           <div class="list-head">
             <strong>{{ r.room }}</strong>
-            <span class="chip chip-{{ r.status }}">{{ r.status }}</span>
+            <span class="chip chip-{{ r.status }}">{{ r.status|status_label }}</span>
           </div>
           <div class="meta">
             <span>{{ r.date.strftime('%d/%m/%Y') }}</span>
@@ -188,7 +188,7 @@
         <div class="profile-item"><span>Carrera</span><strong>{{ current_user.career_rel.name if current_user.career_rel else (current_user.career or 'Sin capturar') }}</strong></div>
         <div class="profile-item"><span>Nivel académico</span><strong>{{ current_user.academic_level_rel.name if current_user.academic_level_rel else (current_user.academic_level or 'Sin capturar') }}</strong></div>
         <div class="profile-item"><span>Teléfono</span><strong>{{ current_user.phone or 'Sin capturar' }}</strong></div>
-        <div class="profile-item"><span>Rol</span><strong>{{ current_user.role }}</strong></div>
+        <div class="profile-item"><span>Rol</span><strong>{{ current_user.role|role_label }}</strong></div>
         <div class="profile-item"><span>Estado</span>
           <strong>
             {% if is_profile_complete %}
@@ -225,7 +225,7 @@
         <div class="list-item">
           <div class="list-head">
             <strong>Ticket #{{ ticket.id }}</strong>
-            <span class="chip chip-{{ ticket.status }}">{{ ticket.status }}</span>
+            <span class="chip chip-{{ ticket.status }}">{{ ticket.status|status_label }}</span>
           </div>
           <div class="meta">
             <span><i class="ph ph-calendar"></i> {{ ticket.request_date.strftime('%d/%m/%Y') }}</span>
@@ -250,7 +250,7 @@
         <div class="list-item">
           <div class="list-head">
             <strong>Adeudo #{{ debt.id }}</strong>
-            <span class="chip chip-{{ debt.status }}">{{ debt.status }}</span>
+            <span class="chip chip-{{ debt.status }}">{{ debt.status|status_label }}</span>
           </div>
           <div class="meta">
             <span>{{ debt.reason or 'Sin descripción' }}</span>

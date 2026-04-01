@@ -2,17 +2,6 @@
 {% set crumbs = [("Inicio", url_for('root_home')), ("Mi perfil", url_for('profile.my_profile'))] %}
 {% block title %}Mi perfil{% endblock %}
 
-{% set status_map = {
-  "APPROVED": "Aprobado",
-  "PENDING": "Pendiente",
-  "REJECTED": "Rechazado",
-  "IN_PROGRESS": "En curso",
-  "COMPLETED": "Completado",
-  "OPEN": "Abierto",
-  "CLOSED": "Cerrado",
-  "PAID": "Pagado",
-  "CANCELLED": "Cancelado"
-} %}
 
 {% block content %}
 <header class="topbar">
@@ -30,7 +19,7 @@
       <div style="display:grid; gap:8px;">
         <div><strong>Nombre completo:</strong> {{ current_user.full_name or '-' }}</div>
         <div><strong>Correo electrónico:</strong> {{ current_user.email }}</div>
-        <div><strong>Rol:</strong> {{ current_user.role }}</div>
+        <div><strong>Rol:</strong> {{ current_user.role|role_label }}</div>
         <div><strong>Matrícula:</strong> {{ current_user.matricula or '-' }}</div>
         <div><strong>Teléfono:</strong> {{ current_user.phone or '-' }}</div>
         <div><strong>Correo verificado:</strong> {{ 'Sí' if current_user.is_verified else 'No' }}</div>
@@ -42,7 +31,7 @@
       <h3 style="margin-top:0;">Actualización de datos</h3>
       {% if is_admin_role(current_user.role) %}
         <p style="margin-top:0; color:var(--text-dim);">
-          Tu cuenta tiene privilegios administrativos ({{ current_user.role }}). No necesitas solicitar actualización de perfil.
+          Tu cuenta tiene privilegios administrativos ({{ current_user.role|role_label }}). No necesitas solicitar actualización de perfil.
         </p>
       {% elif is_professor %}
         <p style="margin-top:0; color:var(--text-dim);">
@@ -228,7 +217,7 @@
           <td>{{ r.end_time }}</td>
           <td>
             <span class="status-badge {% if r.status == 'APPROVED' %}status-ok{% elif r.status == 'PENDING' %}status-warn{% else %}status-bad{% endif %}">
-              {{ status_map.get(r.status, r.status) }}
+              {{ r.status|status_label }}
             </span>
           </td>
           <td>{{ r.purpose or '-' }}</td>
@@ -267,7 +256,7 @@
           <td>{{ t.date or (t.reservation.date if t.reservation else '-') }}</td>
           <td>
             <span class="status-badge {% if t.status == 'OPEN' %}status-warn{% elif t.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
-              {{ status_map.get(t.status, t.status) }}
+              {{ t.status|status_label }}
             </span>
           </td>
           <td>{{ t.opened_at }}</td>
@@ -305,7 +294,7 @@
           <td>{{ d.reason or '-' }}</td>
           <td>
             <span class="status-badge {% if d.status == 'OPEN' %}status-bad{% else %}status-ok{% endif %}">
-              {{ status_map.get(d.status, d.status) }}
+              {{ d.status|status_label }}
             </span>
           </td>
           <td>{{ d.created_at }}</td>

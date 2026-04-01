@@ -14,7 +14,7 @@
     <a href="{{ url_for('users.profile_change_requests') }}" class="btn btn-ghost">Solicitudes de perfil</a>
     <a href="{{ url_for('users.critical_action_requests') }}" class="btn btn-ghost">Solicitudes críticas</a>
     <a href="{{ url_for('reports.logbook_admin_view') }}" class="btn btn-ghost">Bitácora</a>
-    <a href="{{ url_for('users.create_admin_account') }}" class="btn btn-gold">Crear cuenta ADMIN</a>
+    <a href="{{ url_for('users.create_admin_account') }}" class="btn btn-gold">Crear cuenta de administrador</a>
   </div>
   {% else %}
   <div class="topbar-actions">
@@ -41,7 +41,7 @@
         <select name="role">
           <option value="">Todos</option>
           {% for rf in role_filters %}
-          <option value="{{ rf }}" {% if selected_role == rf %}selected{% endif %}>{{ rf }}</option>
+          <option value="{{ rf }}" {% if selected_role == rf %}selected{% endif %}>{{ rf|role_label }}</option>
           {% endfor %}
         </select>
         <i class="ph ph-caret-down select-arrow"></i>
@@ -78,7 +78,7 @@
           <td>{{ user.full_name or '-' }}</td>
           <td>{{ user.matricula or '-' }}</td>
           <td>{{ user.phone or '-' }}</td>
-          <td><span class="status-badge {% if user.role in ['ADMIN','SUPERADMIN'] %}status-warn{% else %}status-ok{% endif %}">{{ user.role }}</span></td>
+          <td><span class="status-badge {% if user.role in ['ADMIN','SUPERADMIN'] %}status-warn{% else %}status-ok{% endif %}">{{ user.role|role_label }}</span></td>
           <td><span class="status-badge {% if user.is_active %}status-ok{% else %}status-bad{% endif %}">{{ 'Sí' if user.is_active else 'No' }}</span></td>
           <td><span class="status-badge {% if user.is_banned %}status-bad{% else %}status-ok{% endif %}">{{ 'Sí' if user.is_banned else 'No' }}</span></td>
           <td>
@@ -89,9 +89,9 @@
               <input type="text" name="phone" value="{{ user.phone or '' }}" placeholder="Teléfono">
 
               <select name="role">
-                <option value="{{ user.role }}">{{ user.role }} (actual)</option>
+                <option value="{{ user.role }}">{{ user.role|role_label }} (actual)</option>
                 {% for role_name in assignable_roles %}
-                <option value="{{ role_name }}">{{ role_name }}</option>
+                <option value="{{ role_name }}">{{ role_name|role_label }}</option>
                 {% endfor %}
               </select>
 
@@ -114,7 +114,7 @@
               <form method="post" action="{{ url_for('users.admin_unban_user', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Desbloquear</button></form>
               <form method="post" action="{{ url_for('users.admin_ban_user', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Bloquear</button></form>
               {% if is_superadmin and user.id != current_user.id and user.role != 'SUPERADMIN' %}
-              <form method="post" action="{{ url_for('users.superadmin_soft_delete_admin', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Soft delete usuario</button></form>
+              <form method="post" action="{{ url_for('users.superadmin_soft_delete_admin', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Eliminar administrador</button></form>
               {% endif %}
             </div>
           </td>

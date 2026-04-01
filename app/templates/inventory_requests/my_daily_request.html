@@ -220,7 +220,7 @@
   {% if not today_ticket %}
     <p>Aún no tienes ticket de pedido para hoy.</p>
   {% else %}
-    <p><strong>Ticket #{{ today_ticket.id }}</strong> · Estado: <span class="status-badge {% if today_ticket.status == 'OPEN' %}status-warn{% elif today_ticket.status == 'READY_FOR_PICKUP' %}status-ok{% else %}status-bad{% endif %}">{{ today_ticket.status }}</span></p>
+    <p><strong>Ticket #{{ today_ticket.id }}</strong> · Estado: <span class="status-badge {% if today_ticket.status == 'OPEN' %}status-warn{% elif today_ticket.status == 'READY_FOR_PICKUP' %}status-ok{% else %}status-bad{% endif %}">{{ today_ticket.status|status_label }}</span></p>
     <div class="table-wrap">
       <table class="inventory-table" style="min-width:700px;">
         <thead>
@@ -253,7 +253,7 @@
           <tr>
             <th>Ticket</th>
             <th>Fecha</th>
-            <th>Status</th>
+            <th>Estado</th>
             <th>Items</th>
           </tr>
         </thead>
@@ -262,7 +262,7 @@
           <tr>
             <td>#{{ t.id }}</td>
             <td>{{ t.request_date }}</td>
-            <td>{{ t.status }}</td>
+            <td>{{ t.status|status_label }}</td>
             <td>{{ t.items|length }}</td>
           </tr>
           {% endfor %}

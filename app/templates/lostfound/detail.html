@@ -6,7 +6,7 @@
 
 <section class="table-card" style="margin-bottom:16px;"><div class="table-wrap"><table class="inventory-table" style="min-width:800px;"><tbody>
 <tr><td><strong>Título</strong></td><td>{{ item.title }}</td></tr>
-<tr><td><strong>Estado</strong></td><td>{{ item.status }}</td></tr>
+<tr><td><strong>Estado</strong></td><td>{{ item.status|status_label }}</td></tr>
 <tr><td><strong>Ubicación</strong></td><td>{{ item.location or '-' }}</td></tr>
 <tr><td><strong>Descripción</strong></td><td>{{ item.description or '-' }}</td></tr>
 <tr><td><strong>Evidencia</strong></td><td>{{ item.evidence_ref or '-' }}</td></tr>
@@ -17,7 +17,7 @@
 
 {% if current_user.is_authenticated and current_user.role in ['ADMIN', 'SUPERADMIN'] %}
 <section class="toolbar-card">
-  <h3 style="margin-bottom: 10px;">Acciones (Admin)</h3>
+  <h3 style="margin-bottom: 10px;">Acciones (Administración)</h3>
   <form method="post" action="{{ url_for('lostfound.admin_set_status', item_id=item.id) }}" class="toolbar" style="grid-template-columns: 1fr 1fr auto;">
     <div class="toolbar-group"><label for="status">Nuevo estado</label><div class="select-wrap"><select id="status" name="status" required><option value="REPORTED" {% if item.status == 'REPORTED' %}selected{% endif %}>REPORTED</option><option value="IN_STORAGE" {% if item.status == 'IN_STORAGE' %}selected{% endif %}>IN_STORAGE</option><option value="RETURNED" {% if item.status == 'RETURNED' %}selected{% endif %}>RETURNED</option></select><i class="ph ph-caret-down select-arrow"></i></div></div>
     <div class="toolbar-group"><label for="admin_note">Nota (opcional)</label><div class="search-box"><i class="ph ph-note search-icon"></i><input id="admin_note" type="text" name="admin_note"></div></div>

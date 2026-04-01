@@ -7,15 +7,15 @@
 <section class="toolbar-card">
   <div class="toolbar-actions">
     <a class="btn {% if not status %}btn-gold{% else %}btn-ghost{% endif %}" href="{{ url_for('lostfound.list_items') }}">Todos</a>
-    <a class="btn {% if status == 'REPORTED' %}btn-gold{% else %}btn-ghost{% endif %}" href="{{ url_for('lostfound.list_items', status='REPORTED') }}">REPORTED</a>
-    <a class="btn {% if status == 'IN_STORAGE' %}btn-gold{% else %}btn-ghost{% endif %}" href="{{ url_for('lostfound.list_items', status='IN_STORAGE') }}">IN_STORAGE</a>
-    <a class="btn {% if status == 'RETURNED' %}btn-gold{% else %}btn-ghost{% endif %}" href="{{ url_for('lostfound.list_items', status='RETURNED') }}">RETURNED</a>
+    <a class="btn {% if status == 'REPORTED' %}btn-gold{% else %}btn-ghost{% endif %}" href="{{ url_for('lostfound.list_items', status='REPORTED') }}">Reportado</a>
+    <a class="btn {% if status == 'IN_STORAGE' %}btn-gold{% else %}btn-ghost{% endif %}" href="{{ url_for('lostfound.list_items', status='IN_STORAGE') }}">En resguardo</a>
+    <a class="btn {% if status == 'RETURNED' %}btn-gold{% else %}btn-ghost{% endif %}" href="{{ url_for('lostfound.list_items', status='RETURNED') }}">Devuelto</a>
   </div>
 </section>
 
 {% if items|length == 0 %}
   <section class="empty-state"><i class="ph ph-suitcase empty-icon"></i><h3>Sin registros</h3><p>No hay objetos perdidos para mostrar.</p></section>
 {% else %}
-  <section class="table-card"><div class="table-wrap"><table class="inventory-table" style="min-width:900px;"><thead><tr><th>ID</th><th>Título</th><th>Estado</th><th>Ubicación</th><th>Creado</th><th>Ver</th></tr></thead><tbody>{% for it in items %}<tr><td>{{ it.id }}</td><td>{{ it.title }}</td><td><span class="status-badge {% if it.status == 'RETURNED' %}status-ok{% elif it.status == 'IN_STORAGE' %}status-warn{% else %}status-neutral{% endif %}">{{ it.status }}</span></td><td>{{ it.location or '-' }}</td><td>{{ it.created_at }}</td><td><a class="action-btn" href="{{ url_for('lostfound.detail', item_id=it.id) }}"><i class="ph ph-eye"></i></a></td></tr>{% endfor %}</tbody></table></div></section>
+  <section class="table-card"><div class="table-wrap"><table class="inventory-table" style="min-width:900px;"><thead><tr><th>ID</th><th>Título</th><th>Estado</th><th>Ubicación</th><th>Creado</th><th>Ver</th></tr></thead><tbody>{% for it in items %}<tr><td>{{ it.id }}</td><td>{{ it.title }}</td><td><span class="status-badge {% if it.status == 'RETURNED' %}status-ok{% elif it.status == 'IN_STORAGE' %}status-warn{% else %}status-neutral{% endif %}">{{ it.status|status_label }}</span></td><td>{{ it.location or '-' }}</td><td>{{ it.created_at }}</td><td><a class="action-btn" href="{{ url_for('lostfound.detail', item_id=it.id) }}"><i class="ph ph-eye"></i></a></td></tr>{% endfor %}</tbody></table></div></section>
 {% endif %}
 {% endblock %}

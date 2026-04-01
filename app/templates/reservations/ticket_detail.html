@@ -48,9 +48,9 @@
       <div><strong>Responsable:</strong> {{ ticket.owner_user.email if ticket.owner_user else '-' }}</div>
       <div><strong>Salón/Lab:</strong> {{ ticket.room or '-' }}</div>
       <div><strong>Fecha:</strong> {{ ticket.date or '-' }}</div>
-      <div><strong>Status:</strong>
+      <div><strong>Estado:</strong>
         <span class="status-badge {% if ticket.status == 'OPEN' %}status-warn{% elif ticket.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
-          {{ ticket.status }}
+          {{ ticket.status|status_label }}
         </span>
       </div>
       <div><strong>Abierto:</strong> {{ ticket.opened_at or '-' }}</div>
@@ -85,7 +85,7 @@
           <th>Solicitado</th>
           <th>Entregado</th>
           <th>Devuelto</th>
-          <th>Status</th>
+          <th>Estado</th>
           <th>Notas</th>
         </tr>
       </thead>
@@ -113,7 +113,7 @@
           </td>
 
           <td>
-            <span class="status-badge">{{ item.status }}</span>
+            <span class="status-badge">{{ item.status|status_label }}</span>
             <div class="missing-label" style="font-size:12px; color:#D32F2F; display:none;"></div>
           </td>
 
