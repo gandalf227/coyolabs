@@ -1,6 +1,6 @@
 {% extends "layouts/student_base.html" %}
 {% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Pedidos diarios admin", url_for('inventory_requests.admin_daily_requests'))] %}
-{% block title %}Pedidos diarios (Admin){% endblock %}
+{% block title %}Pedidos diarios (Administración){% endblock %}
 
 {% block content %}
 <header class="topbar">
@@ -26,7 +26,7 @@
           <th>Ticket</th>
           <th>Usuario</th>
           <th>Fecha pedido</th>
-          <th>Status</th>
+          <th>Estado</th>
           <th>Items</th>
           <th>Acción</th>
         </tr>
@@ -38,7 +38,7 @@
           <td>{{ t.user.email if t.user else '-' }}</td>
           <td>{{ t.request_date }}</td>
           <td>
-            <span class="status-badge {% if t.status == 'OPEN' %}status-warn{% elif t.status == 'READY_FOR_PICKUP' %}status-ok{% else %}status-bad{% endif %}">{{ t.status }}</span>
+            <span class="status-badge {% if t.status == 'OPEN' %}status-warn{% elif t.status == 'READY_FOR_PICKUP' %}status-ok{% else %}status-bad{% endif %}">{{ t.status|status_label }}</span>
           </td>
           <td>{{ t.items|length }}</td>
           <td><a href="{{ url_for('inventory_requests.admin_ticket_detail', ticket_id=t.id) }}" class="btn btn-ghost">Revisar</a></td>

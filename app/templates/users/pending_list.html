@@ -7,14 +7,14 @@
   <div class="topbar-left">
     <p class="page-kicker">Administración de usuarios</p>
     <h1>Usuarios pendientes</h1>
-    <p class="page-subtitle">Aprueba cuentas institucionales pendientes asignando solo rol maestro, staff o admin.</p>
+    <p class="page-subtitle">Aprueba cuentas institucionales pendientes asignando un rol institucional.</p>
   </div>
 </header>
 
 <section class="toolbar-card">
   <div class="toolbar-actions" style="justify-content:space-between; width:100%;">
     <div>
-      <span class="status-badge status-warn">PENDIENTES</span>
+      <span class="status-badge status-warn">Pendientes</span>
       <strong style="margin-left:8px;">{{ users|length }}</strong>
     </div>
   </div>
@@ -49,7 +49,7 @@
                   <div class="select-wrap" style="min-width:180px;">
                     <select name="role" required>
                     {% for role_name in assignable_roles %}
-                      <option value="{{ role_name }}">{{ role_name }}</option>
+                      <option value="{{ role_name }}">{{ role_name|role_label }}</option>
                     {% endfor %}
                     </select>
                     <i class="ph ph-caret-down select-arrow"></i>

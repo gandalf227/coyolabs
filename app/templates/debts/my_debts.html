@@ -38,7 +38,7 @@
         <thead>
           <tr>
             <th>ID</th>
-            <th>Status</th>
+            <th>Estado</th>
             <th>Material</th>
             <th>Razón</th>
             <th>Creado</th>
@@ -50,7 +50,7 @@
               <td>{{ d.id }}</td>
               <td>
                 <span class="status-badge {% if d.status == 'OPEN' %}status-bad{% else %}status-ok{% endif %}">
-                  {{ d.status }}
+                  {{ d.status|status_label }}
                 </span>
               </td>
               <td>
