@@ -100,6 +100,9 @@ def create_app():
 
     from app.controllers.forum_controller import forum_bp
     app.register_blueprint(forum_bp)
+
+    from app.controllers.legal_controller import legal_bp
+    app.register_blueprint(legal_bp)
     @app.get("/")
     def root_home():
         if not current_user.is_authenticated:

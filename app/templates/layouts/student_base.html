@@ -121,6 +121,11 @@
           <span class="footer-label">{{ current_user.email if current_user.is_authenticated else 'Usuario' }}</span>
           <strong>{{ (current_user.role|role_label) if current_user.is_authenticated else 'Sin sesión' }}</strong>
         </div>
+        <div style="margin-top:8px; font-size:.78rem; color:var(--text-dim); display:flex; gap:6px; flex-wrap:wrap;">
+          <a href="{{ url_for('legal.privacy_notice') }}" style="color:inherit; text-decoration:none;">Privacidad</a>
+          <span>•</span>
+          <a href="{{ url_for('legal.terms_and_conditions') }}" style="color:inherit; text-decoration:none;">Términos</a>
+        </div>
       </div>
     </aside>
 
