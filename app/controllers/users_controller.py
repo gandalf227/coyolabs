@@ -157,7 +157,7 @@ def assign_role(user_id: int):
 def admin_panel():
     if not _is_admin_or_superadmin():
         flash("No autorizado.", "error")
-        return redirect(url_for("home.home_dashboard"))
+        return redirect(url_for("root_home"))
 
     q = (request.args.get("q") or "").strip()
     role = normalize_role(request.args.get("role"))

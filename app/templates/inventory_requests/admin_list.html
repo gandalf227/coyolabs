@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Pedidos diarios admin", url_for('inventory_requests.admin_daily_requests'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Pedidos diarios admin", url_for('inventory_requests.admin_daily_requests'))] %}
 {% block title %}Pedidos diarios (Administración){% endblock %}
 
 {% block content %}
