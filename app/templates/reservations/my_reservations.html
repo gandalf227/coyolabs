@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Mis reservas", url_for('reservations.my_reservations'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Mis reservas", url_for('reservations.my_reservations'))] %}
 {% block title %}Mis reservas{% endblock %}
 
 {% block content %}

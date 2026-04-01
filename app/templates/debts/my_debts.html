@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Mis adeudos", url_for('debts.my_debts'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Mis adeudos", url_for('debts.my_debts'))] %}
 {% block title %}Mis adeudos{% endblock %}
 
 {% block content %}

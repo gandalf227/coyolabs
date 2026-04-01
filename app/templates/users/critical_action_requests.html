@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Solicitudes críticas", url_for('users.critical_action_requests'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Solicitudes críticas", url_for('users.critical_action_requests'))] %}
 {% block title %}Solicitudes críticas{% endblock %}
 
 {% block content %}

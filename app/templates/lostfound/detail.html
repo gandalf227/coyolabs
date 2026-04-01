@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Objetos perdidos", url_for('lostfound.list_items')), ("Detalle", url_for('lostfound.detail', item_id=item.id))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Objetos perdidos", url_for('lostfound.list_items')), ("Detalle", url_for('lostfound.detail', item_id=item.id))] %}
 {% block title %}Detalle objeto perdido{% endblock %}
 {% block content %}
 <header class="topbar"><div class="topbar-left"><p class="page-kicker">Objetos perdidos</p><h1>Detalle del registro #{{ item.id }}</h1><p class="page-subtitle">Información del objeto y acciones administrativas.</p></div></header>

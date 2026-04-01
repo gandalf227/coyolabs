@@ -333,6 +333,15 @@ def request_phone_change():
         db.session.add(notif)
 
     db.session.commit()
+    log_event(
+        module="PROFILE",
+        action="PHONE_CHANGE_REQUESTED",
+        user_id=current_user.id,
+        entity_label=f"ProfileChangeRequest #{req.id}",
+        description="Solicitud de cambio de teléfono enviada",
+        metadata={"request_id": req.id, "requested_phone": phone},
+    )
+    db.session.commit()
     flash("Solicitud de cambio de teléfono enviada.", "success")
     return redirect(url_for("profile.my_profile"))
 
@@ -349,7 +358,17 @@ def update_phone():
         flash(phone_error, "error")
         return redirect(url_for("profile.my_profile"))
 
+    old_phone = current_user.phone
     current_user.phone = phone
+    db.session.commit()
+    log_event(
+        module="PROFILE",
+        action="PHONE_UPDATED_DIRECT",
+        user_id=current_user.id,
+        entity_label=f"User #{current_user.id}",
+        description="Teléfono actualizado directamente por profesor",
+        metadata={"old_phone": old_phone, "new_phone": phone},
+    )
     db.session.commit()
     flash("Teléfono actualizado.", "success")
     return redirect(url_for("profile.my_profile"))
@@ -508,6 +527,19 @@ def complete_profile():
         current_user.profile_data_confirmed = True
         current_user.profile_confirmed_at = db.func.now()
 
+        db.session.commit()
+        log_event(
+            module="PROFILE",
+            action="PROFILE_COMPLETED",
+            user_id=current_user.id,
+            entity_label=f"User #{current_user.id}",
+            description="Perfil completado por el usuario",
+            metadata={
+                "career_id": career_obj.id,
+                "academic_level_id": level_obj.id if level_obj else None,
+                "role": current_user.role,
+            },
+        )
         db.session.commit()
 
         flash("Perfil completado correctamente.")

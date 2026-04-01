@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Administración usuarios", url_for('users.admin_panel')), ("Crear administrador", url_for('users.create_admin_account'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Administración usuarios", url_for('users.admin_panel')), ("Crear administrador", url_for('users.create_admin_account'))] %}
 {% block title %}Crear administrador{% endblock %}
 
 {% block content %}
