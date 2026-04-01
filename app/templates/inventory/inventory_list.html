@@ -14,7 +14,7 @@
     <div class="user-chip">
       <div class="user-avatar">{{ (current_user.email[0] if current_user.is_authenticated else 'U') | upper }}</div>
       <div class="user-meta">
-        <strong>{{ current_user.role if current_user.is_authenticated else 'Usuario' }}</strong>
+        <strong>{{ (current_user.role|role_label) if current_user.is_authenticated else 'Usuario' }}</strong>
         <span>Acceso institucional</span>
       </div>
     </div>

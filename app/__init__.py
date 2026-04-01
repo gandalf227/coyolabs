@@ -19,10 +19,19 @@ def create_app():
 
     app.jinja_env.globals.update(is_admin_role=is_admin_role, is_staff_role=is_staff_role)
 
-    from app.utils.text import smart_title, normalize_spaces
+    from app.utils.text import (
+        smart_title,
+        normalize_spaces,
+        role_label,
+        status_label,
+        flash_category_label,
+    )
 
     app.jinja_env.filters["smart_title"] = smart_title
     app.jinja_env.filters["normalize_spaces"] = normalize_spaces
+    app.jinja_env.filters["role_label"] = role_label
+    app.jinja_env.filters["status_label"] = status_label
+    app.jinja_env.filters["flash_category_label"] = flash_category_label
 
 
     app.config.from_object(Config)
@@ -91,6 +100,9 @@ def create_app():
 
     from app.controllers.forum_controller import forum_bp
     app.register_blueprint(forum_bp)
+
+    from app.controllers.legal_controller import legal_bp
+    app.register_blueprint(legal_bp)
     @app.get("/")
     def root_home():
         if not current_user.is_authenticated:

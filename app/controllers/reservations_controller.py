@@ -702,6 +702,8 @@ def admin_ticket_close(ticket_id: int):
         return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
 
     has_missing = False
+    created_debt_ids: list[int] = []
+    previous_ticket_status = ticket.status
 
     for item in ticket.items:
         missing_qty = item.quantity_delivered - item.quantity_returned
@@ -725,6 +727,24 @@ def admin_ticket_close(ticket_id: int):
                     reason=f"Faltante de {missing_qty} unidad(es) en ticket #{ticket.id} - {material_name}"
                 )
                 db.session.add(debt)
+                db.session.flush()
+                created_debt_ids.append(debt.id)
+                log_event(
+                    module="DEBTS",
+                    action="DEBT_CREATED",
+                    user_id=current_user.id,
+                    entity_label=f"Debt #{debt.id}",
+                    description=f"Adeudo generado automáticamente por faltante en ticket #{ticket.id}",
+                    metadata={
+                        "debt_id": debt.id,
+                        "ticket_id": ticket.id,
+                        "target_user_id": ticket.owner_user_id,
+                        "material_id": item.material_id,
+                        "missing_qty": missing_qty,
+                        "origin": "LAB_TICKET_CLOSE",
+                    },
+                    material_id=item.material_id,
+                )
 
     ticket.status = "CLOSED_WITH_DEBT" if has_missing else "CLOSED"
     ticket.closed_by_user_id = current_user.id
@@ -735,7 +755,13 @@ def admin_ticket_close(ticket_id: int):
         user_id=current_user.id,
         entity_label=f"LabTicket #{ticket.id}",
         description=f"Ticket #{ticket.id} cerrado con estado {ticket.status}",
-        metadata={"ticket_id": ticket.id, "owner_user_id": ticket.owner_user_id, "status": ticket.status},
+        metadata={
+            "ticket_id": ticket.id,
+            "owner_user_id": ticket.owner_user_id,
+            "previous_status": previous_ticket_status,
+            "new_status": ticket.status,
+            "created_debt_ids": created_debt_ids,
+        },
     )
 
     db.session.commit()

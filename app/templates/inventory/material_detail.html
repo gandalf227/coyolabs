@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Inventario", url_for('inventory.inventory_list')), (material.name | smart_title, url_for('inventory.material_detail', material_id=material.id))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Inventario", url_for('inventory.inventory_list')), (material.name | smart_title, url_for('inventory.material_detail', material_id=material.id))] %}
 {% block title %}Detalle de material{% endblock %}
 
 {% block content %}
