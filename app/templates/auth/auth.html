@@ -211,6 +211,12 @@
     </footer>
   </div>
 
+  <footer style="text-align:center; margin: 14px 0 24px 0;">
+    <a href="{{ url_for('legal.privacy_notice') }}" style="color:#d5d8e3; font-size:.9rem; text-decoration:none;">Aviso de privacidad</a>
+    <span style="color:#8f96ab; margin:0 8px;">•</span>
+    <a href="{{ url_for('legal.terms_and_conditions') }}" style="color:#d5d8e3; font-size:.9rem; text-decoration:none;">Términos y condiciones</a>
+  </footer>
+
   <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 </body>
 </html>

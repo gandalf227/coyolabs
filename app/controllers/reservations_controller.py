@@ -356,7 +356,12 @@ def request_reservation():
         flash("Solicitud enviada. Queda pendiente de aprobación.", "success")
         return redirect(url_for("reservations.my_reservations"))
 
-    materials = Material.query.order_by(Material.name.asc()).all()
+    materials = (
+        Material.query
+        .filter(func.lower(func.coalesce(Material.status, "")) != "baja")
+        .order_by(Material.name.asc())
+        .all()
+    )
     materials_json = json.dumps([
         {
             "id": m.id,
