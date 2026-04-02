@@ -1,6 +1,6 @@
 {% extends "layouts/student_base.html" %}
 {% set crumbs = [("Inicio", url_for('root_home')), ("Adeudos", url_for('debts.admin_list'))] %}
-{% block title %}Adeudos (Admin){% endblock %}
+{% block title %}Adeudos (Administración){% endblock %}
 
 {% block content %}
 
@@ -62,7 +62,7 @@
         <tr>
           <th>ID</th>
           <th>Usuario</th>
-          <th>Status</th>
+          <th>Estado</th>
           <th>Material</th>
           <th>Razón</th>
           <th>Fecha</th>
@@ -72,7 +72,7 @@
 
       <tbody>
       {% for d in debts %}
-        <tr data-status="{{ d.status }}">
+        <tr data-status="{{ d.status|status_label }}">
           <td>{{ d.id }}</td>
 
           <td>
@@ -81,7 +81,7 @@
 
           <td>
             <span class="status-badge {% if d.status == 'OPEN' %}status-bad{% else %}status-ok{% endif %}">
-              {{ d.status }}
+              {{ d.status|status_label }}
             </span>
           </td>
 
