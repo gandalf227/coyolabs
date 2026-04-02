@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aviso de privacidad | CoyoLabs</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+</head>
+<body style="background:#f7f8fb; color:#1c2430;">
+  <main style="max-width:900px; margin:40px auto; background:#fff; border:1px solid #e6e8ef; border-radius:16px; padding:28px;">
+    <header style="margin-bottom:18px;">
+      <p style="margin:0; font-size:.9rem; color:#5c6470;">CoyoLabs · Documento institucional</p>
+      <h1 style="margin:6px 0 0 0;">Aviso de privacidad</h1>
+    </header>
+
+    <section style="display:grid; gap:14px; line-height:1.6;">
+      <p>
+        En CoyoLabs protegemos los datos personales de nuestra comunidad. La información proporcionada en este sistema se utiliza
+        únicamente para fines académicos, administrativos y de operación institucional.
+      </p>
+      <p>
+        Los datos de registro, perfil, reservaciones y actividad en el sistema son tratados de forma confidencial por personal autorizado,
+        bajo principios de seguridad, mínima exposición y uso legítimo.
+      </p>
+      <p>
+        No compartimos datos personales con terceros fuera del contexto institucional, salvo cuando exista obligación legal aplicable
+        o requerimiento formal de autoridad competente.
+      </p>
+      <p>
+        Puedes solicitar corrección o actualización de tus datos a través de los canales administrativos institucionales.
+      </p>
+      <p style="font-size:.92rem; color:#5c6470;">
+        Última actualización: abril 2026.
+      </p>
+    </section>
+
+    <footer style="margin-top:26px; display:flex; gap:10px; flex-wrap:wrap;">
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('root_home') }}" class="btn btn-gold">Volver al inicio</a>
+      {% else %}
+        <a href="{{ url_for('auth.auth_page') }}" class="btn btn-gold">Volver al acceso</a>
+      {% endif %}
+      <a href="{{ url_for('legal.terms_and_conditions') }}" class="btn btn-ghost">Ver términos y condiciones</a>
+    </footer>
+  </main>
+</body>
+</html>

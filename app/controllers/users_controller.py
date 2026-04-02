@@ -157,7 +157,7 @@ def assign_role(user_id: int):
 def admin_panel():
     if not _is_admin_or_superadmin():
         flash("No autorizado.", "error")
-        return redirect(url_for("home.home_dashboard"))
+        return redirect(url_for("root_home"))
 
     q = (request.args.get("q") or "").strip()
     role = normalize_role(request.args.get("role"))
@@ -409,14 +409,6 @@ def create_admin_account():
         _log_admin_event(
             action="ADMIN_CREATED",
             description=f"{current_user.email} creó admin {email}",
-            metadata={"email": email, "role": ROLE_ADMIN},
-        )
-        log_event(
-            module="USERS",
-            action="ADMIN_CREATED",
-            user_id=current_user.id,
-            entity_label=f"User {email}",
-            description=f"Cuenta ADMIN creada: {email}",
             metadata={"email": email, "role": ROLE_ADMIN},
         )
         db.session.commit()
