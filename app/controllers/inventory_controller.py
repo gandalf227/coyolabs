@@ -86,6 +86,59 @@ def _material_payload_from_form(material: Material | None = None) -> tuple[dict,
     return payload, None
 
 
+def _is_inactive_status(status: str | None) -> bool:
+    return normalize_spaces(status or "").lower() in {"baja", "de baja", "inactivo"}
+
+
+def _base_inventory_query(*, include_inactive: bool):
+    query = Material.query
+    if include_inactive:
+        return query
+
+    return query.filter(func.lower(func.coalesce(Material.status, "")) != "baja")
+
+
+def _material_payload_from_form(material: Material | None = None) -> tuple[dict, str | None]:
+    name = normalize_spaces(request.form.get("name") or "")
+    if not name:
+        return {}, "El nombre del material es obligatorio."
+
+    lab_id = request.form.get("lab_id", type=int)
+    lab = Lab.query.get(lab_id) if lab_id else None
+    if not lab:
+        return {}, "Selecciona un laboratorio válido."
+
+    pieces_qty_raw = normalize_spaces(request.form.get("pieces_qty") or "")
+    pieces_qty = None
+    if pieces_qty_raw:
+        try:
+            pieces_qty = int(pieces_qty_raw)
+        except ValueError:
+            return {}, "La cantidad de piezas debe ser un número entero."
+        if pieces_qty < 0:
+            return {}, "La cantidad de piezas no puede ser negativa."
+
+    status = normalize_spaces(request.form.get("status") or "")
+    if not status:
+        status = material.status if material else "Disponible"
+
+    payload = {
+        "lab_id": lab.id,
+        "name": name,
+        "location": normalize_spaces(request.form.get("location") or "") or None,
+        "status": status,
+        "pieces_text": normalize_spaces(request.form.get("pieces_text") or "") or (str(pieces_qty) if pieces_qty is not None else None),
+        "pieces_qty": pieces_qty,
+        "brand": normalize_spaces(request.form.get("brand") or "") or None,
+        "model": normalize_spaces(request.form.get("model") or "") or None,
+        "code": normalize_spaces(request.form.get("code") or "") or None,
+        "serial": normalize_spaces(request.form.get("serial") or "") or None,
+        "tutorial_url": normalize_spaces(request.form.get("tutorial_url") or "") or None,
+        "notes": normalize_spaces(request.form.get("notes") or "") or None,
+    }
+    return payload, None
+
+
 @inventory_bp.route("/", methods=["GET"])
 @min_role_required("STUDENT")
 def inventory_list():
