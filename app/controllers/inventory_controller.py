@@ -16,6 +16,75 @@ from app.utils.text import normalize_spaces
 
 inventory_bp = Blueprint("inventory", __name__, url_prefix="/inventory")
 
+MATERIAL_CATEGORIES = (
+    "EQUIPO DE CÓMPUTO",
+    "PERIFÉRICO",
+    "HERRAMIENTA",
+    "INSUMO",
+    "INSTRUMENTO DE MEDICIÓN",
+    "MATERIAL DE LABORATORIO",
+    "MOBILIARIO",
+    "OTRO",
+)
+
+
+def _is_inactive_status(status: str | None) -> bool:
+    return normalize_spaces(status or "").lower() in {"baja", "de baja", "inactivo"}
+
+
+def _base_inventory_query(*, include_inactive: bool):
+    query = Material.query
+    if include_inactive:
+        return query
+
+    return query.filter(func.lower(func.coalesce(Material.status, "")) != "baja")
+
+
+def _material_payload_from_form(material: Material | None = None) -> tuple[dict, str | None]:
+    name = normalize_spaces(request.form.get("name") or "")
+    if not name:
+        return {}, "El nombre del material es obligatorio."
+
+    lab_id = request.form.get("lab_id", type=int)
+    lab = Lab.query.get(lab_id) if lab_id else None
+    if not lab:
+        return {}, "Selecciona un laboratorio válido."
+
+    pieces_qty_raw = normalize_spaces(request.form.get("pieces_qty") or "")
+    pieces_qty = None
+    if pieces_qty_raw:
+        try:
+            pieces_qty = int(pieces_qty_raw)
+        except ValueError:
+            return {}, "La cantidad de piezas debe ser un número entero."
+        if pieces_qty < 0:
+            return {}, "La cantidad de piezas no puede ser negativa."
+
+    status = normalize_spaces(request.form.get("status") or "")
+    if not status:
+        status = material.status if material else "Disponible"
+
+    category = normalize_spaces(request.form.get("category") or "").upper()
+    if category and category not in MATERIAL_CATEGORIES:
+        return {}, "Selecciona una categoría válida."
+
+    payload = {
+        "lab_id": lab.id,
+        "name": name,
+        "category": category or None,
+        "location": normalize_spaces(request.form.get("location") or "") or None,
+        "status": status,
+        "pieces_text": normalize_spaces(request.form.get("pieces_text") or "") or (str(pieces_qty) if pieces_qty is not None else None),
+        "pieces_qty": pieces_qty,
+        "brand": normalize_spaces(request.form.get("brand") or "") or None,
+        "model": normalize_spaces(request.form.get("model") or "") or None,
+        "code": normalize_spaces(request.form.get("code") or "") or None,
+        "serial": normalize_spaces(request.form.get("serial") or "") or None,
+        "tutorial_url": normalize_spaces(request.form.get("tutorial_url") or "") or None,
+        "notes": normalize_spaces(request.form.get("notes") or "") or None,
+    }
+    return payload, None
+
 
 def _is_inactive_status(status: str | None) -> bool:
     return normalize_spaces(status or "").lower() in {"baja", "de baja", "inactivo"}
@@ -74,6 +143,7 @@ def _material_payload_from_form(material: Material | None = None) -> tuple[dict,
 @min_role_required("STUDENT")
 def inventory_list():
     lab_id = request.args.get("lab_id", type=int)
+    category = normalize_spaces(request.args.get("category") or "").upper()
     q = (request.args.get("q") or "").strip()
     page = request.args.get("page", type=int) or 1
 
@@ -88,6 +158,8 @@ def inventory_list():
     query = _base_inventory_query(include_inactive=include_inactive)
     if lab_id:
         query = query.filter(Material.lab_id == lab_id)
+    if category:
+        query = query.filter(func.upper(func.coalesce(Material.category, "")) == category)
 
     if q:
         like = f"%{q}%"
@@ -115,6 +187,8 @@ def inventory_list():
         labs=labs,
         materials=materials,
         selected_lab=lab_id,
+        selected_category=category,
+        categories=MATERIAL_CATEGORIES,
         q=q,
         include_inactive=include_inactive,
         page=page,
@@ -148,7 +222,14 @@ def admin_new_material():
         form_data = dict(request.form)
         if error:
             flash(error, "error")
-            return render_template("inventory/admin_form.html", material=None, labs=labs, form_data=form_data, active_page="inventory")
+            return render_template(
+                "inventory/admin_form.html",
+                material=None,
+                labs=labs,
+                categories=MATERIAL_CATEGORIES,
+                form_data=form_data,
+                active_page="inventory",
+            )
 
         material = Material(**payload)
         db.session.add(material)
@@ -160,13 +241,20 @@ def admin_new_material():
             material_id=material.id,
             entity_label=f"Material #{material.id}",
             description=f"Material creado: {material.name}",
-            metadata={"material_id": material.id, "lab_id": material.lab_id, "status": material.status},
+            metadata={"material_id": material.id, "lab_id": material.lab_id, "status": material.status, "category": material.category},
         )
         db.session.commit()
         flash("Material creado correctamente.", "success")
         return redirect(url_for("inventory.material_detail", material_id=material.id))
 
-    return render_template("inventory/admin_form.html", material=None, labs=labs, form_data=form_data, active_page="inventory")
+    return render_template(
+        "inventory/admin_form.html",
+        material=None,
+        labs=labs,
+        categories=MATERIAL_CATEGORIES,
+        form_data=form_data,
+        active_page="inventory",
+    )
 
 
 @inventory_bp.route("/admin/<int:material_id>/edit", methods=["GET", "POST"])
@@ -181,7 +269,14 @@ def admin_edit_material(material_id: int):
         form_data = dict(request.form)
         if error:
             flash(error, "error")
-            return render_template("inventory/admin_form.html", material=material, labs=labs, form_data=form_data, active_page="inventory")
+            return render_template(
+                "inventory/admin_form.html",
+                material=material,
+                labs=labs,
+                categories=MATERIAL_CATEGORIES,
+                form_data=form_data,
+                active_page="inventory",
+            )
 
         old_status = material.status
         for key, value in payload.items():
@@ -194,13 +289,20 @@ def admin_edit_material(material_id: int):
             material_id=material.id,
             entity_label=f"Material #{material.id}",
             description=f"Material actualizado: {material.name}",
-            metadata={"material_id": material.id, "old_status": old_status, "new_status": material.status},
+            metadata={"material_id": material.id, "old_status": old_status, "new_status": material.status, "category": material.category},
         )
         db.session.commit()
         flash("Material actualizado correctamente.", "success")
         return redirect(url_for("inventory.material_detail", material_id=material.id))
 
-    return render_template("inventory/admin_form.html", material=material, labs=labs, form_data=form_data, active_page="inventory")
+    return render_template(
+        "inventory/admin_form.html",
+        material=material,
+        labs=labs,
+        categories=MATERIAL_CATEGORIES,
+        form_data=form_data,
+        active_page="inventory",
+    )
 
 
 @inventory_bp.route("/admin/<int:material_id>/toggle-active", methods=["POST"])

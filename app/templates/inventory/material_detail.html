@@ -13,6 +13,7 @@
 
 <section class="stats-row">
   <article class="stat-card"><span class="stat-label">Laboratorio</span><strong>{{ material.lab.name }}</strong></article>
+  <article class="stat-card"><span class="stat-label">Categoría</span><strong>{{ material.category or 'Sin categoría' }}</strong></article>
   <article class="stat-card"><span class="stat-label">Estado</span><strong>{{ material.status | smart_title }}</strong></article>
   <article class="stat-card"><span class="stat-label">Piezas</span><strong>{{ material.pieces_text }}</strong></article>
 </section>

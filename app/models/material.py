@@ -12,6 +12,7 @@ class Material(db.Model):
 
     # Datos base (lo que aparece en Excel)
     name = db.Column(db.Text, nullable=False)             # Equipo / Material
+    category = db.Column(db.String(80), nullable=True, index=True)  # Categoría operativa
     location = db.Column(db.Text, nullable=True)          # Ubicación/Estante/Gabinete
     status = db.Column(db.Text, nullable=True)            # Estado
 

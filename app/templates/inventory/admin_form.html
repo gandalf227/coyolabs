@@ -31,6 +31,18 @@
         </select>
       </div>
     </div>
+    <div class="toolbar-group">
+      <label for="category">Categoría</label>
+      <div class="select-wrap">
+        <select id="category" name="category">
+          <option value="">Sin categoría</option>
+          {% for category in categories %}
+          {% set selected_category = data.get('category', material.category if material else '') %}
+          <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
 
     <div class="toolbar-group"><label for="location">Ubicación</label><div class="search-box"><input id="location" name="location" value="{{ data.get('location', material.location if material else '') }}"></div></div>
     <div class="toolbar-group"><label for="status">Estado</label><div class="search-box"><input id="status" name="status" value="{{ data.get('status', material.status if material else 'Disponible') }}"></div></div>

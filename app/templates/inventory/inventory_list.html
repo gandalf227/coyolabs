@@ -48,6 +48,18 @@
         <i class="ph ph-caret-down select-arrow"></i>
       </div>
     </div>
+    <div class="toolbar-group toolbar-group-select">
+      <label for="category">Categoría</label>
+      <div class="select-wrap">
+        <select name="category" id="category">
+          <option value="">Todas las categorías</option>
+          {% for category in categories %}
+            <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>
+          {% endfor %}
+        </select>
+        <i class="ph ph-caret-down select-arrow"></i>
+      </div>
+    </div>
 
     <div class="toolbar-actions">
       <button type="submit" class="btn btn-gold"><i class="ph ph-funnel"></i><span>Aplicar filtros</span></button>
@@ -75,13 +87,14 @@
     <table class="inventory-table">
       <thead>
         <tr>
-          <th>Laboratorio</th><th>Equipo / Material</th><th>Ubicación</th><th>Piezas</th><th>Estado</th><th>Observaciones</th><th class="th-actions">Acciones</th>
+          <th>Laboratorio</th><th>Categoría</th><th>Equipo / Material</th><th>Ubicación</th><th>Piezas</th><th>Estado</th><th>Observaciones</th><th class="th-actions">Acciones</th>
         </tr>
       </thead>
       <tbody>
         {% for m in materials %}
           <tr>
             <td>{{ m.lab.name }}</td>
+            <td>{{ m.category or 'Sin categoría' }}</td>
             <td><a href="{{ url_for('inventory.material_detail', material_id=m.id) }}" class="item-link">{{ m.name | smart_title }}</a></td>
             <td>{{ m.location | smart_title }}</td>
             <td class="td-center">{{ m.pieces_text }}</td>
@@ -105,11 +118,11 @@
 
   <div class="pagination">
     {% if page > 1 %}
-      <a class="page-btn" href="{{ url_for('inventory.inventory_list', lab_id=selected_lab or '', q=q, page=page - 1, include_inactive='1' if include_inactive else '') }}"><i class="ph ph-caret-left"></i><span>Anterior</span></a>
+      <a class="page-btn" href="{{ url_for('inventory.inventory_list', lab_id=selected_lab or '', category=selected_category or '', q=q, page=page - 1, include_inactive='1' if include_inactive else '') }}"><i class="ph ph-caret-left"></i><span>Anterior</span></a>
     {% endif %}
     <span class="page-current">{{ page }}</span>
     {% if page < total_pages %}
-      <a class="page-btn" href="{{ url_for('inventory.inventory_list', lab_id=selected_lab or '', q=q, page=page + 1, include_inactive='1' if include_inactive else '') }}"><span>Siguiente</span><i class="ph ph-caret-right"></i></a>
+      <a class="page-btn" href="{{ url_for('inventory.inventory_list', lab_id=selected_lab or '', category=selected_category or '', q=q, page=page + 1, include_inactive='1' if include_inactive else '') }}"><span>Siguiente</span><i class="ph ph-caret-right"></i></a>
     {% endif %}
   </div>
 </section>
