@@ -3,6 +3,7 @@ import json
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
@@ -77,7 +78,12 @@ def my_daily_request():
         .all()
     )
 
-    materials = Material.query.order_by(Material.name.asc()).all()
+    materials = (
+        Material.query
+        .filter(func.lower(func.coalesce(Material.status, "")) != "baja")
+        .order_by(Material.name.asc())
+        .all()
+    )
     materials_json = json.dumps([
         {
             "id": m.id,
