@@ -1,4 +1,5 @@
 from app.extensions import db
+from app.utils.statuses import ReservationStatus
 
 
 class Reservation(db.Model):
@@ -18,7 +19,7 @@ class Reservation(db.Model):
     purpose = db.Column(db.Text, nullable=True)
 
     # workflow
-    status = db.Column(db.String(20), nullable=False, default="PENDING")  # PENDING/APPROVED/REJECTED
+    status = db.Column(db.String(20), nullable=False, default=ReservationStatus.PENDING)
     admin_note = db.Column(db.Text, nullable=True)
 
     created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)

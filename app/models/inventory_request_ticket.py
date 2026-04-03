@@ -1,4 +1,5 @@
 from app.extensions import db
+from app.utils.statuses import InventoryRequestStatus
 
 
 class InventoryRequestTicket(db.Model):
@@ -10,7 +11,7 @@ class InventoryRequestTicket(db.Model):
     user = db.relationship("User", backref="inventory_request_tickets")
 
     request_date = db.Column(db.Date, nullable=False, index=True)
-    status = db.Column(db.String(30), nullable=False, default="OPEN", index=True)
+    status = db.Column(db.String(30), nullable=False, default=InventoryRequestStatus.OPEN, index=True)
 
     created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     updated_at = db.Column(db.DateTime, onupdate=db.func.now(), nullable=True)

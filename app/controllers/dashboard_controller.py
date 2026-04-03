@@ -17,6 +17,7 @@ from app.models.notification import Notification
 from app.models.user import User
 from app.utils.authz import min_role_required
 from app.constants import ROLE_PENDING
+from app.utils.statuses import DebtStatus, LabTicketStatus, ReservationStatus, TicketItemStatus
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
@@ -25,7 +26,7 @@ def _build_operational_snapshot(activity_limit: int = 8) -> dict:
     pending_reservations = (
         Reservation.query
         .options(joinedload(Reservation.user))
-        .filter(Reservation.status == "PENDING")
+        .filter(Reservation.status == ReservationStatus.PENDING)
         .order_by(Reservation.created_at.asc())
         .limit(activity_limit)
         .all()
@@ -34,7 +35,7 @@ def _build_operational_snapshot(activity_limit: int = 8) -> dict:
     active_tickets = (
         LabTicket.query
         .options(joinedload(LabTicket.owner_user), joinedload(LabTicket.reservation))
-        .filter(LabTicket.status.in_(["OPEN", "READY_FOR_PICKUP"]))
+        .filter(LabTicket.status.in_([LabTicketStatus.OPEN, LabTicketStatus.READY_FOR_PICKUP]))
         .order_by(LabTicket.opened_at.asc())
         .limit(activity_limit)
         .all()
@@ -46,7 +47,7 @@ def _build_operational_snapshot(activity_limit: int = 8) -> dict:
             joinedload(TicketItem.ticket).joinedload(LabTicket.owner_user),
             joinedload(TicketItem.material),
         )
-        .filter(TicketItem.status == "READY_FOR_PICKUP")
+        .filter(TicketItem.status == TicketItemStatus.READY_FOR_PICKUP)
         .order_by(TicketItem.id.desc())
         .limit(activity_limit)
         .all()
@@ -55,7 +56,7 @@ def _build_operational_snapshot(activity_limit: int = 8) -> dict:
     closure_requested = (
         LabTicket.query
         .options(joinedload(LabTicket.owner_user), joinedload(LabTicket.reservation))
-        .filter(LabTicket.status == "CLOSURE_REQUESTED")
+        .filter(LabTicket.status == LabTicketStatus.CLOSURE_REQUESTED)
         .order_by(LabTicket.opened_at.asc())
         .limit(activity_limit)
         .all()
@@ -64,7 +65,7 @@ def _build_operational_snapshot(activity_limit: int = 8) -> dict:
     open_debts_recent = (
         Debt.query
         .options(joinedload(Debt.user), joinedload(Debt.material))
-        .filter(Debt.status == "OPEN")
+        .filter(Debt.status == DebtStatus.OPEN)
         .order_by(Debt.created_at.desc())
         .limit(activity_limit)
         .all()
@@ -80,11 +81,11 @@ def _build_operational_snapshot(activity_limit: int = 8) -> dict:
 
     return {
         "counts": {
-            "pending_reservations": Reservation.query.filter(Reservation.status == "PENDING").count(),
-            "active_tickets": LabTicket.query.filter(LabTicket.status.in_(["OPEN", "READY_FOR_PICKUP"])).count(),
-            "ready_items": TicketItem.query.filter(TicketItem.status == "READY_FOR_PICKUP").count(),
-            "closure_requested_tickets": LabTicket.query.filter(LabTicket.status == "CLOSURE_REQUESTED").count(),
-            "open_debts": Debt.query.filter(Debt.status == "OPEN").count(),
+            "pending_reservations": Reservation.query.filter(Reservation.status == ReservationStatus.PENDING).count(),
+            "active_tickets": LabTicket.query.filter(LabTicket.status.in_([LabTicketStatus.OPEN, LabTicketStatus.READY_FOR_PICKUP])).count(),
+            "ready_items": TicketItem.query.filter(TicketItem.status == TicketItemStatus.READY_FOR_PICKUP).count(),
+            "closure_requested_tickets": LabTicket.query.filter(LabTicket.status == LabTicketStatus.CLOSURE_REQUESTED).count(),
+            "open_debts": Debt.query.filter(Debt.status == DebtStatus.OPEN).count(),
         },
         "pending_reservations": [
             {
@@ -166,24 +167,24 @@ def dashboard_home():
 
     approved_today = Reservation.query.filter(
         Reservation.date == today,
-        Reservation.status == "APPROVED"
+        Reservation.status == ReservationStatus.APPROVED
     ).count()
 
     pending_today = Reservation.query.filter(
         Reservation.date == today,
-        Reservation.status == "PENDING"
+        Reservation.status == ReservationStatus.PENDING
     ).count()
 
     open_tickets = LabTicket.query.filter(
-        LabTicket.status == "OPEN"
+        LabTicket.status == LabTicketStatus.OPEN
     ).count()
 
     closed_with_debt = LabTicket.query.filter(
-        LabTicket.status == "CLOSED_WITH_DEBT"
+        LabTicket.status == LabTicketStatus.CLOSED_WITH_DEBT
     ).count()
 
     open_debts = Debt.query.filter(
-        Debt.status == "OPEN"
+        Debt.status == DebtStatus.OPEN
     ).count()
 
     low_stock_count = Material.query.filter(
@@ -236,7 +237,7 @@ def dashboard_home():
             func.count(Debt.id).label("total_open")
         )
         .join(Debt, Debt.user_id == User.id)
-        .filter(Debt.status == "OPEN")
+        .filter(Debt.status == DebtStatus.OPEN)
         .group_by(User.id, User.email)
         .order_by(func.count(Debt.id).desc())
         .limit(5)
