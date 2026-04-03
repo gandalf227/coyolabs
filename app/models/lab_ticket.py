@@ -1,4 +1,5 @@
 from app.extensions import db
+from app.utils.statuses import LabTicketStatus
 
 
 class LabTicket(db.Model):
@@ -12,7 +13,7 @@ class LabTicket(db.Model):
     room = db.Column(db.String(120), nullable=True)
     date = db.Column(db.Date, nullable=True)
 
-    status = db.Column(db.String(30), nullable=False, default="OPEN")
+    status = db.Column(db.String(30), nullable=False, default=LabTicketStatus.OPEN)
 
     opened_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     closed_at = db.Column(db.DateTime, nullable=True)

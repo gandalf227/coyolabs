@@ -1,4 +1,5 @@
 from app.extensions import db
+from app.utils.statuses import DebtStatus
 
 
 class Debt(db.Model):
@@ -17,7 +18,7 @@ class Debt(db.Model):
     ticket = db.relationship("LabTicket", back_populates="debts")
 
     # Estado del adeudo
-    status = db.Column(db.String(20), nullable=False, default="OPEN")  # OPEN / PAID / CANCELED
+    status = db.Column(db.String(20), nullable=False, default=DebtStatus.OPEN)
 
     # Motivo / detalle
     reason = db.Column(db.Text, nullable=True)

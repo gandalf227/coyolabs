@@ -16,14 +16,15 @@ from app.services.audit_service import log_event
 from app.services.notification_realtime_service import publish_notification_created
 from app.utils.authz import min_role_required
 from app.utils.roles import ROLE_STUDENT, normalize_role
+from app.utils.statuses import InventoryRequestStatus
 
 
 inventory_requests_bp = Blueprint("inventory_requests", __name__, url_prefix="/inventory-requests")
 
 
-STATUS_OPEN = "OPEN"
-STATUS_READY = "READY_FOR_PICKUP"
-STATUS_CLOSED = "CLOSED"
+STATUS_OPEN = InventoryRequestStatus.OPEN
+STATUS_READY = InventoryRequestStatus.READY_FOR_PICKUP
+STATUS_CLOSED = InventoryRequestStatus.CLOSED
 
 
 def _is_student_role(role: str | None) -> bool:
