@@ -37,6 +37,9 @@
           <th>Fecha</th>
           <th>Inicio</th>
           <th>Fin</th>
+          <th>Materia</th>
+          <th>Grupo</th>
+          <th>Solicitante</th>
           <th>Materiales</th>
           <th>Ticket</th>
           <th>Estado</th>
@@ -52,6 +55,9 @@
           <td>{{ r.date }}</td>
           <td>{{ r.start_time }}</td>
           <td>{{ r.end_time }}</td>
+          <td>{{ r.subject }}</td>
+          <td>{{ r.group_name }}</td>
+          <td>{{ ((r.user.first_name or '') ~ ' ' ~ (r.user.last_name or ''))|trim or r.user.email }}</td>
 
           <td>
             {% if r.items %}

@@ -67,6 +67,11 @@ def _professor_assignments(teacher_id: int) -> list[TeacherAcademicLoad]:
     )
 
 
+def _build_requester_name() -> str:
+    full_name = f"{(current_user.first_name or '').strip()} {(current_user.last_name or '').strip()}".strip()
+    return full_name or (current_user.email or "").strip()
+
+
 def parse_date(value: str):
     return datetime.strptime(value, "%Y-%m-%d").date()
 
@@ -168,7 +173,8 @@ def my_reservations():
         Reservation.query
         .options(
             joinedload(Reservation.items).joinedload(ReservationItem.material),
-            joinedload(Reservation.lab_tickets)
+            joinedload(Reservation.lab_tickets),
+            joinedload(Reservation.user)
         )
         .filter(Reservation.user_id == current_user.id)
         .order_by(Reservation.created_at.desc())
@@ -233,9 +239,10 @@ def request_reservation():
         end_s = (request.form.get("end_time") or "").strip()
         purpose = (request.form.get("purpose") or "").strip()
         group_name = (request.form.get("group_name") or "").strip()
-        teacher_name = (request.form.get("teacher_name") or "").strip()
+        requester_name = _build_requester_name()
         subject = (request.form.get("subject") or "").strip()
         signed = request.form.get("signed") == "1"
+        selected_subject_id = None
 
         if is_professor:
             group_name, group_error = normalize_and_validate_group_code(group_name)
@@ -255,6 +262,7 @@ def request_reservation():
                 flash("La materia/grupo seleccionados no pertenecen a tu carga académica.", "error")
                 return redirect(url_for("reservations.request_reservation"))
             subject = valid_assignment.subject.name
+            selected_subject_id = valid_assignment.subject.id
 
         if (
             not room
@@ -262,12 +270,16 @@ def request_reservation():
             or not start_s
             or not end_s
             or not group_name
-            or not teacher_name
             or not subject
             or not signed
         ):
             flash("Faltan datos obligatorios o no confirmaste la firma.", "error")
             return redirect(url_for("reservations.request_reservation"))
+
+        if not selected_subject_id:
+            matched_subject = Subject.query.filter(func.lower(Subject.name) == subject.lower()).first()
+            if matched_subject:
+                selected_subject_id = matched_subject.id
 
         try:
             date_ = parse_date(date_s)
@@ -298,8 +310,9 @@ def request_reservation():
             end_time=end_t,
             purpose=purpose or None,
             group_name=group_name,
-            teacher_name=teacher_name,
+            teacher_name=requester_name,
             subject=subject,
+            subject_id=selected_subject_id,
             signed=signed,
             status="PENDING",
         )
@@ -406,7 +419,8 @@ def admin_queue():
     pending = (
         Reservation.query
         .options(
-            joinedload(Reservation.items).joinedload(ReservationItem.material)
+            joinedload(Reservation.items).joinedload(ReservationItem.material),
+            joinedload(Reservation.user)
         )
         .filter(Reservation.status == "PENDING")
         .order_by(Reservation.created_at.asc())
