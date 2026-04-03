@@ -6,7 +6,9 @@ from flask_login import current_user
 from app.utils.authz import min_role_required
 from app.extensions import db
 from app.models.notification import Notification
+from app.services.audit_service import log_event
 from app.services.notification_realtime_service import (
+    get_unread_count,
     heartbeat_payload,
     notification_broker,
     notification_to_dict,
@@ -43,11 +45,7 @@ def feed_notifications():
         .limit(5)
         .all()
     )
-    unread_count = (
-        Notification.query
-        .filter(Notification.user_id == current_user.id, Notification.is_read.is_(False))
-        .count()
-    )
+    unread_count = get_unread_count(current_user.id)
     return jsonify({
         "notifications": [notification_to_dict(n, unread_count=unread_count) for n in notifications],
         "unread_count": unread_count,
@@ -90,12 +88,16 @@ def mark_read(notif_id: int):
         return redirect(url_for("notifications.list_notifications"))
 
     notif.is_read = True
-    db.session.commit()
-    unread_count = (
-        Notification.query
-        .filter(Notification.user_id == current_user.id, Notification.is_read.is_(False))
-        .count()
+    log_event(
+        module="NOTIFICATIONS",
+        action="NOTIFICATION_MARKED_READ",
+        user_id=current_user.id,
+        entity_label=f"Notification #{notif.id}",
+        description="Usuario marcó notificación como leída",
+        metadata={"notification_id": notif.id, "entity_id": notif.id, "result": "success"},
     )
+    db.session.commit()
+    unread_count = get_unread_count(current_user.id)
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify({"ok": True, "unread_count": unread_count})

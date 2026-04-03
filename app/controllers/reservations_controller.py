@@ -3,6 +3,7 @@ import json
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
@@ -11,7 +12,6 @@ from app.models.reservation_item import ReservationItem
 from app.models.material import Material
 from app.models.lab_ticket import LabTicket
 from app.models.ticket_item import TicketItem
-from app.models.debt import Debt
 from app.models.notification import Notification
 from app.models.subject import Subject
 from app.models.teacher_academic_load import TeacherAcademicLoad
@@ -22,14 +22,28 @@ from app.models.reservation import Reservation
 from app.services.audit_service import log_event
 from app.services.debt_service import user_has_open_debts
 from app.services.notification_realtime_service import publish_notification_created
+from app.services.reservation_service import approve_reservation, reject_reservation
+from app.services.ticket_service import (
+    add_material_to_ticket,
+    apply_ticket_item_status,
+    close_ticket,
+    request_ticket_closure,
+    sync_ticket_ready_status,
+    validate_ticket_active,
+)
 from app.utils.authz import min_role_required
+from app.utils.statuses import (
+    BLOCKING_LAB_TICKET_STATUSES,
+    LabTicketStatus,
+    ReservationStatus,
+    TicketItemStatus,
+    is_active_lab_ticket_status,
+    is_lab_ticket_closure_requested,
+)
 from app.utils.validators import normalize_and_validate_group_code
 from app.constants import ROOMS
 
 reservations_bp = Blueprint("reservations", __name__, url_prefix="/reservations")
-ACTIVE_TICKET_STATUSES = {"OPEN", "READY_FOR_PICKUP"}
-TICKET_CLOSURE_REQUESTED = "CLOSURE_REQUESTED"
-BLOCKING_TICKET_STATUSES = ACTIVE_TICKET_STATUSES | {TICKET_CLOSURE_REQUESTED}
 
 
 def _is_professor_role(role: str | None) -> bool:
@@ -42,19 +56,15 @@ def _is_student_role(role: str | None) -> bool:
 
 
 def _is_active_ticket_status(status: str | None) -> bool:
-    return (status or "").upper() in ACTIVE_TICKET_STATUSES
+    return is_active_lab_ticket_status(status)
 
 
 def _is_ticket_closure_requested(status: str | None) -> bool:
-    return (status or "").upper() == TICKET_CLOSURE_REQUESTED
+    return is_lab_ticket_closure_requested(status)
 
 
 def _sync_ticket_ready_status(ticket: LabTicket) -> None:
-    has_ready_items = any((item.status or "").upper() == "READY_FOR_PICKUP" for item in ticket.items)
-    if has_ready_items and ticket.status == "OPEN":
-        ticket.status = "READY_FOR_PICKUP"
-    elif not has_ready_items and ticket.status == "READY_FOR_PICKUP":
-        ticket.status = "OPEN"
+    sync_ticket_ready_status(ticket)
 
 
 def _professor_assignments(teacher_id: int) -> list[TeacherAcademicLoad]:
@@ -94,11 +104,11 @@ def overlaps(room: str, date_, start_t, end_t) -> bool:
         Reservation.query
         .filter(Reservation.room == room)
         .filter(Reservation.date == date_)
-        .filter(Reservation.status == "APPROVED")
+        .filter(Reservation.status == ReservationStatus.APPROVED)
         .filter(Reservation.start_time < end_t)
         .filter(Reservation.end_time > start_t)
     )
-    return q.count() > 0
+    return q.first() is not None
 
 
 def get_week_start(date_value):
@@ -127,7 +137,7 @@ def build_week_schedule(week_days, selected_room=None):
 
     q = (
         Reservation.query
-        .filter(Reservation.status == "APPROVED")
+        .filter(Reservation.status == ReservationStatus.APPROVED)
         .filter(Reservation.date >= week_start)
         .filter(Reservation.date <= week_end)
     )
@@ -217,7 +227,7 @@ def my_active_ticket(reservation_id: int):
         return redirect(url_for("reservations.my_reservations"))
 
     if request.method == "POST":
-        if not _is_active_ticket_status(ticket.status):
+        if not validate_ticket_active(ticket):
             flash("No se pueden agregar materiales a un ticket cerrado.", "error")
             return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
 
@@ -237,52 +247,17 @@ def my_active_ticket(reservation_id: int):
             flash("No puedes solicitar materiales de otra carrera.", "error")
             return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
 
-        if material.pieces_qty is not None and quantity > material.pieces_qty:
-            flash(f"{material.name}: solo hay {material.pieces_qty} disponibles para solicitud.", "error")
+        result = add_material_to_ticket(
+            ticket=ticket,
+            material=material,
+            quantity=quantity,
+            actor_user=current_user,
+        )
+        if not result.ok:
+            flash(result.message, "error")
             return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
 
-        item = TicketItem.query.filter_by(ticket_id=ticket.id, material_id=material.id).first()
-        if item:
-            item.quantity_requested += quantity
-            if item.quantity_delivered < item.quantity_requested:
-                item.status = "REQUESTED"
-        else:
-            item = TicketItem(
-                ticket_id=ticket.id,
-                material_id=material.id,
-                quantity_requested=quantity,
-                quantity_delivered=0,
-                quantity_returned=0,
-                status="REQUESTED",
-            )
-            db.session.add(item)
-
-        _sync_ticket_ready_status(ticket)
-
-        admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
-        urgent_notifications: list[Notification] = []
-        for admin in admins:
-            notif = Notification(
-                user_id=admin.id,
-                title="Solicitud urgente en ticket activo",
-                message=f"{current_user.email} agregó {quantity} de {material.name} al ticket #{ticket.id}.",
-                link=url_for("reservations.admin_ticket_detail", ticket_id=ticket.id),
-            )
-            db.session.add(notif)
-            urgent_notifications.append(notif)
-
-        log_event(
-            module="LAB_TICKETS",
-            action="LAB_TICKET_ITEM_REQUESTED_BY_USER",
-            user_id=current_user.id,
-            entity_label=f"LabTicket #{ticket.id}",
-            description=f"Usuario agregó material al ticket activo #{ticket.id}",
-            metadata={"ticket_id": ticket.id, "material_id": material.id, "quantity_added": quantity},
-            material_id=material.id,
-        )
-
-        db.session.commit()
-        for notif in urgent_notifications:
+        for notif in result.data.get("notifications", []):
             publish_notification_created(notif)
 
         flash("Material agregado al ticket activo. El admin fue notificado.", "success")
@@ -318,33 +293,12 @@ def my_ticket_request_close(ticket_id: int):
         flash("Ticket no encontrado.", "error")
         return redirect(url_for("reservations.my_reservations"))
 
-    if not _is_active_ticket_status(ticket.status):
-        flash("Solo puedes solicitar cierre para tickets activos.", "warning")
+    result = request_ticket_closure(ticket=ticket, actor_user=current_user)
+    if not result.ok:
+        flash(result.message, "warning")
         return redirect(url_for("reservations.my_active_ticket", reservation_id=ticket.reservation_id))
 
-    ticket.status = TICKET_CLOSURE_REQUESTED
-    admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
-    notifications = []
-    for admin in admins:
-        notif = Notification(
-            user_id=admin.id,
-            title="Solicitud de cierre de ticket",
-            message=f"{current_user.email} solicitó el cierre del ticket #{ticket.id}.",
-            link=url_for("reservations.admin_ticket_detail", ticket_id=ticket.id),
-        )
-        db.session.add(notif)
-        notifications.append(notif)
-
-    log_event(
-        module="LAB_TICKETS",
-        action="LAB_TICKET_CLOSE_REQUESTED_BY_USER",
-        user_id=current_user.id,
-        entity_label=f"LabTicket #{ticket.id}",
-        description=f"Usuario solicitó cierre de ticket #{ticket.id}",
-        metadata={"ticket_id": ticket.id, "reservation_id": ticket.reservation_id},
-    )
-    db.session.commit()
-    for notif in notifications:
+    for notif in result.data.get("notifications", []):
         publish_notification_created(notif)
 
     flash("Solicitud de cierre enviada. Espera confirmación del administrador.", "success")
@@ -473,7 +427,7 @@ def request_reservation():
             subject=subject,
             subject_id=selected_subject_id,
             signed=signed,
-            status="PENDING",
+            status=ReservationStatus.PENDING,
         )
 
         db.session.add(r)
@@ -529,7 +483,7 @@ def request_reservation():
             user_id=current_user.id,
             entity_label=f"Reservation #{r.id}",
             description=f"Reserva creada para {room} {date_} {start_t}-{end_t}",
-            metadata={"reservation_id": r.id, "room": room, "status": "PENDING"},
+            metadata={"reservation_id": r.id, "room": room, "status": ReservationStatus.PENDING},
         )
 
         db.session.commit()
@@ -581,7 +535,7 @@ def admin_queue():
             joinedload(Reservation.items).joinedload(ReservationItem.material),
             joinedload(Reservation.user)
         )
-        .filter(Reservation.status == "PENDING")
+        .filter(Reservation.status == ReservationStatus.PENDING)
         .order_by(Reservation.created_at.asc())
         .all()
     )
@@ -606,14 +560,14 @@ def admin_approved():
             joinedload(Reservation.lab_tickets),
             joinedload(Reservation.user)
         )
-        .filter(Reservation.status == "APPROVED")
+        .filter(Reservation.status == ReservationStatus.APPROVED)
         .filter(Reservation.date == today)
         .order_by(Reservation.start_time.asc())
         .all()
     )
 
     for r in approved:
-        open_ticket = next((t for t in r.lab_tickets if (t.status or "").upper() in BLOCKING_TICKET_STATUSES), None)
+        open_ticket = next((t for t in r.lab_tickets if (t.status or "").upper() in BLOCKING_LAB_TICKET_STATUSES), None)
         r.open_ticket = open_ticket
 
         if open_ticket:
@@ -651,7 +605,7 @@ def admin_ticket_closure_requests():
             joinedload(LabTicket.reservation),
             joinedload(LabTicket.items).joinedload(TicketItem.material),
         )
-        .filter(LabTicket.status == TICKET_CLOSURE_REQUESTED)
+        .filter(LabTicket.status == LabTicketStatus.CLOSURE_REQUESTED)
         .order_by(LabTicket.opened_at.asc())
         .all()
     )
@@ -673,7 +627,7 @@ def admin_approved_history():
             joinedload(Reservation.lab_tickets),
             joinedload(Reservation.user)
         )
-        .filter(Reservation.status == "APPROVED")
+        .filter(Reservation.status == ReservationStatus.APPROVED)
         .filter(Reservation.date < today)
         .order_by(Reservation.date.desc(), Reservation.start_time.desc())
         .all()
@@ -694,28 +648,49 @@ def admin_approve(res_id: int):
         flash("Reserva no encontrada.", "error")
         return redirect(url_for("reservations.admin_queue"))
 
+    if r.status == ReservationStatus.APPROVED:
+        log_event(
+            module="RESERVATIONS",
+            action="RESERVATION_APPROVE_REJECTED",
+            user_id=current_user.id,
+            entity_label=f"Reservation #{r.id}",
+            description="Intento inválido de aprobar reservación ya aprobada",
+            metadata={"reservation_id": r.id, "entity_id": r.id, "result": "rejected", "reason": "already_approved"},
+        )
+        flash("La reservación ya fue aprobada.", "warning")
+        return redirect(url_for("reservations.admin_queue"))
+    if r.status == ReservationStatus.REJECTED:
+        log_event(
+            module="RESERVATIONS",
+            action="RESERVATION_APPROVE_REJECTED",
+            user_id=current_user.id,
+            entity_label=f"Reservation #{r.id}",
+            description="Intento inválido de aprobar reservación ya rechazada",
+            metadata={"reservation_id": r.id, "entity_id": r.id, "result": "rejected", "reason": "already_rejected"},
+        )
+        flash("La reservación ya fue rechazada.", "warning")
+        return redirect(url_for("reservations.admin_queue"))
+    if r.status != ReservationStatus.PENDING:
+        log_event(
+            module="RESERVATIONS",
+            action="RESERVATION_APPROVE_REJECTED",
+            user_id=current_user.id,
+            entity_label=f"Reservation #{r.id}",
+            description="Intento inválido de aprobar reservación en estado no permitido",
+            metadata={"reservation_id": r.id, "entity_id": r.id, "result": "rejected", "reason": f"invalid_status:{r.status}"},
+        )
+        flash(f"La reservación no se puede aprobar desde estado {r.status}.", "error")
+        return redirect(url_for("reservations.admin_queue"))
+
     if overlaps(r.room, r.date, r.start_time, r.end_time):
         flash("No se puede aprobar: se empalma con otra reserva aprobada.", "error")
         return redirect(url_for("reservations.admin_queue"))
 
-    r.status = "APPROVED"
-    r.admin_note = (request.form.get("admin_note") or "").strip() or None
-    approval_notification = Notification(
-        user_id=r.user_id,
-        title="Reservación aprobada",
-        message=f"Tu reservación #{r.id} fue aprobada.",
-        link=url_for("reservations.my_reservations"),
+    approval_notification = approve_reservation(
+        reservation=r,
+        admin_user=current_user,
+        admin_note=request.form.get("admin_note"),
     )
-    db.session.add(approval_notification)
-    log_event(
-        module="RESERVATIONS",
-        action="RESERVATION_APPROVED",
-        user_id=current_user.id,
-        entity_label=f"Reservation #{r.id}",
-        description=f"Reserva #{r.id} aprobada",
-        metadata={"reservation_id": r.id, "target_user_id": r.user_id},
-    )
-    db.session.commit()
     publish_notification_created(approval_notification)
 
     flash("Reserva aprobada.", "success")
@@ -730,24 +705,45 @@ def admin_reject(res_id: int):
         flash("Reserva no encontrada.", "error")
         return redirect(url_for("reservations.admin_queue"))
 
-    r.status = "REJECTED"
-    r.admin_note = (request.form.get("admin_note") or "").strip() or None
-    rejection_notification = Notification(
-        user_id=r.user_id,
-        title="Reservación rechazada",
-        message=f"Tu reservación #{r.id} fue rechazada.",
-        link=url_for("reservations.my_reservations"),
+    if r.status == ReservationStatus.REJECTED:
+        log_event(
+            module="RESERVATIONS",
+            action="RESERVATION_REJECT_REJECTED",
+            user_id=current_user.id,
+            entity_label=f"Reservation #{r.id}",
+            description="Intento inválido de rechazar reservación ya rechazada",
+            metadata={"reservation_id": r.id, "entity_id": r.id, "result": "rejected", "reason": "already_rejected"},
+        )
+        flash("La reservación ya fue rechazada.", "warning")
+        return redirect(url_for("reservations.admin_queue"))
+    if r.status == ReservationStatus.APPROVED:
+        log_event(
+            module="RESERVATIONS",
+            action="RESERVATION_REJECT_REJECTED",
+            user_id=current_user.id,
+            entity_label=f"Reservation #{r.id}",
+            description="Intento inválido de rechazar reservación ya aprobada",
+            metadata={"reservation_id": r.id, "entity_id": r.id, "result": "rejected", "reason": "already_approved"},
+        )
+        flash("La reservación ya fue aprobada y no se puede rechazar.", "warning")
+        return redirect(url_for("reservations.admin_queue"))
+    if r.status != ReservationStatus.PENDING:
+        log_event(
+            module="RESERVATIONS",
+            action="RESERVATION_REJECT_REJECTED",
+            user_id=current_user.id,
+            entity_label=f"Reservation #{r.id}",
+            description="Intento inválido de rechazar reservación en estado no permitido",
+            metadata={"reservation_id": r.id, "entity_id": r.id, "result": "rejected", "reason": f"invalid_status:{r.status}"},
+        )
+        flash(f"La reservación no se puede rechazar desde estado {r.status}.", "error")
+        return redirect(url_for("reservations.admin_queue"))
+
+    rejection_notification = reject_reservation(
+        reservation=r,
+        admin_user=current_user,
+        admin_note=request.form.get("admin_note"),
     )
-    db.session.add(rejection_notification)
-    log_event(
-        module="RESERVATIONS",
-        action="RESERVATION_REJECTED",
-        user_id=current_user.id,
-        entity_label=f"Reservation #{r.id}",
-        description=f"Reserva #{r.id} rechazada",
-        metadata={"reservation_id": r.id, "target_user_id": r.user_id},
-    )
-    db.session.commit()
     publish_notification_created(rejection_notification)
 
     flash("Reserva rechazada.", "success")
@@ -762,14 +758,14 @@ def admin_open_ticket(res_id: int):
         flash("Reserva no encontrada.", "error")
         return redirect(url_for("reservations.admin_approved"))
 
-    if r.status != "APPROVED":
+    if r.status != ReservationStatus.APPROVED:
         flash("Solo se puede abrir ticket para reservas aprobadas.", "error")
         return redirect(url_for("reservations.admin_approved"))
 
     existing_ticket = (
         LabTicket.query
         .filter(LabTicket.reservation_id == r.id)
-        .filter(LabTicket.status.in_(list(BLOCKING_TICKET_STATUSES)))
+        .filter(LabTicket.status.in_(list(BLOCKING_LAB_TICKET_STATUSES)))
         .first()
     )
     if existing_ticket:
@@ -796,7 +792,7 @@ def admin_open_ticket(res_id: int):
         owner_user_id=r.user_id,
         room=r.room,
         date=r.date,
-        status="OPEN",
+        status=LabTicketStatus.OPEN,
         opened_by_user_id=current_user.id,
         notes=f"Ticket generado desde reserva #{r.id}"
     )
@@ -820,11 +816,10 @@ def admin_open_ticket(res_id: int):
             quantity_requested=reservation_item.quantity_requested,
             quantity_delivered=0,
             quantity_returned=0,
-            status="REQUESTED"
+            status=TicketItemStatus.REQUESTED
         )
         db.session.add(ticket_item)
 
-    db.session.commit()
     ticket_opened_notification = Notification(
         user_id=r.user_id,
         title="Ticket de laboratorio abierto",
@@ -832,7 +827,12 @@ def admin_open_ticket(res_id: int):
         link=url_for("reservations.my_active_ticket", reservation_id=r.id),
     )
     db.session.add(ticket_opened_notification)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("No se pudo abrir el ticket por una operación concurrente. Intenta recargar la página.", "warning")
+        return redirect(url_for("reservations.admin_approved"))
     publish_notification_created(ticket_opened_notification)
 
     flash("Ticket de laboratorio abierto correctamente.", "success")
@@ -907,17 +907,9 @@ def admin_ticket_item_update(item_id: int):
     item.quantity_returned = returned
     item.notes = (request.form.get("notes") or "").strip() or None
 
-    if delivered == 0:
-        item.status = "REQUESTED"
-    elif returned == 0:
-        item.status = "DELIVERED"
-    elif returned < delivered:
-        item.status = "MISSING"
-    else:
-        item.status = "RETURNED"
+    apply_ticket_item_status(item=item, delivered=delivered, returned=returned)
 
     _sync_ticket_ready_status(item.ticket)
-    db.session.commit()
     owner_notification = Notification(
         user_id=item.ticket.owner_user_id,
         title="Ticket de reservación actualizado",
@@ -949,8 +941,16 @@ def admin_ticket_item_mark_ready(item_id: int):
         flash("No hay pendientes por preparar en este material.", "warning")
         return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
 
-    item.status = "READY_FOR_PICKUP"
-    _sync_ticket_ready_status(ticket)
+    if item.status == TicketItemStatus.READY_FOR_PICKUP:
+        flash("Este material ya está marcado como listo para recoger.", "warning")
+        return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
+
+    if item.status == TicketItemStatus.RETURNED:
+        flash("No se puede marcar como listo un material ya devuelto.", "error")
+        return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
+
+    item.status = TicketItemStatus.READY_FOR_PICKUP
+    sync_ticket_ready_status(ticket)
 
     notif = Notification(
         user_id=ticket.owner_user_id,
@@ -980,98 +980,17 @@ def admin_ticket_close(ticket_id: int):
         flash("Ticket no encontrado.", "error")
         return redirect(url_for("reservations.admin_approved"))
 
-    if not (_is_active_ticket_status(ticket.status) or _is_ticket_closure_requested(ticket.status)):
-        flash("Solo se pueden cerrar tickets activos o con cierre solicitado.", "error")
+    result = close_ticket(ticket=ticket, actor_user=current_user)
+    if not result.ok:
+        flash(result.message, "error")
         return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
 
-    has_missing = False
-    created_debt_ids: list[int] = []
-    previous_ticket_status = ticket.status
+    close_notification = result.data["close_notification"]
+    admin_notifications = result.data["admin_notifications"]
 
-    for item in ticket.items:
-        missing_qty = item.quantity_delivered - item.quantity_returned
-
-        if missing_qty > 0:
-            has_missing = True
-            item.status = "MISSING"
-
-            existing_debt = Debt.query.filter_by(
-                user_id=ticket.owner_user_id,
-                material_id=item.material_id,
-                status="OPEN"
-            ).first()
-
-            if not existing_debt:
-                material_name = item.material.name if item.material else f"Material ID {item.material_id}"
-                debt = Debt(
-                    user_id=ticket.owner_user_id,
-                    material_id=item.material_id,
-                    status="OPEN",
-                    reason=f"Faltante de {missing_qty} unidad(es) en ticket #{ticket.id} - {material_name}"
-                )
-                db.session.add(debt)
-                db.session.flush()
-                created_debt_ids.append(debt.id)
-                log_event(
-                    module="DEBTS",
-                    action="DEBT_CREATED",
-                    user_id=current_user.id,
-                    entity_label=f"Debt #{debt.id}",
-                    description=f"Adeudo generado automáticamente por faltante en ticket #{ticket.id}",
-                    metadata={
-                        "debt_id": debt.id,
-                        "ticket_id": ticket.id,
-                        "target_user_id": ticket.owner_user_id,
-                        "material_id": item.material_id,
-                        "missing_qty": missing_qty,
-                        "origin": "LAB_TICKET_CLOSE",
-                    },
-                    material_id=item.material_id,
-                )
-
-    ticket.status = "CLOSED_WITH_DEBT" if has_missing else "CLOSED"
-    ticket.closed_by_user_id = current_user.id
-    ticket.closed_at = datetime.now()
-    log_event(
-        module="LAB_TICKETS",
-        action="LAB_TICKET_CLOSED",
-        user_id=current_user.id,
-        entity_label=f"LabTicket #{ticket.id}",
-        description=f"Ticket #{ticket.id} cerrado con estado {ticket.status}",
-        metadata={
-            "ticket_id": ticket.id,
-            "owner_user_id": ticket.owner_user_id,
-            "previous_status": previous_ticket_status,
-            "new_status": ticket.status,
-            "created_debt_ids": created_debt_ids,
-        },
-    )
-
-    db.session.commit()
-    close_notification = Notification(
-        user_id=ticket.owner_user_id,
-        title="Ticket de reservación cerrado",
-        message=f"Tu ticket #{ticket.id} se cerró con estado {ticket.status}.",
-        link=url_for("reservations.my_reservations"),
-    )
-    db.session.add(close_notification)
-    db.session.commit()
     publish_notification_created(close_notification)
-    if created_debt_ids:
-        admin_notifications = []
-        admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
-        for admin in admins:
-            notif = Notification(
-                user_id=admin.id,
-                title="Adeudo generado por cierre de ticket",
-                message=f"El ticket #{ticket.id} cerró con adeudo. Revisa deudor y seguimiento.",
-                link=url_for("debts.admin_list"),
-            )
-            db.session.add(notif)
-            admin_notifications.append(notif)
-        db.session.commit()
-        for notif in admin_notifications:
-            publish_notification_created(notif)
+    for notif in admin_notifications:
+        publish_notification_created(notif)
 
     flash("Ticket cerrado correctamente.", "success")
     return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
@@ -1143,17 +1062,9 @@ def admin_ticket_update_all(ticket_id: int):
             item.quantity_returned = returned
             item.notes = (notes_list[i] or "").strip() or None
 
-            if delivered == 0:
-                item.status = "REQUESTED"
-            elif returned == 0:
-                item.status = "DELIVERED"
-            elif returned < delivered:
-                item.status = "MISSING"
-            else:
-                item.status = "RETURNED"
+            apply_ticket_item_status(item=item, delivered=delivered, returned=returned)
 
         _sync_ticket_ready_status(ticket)
-        db.session.commit()
         bulk_update_notification = Notification(
             user_id=ticket.owner_user_id,
             title="Ticket de reservación actualizado",

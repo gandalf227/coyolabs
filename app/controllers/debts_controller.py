@@ -1,7 +1,6 @@
-import re
-
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
+from sqlalchemy.orm import joinedload
 
 from app.utils.roles import is_admin_role
 from app.utils.authz import min_role_required
@@ -11,10 +10,10 @@ from app.extensions import db
 from app.models.debt import Debt
 from app.models.user import User
 from app.models.material import Material
-from app.models.lab_ticket import LabTicket
-from app.models.notification import Notification
+from app.services.debt_service import resolve_debt
 from app.services.audit_service import log_event
 from app.services.notification_realtime_service import publish_notification_created
+from app.utils.statuses import DebtStatus
 
 
 debts_bp = Blueprint("debts", __name__, url_prefix="/debts")
@@ -41,18 +40,6 @@ def _log_debt_event(action: str, debt: Debt, description: str, metadata: dict | 
     )
 
 
-def _extract_ticket_id_from_reason(reason: str | None) -> int | None:
-    if not reason:
-        return None
-    match = re.search(r"ticket\s*#(\d+)", reason, flags=re.IGNORECASE)
-    if not match:
-        return None
-    try:
-        return int(match.group(1))
-    except ValueError:
-        return None
-
-
 # -------------------------
 # HOME
 # -------------------------
@@ -74,6 +61,7 @@ def debts_home():
 def my_debts():
     debts = (
         Debt.query
+        .options(joinedload(Debt.material))
         .filter(Debt.user_id == current_user.id)
         .order_by(Debt.created_at.desc())
         .all()
@@ -94,7 +82,13 @@ def my_debts():
 @min_role_required("STAFF")
 @permission_required("debts.view_all")
 def admin_list():
-    debts = Debt.query.order_by(Debt.created_at.desc()).limit(200).all()
+    debts = (
+        Debt.query
+        .options(joinedload(Debt.user), joinedload(Debt.material))
+        .order_by(Debt.created_at.desc())
+        .limit(200)
+        .all()
+    )
 
     return render_template(
         "debts/admin_list.html",
@@ -130,7 +124,7 @@ def admin_create():
         debt = Debt(
             user_id=user.id,
             material_id=material.id if material else None,
-            status="OPEN",
+            status=DebtStatus.OPEN,
             reason=reason or None,
         )
 
@@ -164,61 +158,13 @@ def admin_close(debt_id: int):
         flash("Adeudo no encontrado.", "error")
         return redirect(url_for("debts.admin_list"))
 
-    previous_status = debt.status
-    debt.status = "PAID"
-    debt.closed_at = db.func.now()
+    result = resolve_debt(debt=debt, actor_user=current_user)
+    if not result.ok:
+        flash(result.message, "error")
+        return redirect(url_for("debts.admin_list"))
 
-    _log_debt_event(
-        action="DEBT_CLOSED",
-        debt=debt,
-        description=f"Adeudo #{debt.id} marcado como pagado",
-        metadata={"previous_status": previous_status, "new_status": debt.status},
-    )
-
-    ticket_to_close = None
-    ticket_id = _extract_ticket_id_from_reason(debt.reason)
-    if ticket_id:
-        ticket = LabTicket.query.get(ticket_id)
-        if ticket and ticket.owner_user_id == debt.user_id and ticket.status == "CLOSED_WITH_DEBT":
-            remaining_open_debts = (
-                Debt.query
-                .filter(Debt.user_id == debt.user_id, Debt.status == "OPEN")
-                .filter(Debt.reason.ilike(f"%ticket #{ticket_id}%"))
-                .count()
-            )
-            if remaining_open_debts == 0:
-                ticket.status = "CLOSED"
-                ticket_to_close = ticket
-
-    ticket_notification = None
-    if ticket_to_close:
-        _log_debt_event(
-            action="LAB_TICKET_CORRECTED_AFTER_DEBT",
-            debt=debt,
-            description=f"Ticket #{ticket_to_close.id} corregido a CLOSED tras resolver adeudo",
-            metadata={"ticket_id": ticket_to_close.id},
-        )
-        ticket_notification = Notification(
-            user_id=ticket_to_close.owner_user_id,
-            title="Ticket corregido",
-            message=f"Tu ticket #{ticket_to_close.id} fue corregido a cerrado tras resolver el adeudo.",
-            link=url_for("reservations.my_reservations"),
-        )
-        db.session.add(ticket_notification)
-
-    admin_notifications = []
-    admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
-    for admin in admins:
-        admin_notif = Notification(
-            user_id=admin.id,
-            title="Adeudo resuelto",
-            message=f"El adeudo #{debt.id} fue marcado como pagado.",
-            link=url_for("debts.admin_list"),
-        )
-        db.session.add(admin_notif)
-        admin_notifications.append(admin_notif)
-
-    db.session.commit()
+    ticket_notification = result.data["ticket_notification"]
+    admin_notifications = result.data["admin_notifications"]
     if ticket_notification:
         publish_notification_created(ticket_notification)
     for admin_notif in admin_notifications:
