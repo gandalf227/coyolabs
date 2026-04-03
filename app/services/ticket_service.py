@@ -35,11 +35,37 @@ class ServiceResult:
         return cls(ok=False, message=message, data=data)
 
 
+def _log_ticket_rejected(action: str, actor_user: User | None, ticket: LabTicket | None, reason: str, metadata: dict | None = None) -> None:
+    payload = {
+        "result": "rejected",
+        "reason": reason,
+        "ticket_id": getattr(ticket, "id", None),
+        "entity_id": getattr(ticket, "id", None),
+        "ticket_status": getattr(ticket, "status", None),
+    }
+    if metadata:
+        payload.update(metadata)
+    log_event(
+        module="LAB_TICKETS",
+        action=action,
+        user_id=getattr(actor_user, "id", None),
+        entity_label=f"LabTicket #{getattr(ticket, 'id', 'N/A')}",
+        description=reason,
+        metadata=payload,
+    )
+
+
 def validate_ticket_active(ticket: LabTicket | None) -> ServiceResult:
     if not ticket:
         return ServiceResult.failure("Ticket no encontrado.")
+    if ticket.status == LabTicketStatus.CLOSURE_REQUESTED:
+        return ServiceResult.failure("El ticket ya tiene solicitud de cierre.")
+    if ticket.status == LabTicketStatus.CLOSED:
+        return ServiceResult.failure("El ticket ya está cerrado.")
+    if ticket.status == LabTicketStatus.CLOSED_WITH_DEBT:
+        return ServiceResult.failure("El ticket ya está cerrado con adeudo.")
     if not is_active_lab_ticket_status(ticket.status):
-        return ServiceResult.failure("Solo puedes operar tickets activos.", ticket=ticket)
+        return ServiceResult.failure(f"El ticket no se puede operar desde estado {ticket.status}.", ticket=ticket)
     return ServiceResult.success(ticket=ticket)
 
 
@@ -67,13 +93,36 @@ def apply_ticket_item_status(item: TicketItem, delivered: int, returned: int) ->
 def add_material_to_ticket(ticket: LabTicket, material: Material, quantity: int, actor_user: User) -> ServiceResult:
     active_result = validate_ticket_active(ticket)
     if not active_result.ok:
+        _log_ticket_rejected(
+            action="LAB_TICKET_ITEM_REQUEST_REJECTED",
+            actor_user=actor_user,
+            ticket=ticket,
+            reason=active_result.message or "Ticket inactivo.",
+            metadata={"material_id": getattr(material, "id", None), "quantity_attempted": quantity},
+        )
         return active_result
 
     if quantity <= 0:
-        return ServiceResult.failure("Selecciona material y una cantidad válida.")
+        message = "Selecciona material y una cantidad válida."
+        _log_ticket_rejected(
+            action="LAB_TICKET_ITEM_REQUEST_REJECTED",
+            actor_user=actor_user,
+            ticket=ticket,
+            reason=message,
+            metadata={"material_id": getattr(material, "id", None), "quantity_attempted": quantity},
+        )
+        return ServiceResult.failure(message)
 
     if material.pieces_qty is not None and quantity > material.pieces_qty:
-        return ServiceResult.failure(f"{material.name}: solo hay {material.pieces_qty} disponibles para solicitud.")
+        message = f"{material.name}: solo hay {material.pieces_qty} disponibles para solicitud."
+        _log_ticket_rejected(
+            action="LAB_TICKET_ITEM_REQUEST_REJECTED",
+            actor_user=actor_user,
+            ticket=ticket,
+            reason=message,
+            metadata={"material_id": material.id, "quantity_attempted": quantity},
+        )
+        return ServiceResult.failure(message)
 
     item = TicketItem.query.filter_by(ticket_id=ticket.id, material_id=material.id).first()
     if item:
@@ -124,11 +173,61 @@ def add_material_to_ticket(ticket: LabTicket, material: Material, quantity: int,
 
 
 def request_ticket_closure(ticket: LabTicket, actor_user: User) -> ServiceResult:
-    active_result = validate_ticket_active(ticket)
-    if not active_result.ok:
-        return ServiceResult.failure("Solo puedes solicitar cierre para tickets activos.")
+    if not ticket:
+        message = "Ticket no encontrado."
+        _log_ticket_rejected(
+            action="LAB_TICKET_CLOSE_REQUEST_REJECTED",
+            actor_user=actor_user,
+            ticket=ticket,
+            reason=message,
+        )
+        return ServiceResult.failure(message)
+    if ticket.status == LabTicketStatus.CLOSURE_REQUESTED:
+        message = "El ticket ya tiene una solicitud de cierre pendiente."
+        _log_ticket_rejected(
+            action="LAB_TICKET_CLOSE_REQUEST_REJECTED",
+            actor_user=actor_user,
+            ticket=ticket,
+            reason=message,
+        )
+        return ServiceResult.failure(message)
+    if ticket.status == LabTicketStatus.CLOSED:
+        message = "El ticket ya está cerrado."
+        _log_ticket_rejected(
+            action="LAB_TICKET_CLOSE_REQUEST_REJECTED",
+            actor_user=actor_user,
+            ticket=ticket,
+            reason=message,
+        )
+        return ServiceResult.failure(message)
+    if ticket.status == LabTicketStatus.CLOSED_WITH_DEBT:
+        message = "El ticket ya está cerrado con adeudo."
+        _log_ticket_rejected(
+            action="LAB_TICKET_CLOSE_REQUEST_REJECTED",
+            actor_user=actor_user,
+            ticket=ticket,
+            reason=message,
+        )
+        return ServiceResult.failure(message)
 
-    ticket.status = LabTicketStatus.CLOSURE_REQUESTED
+    updated_rows = (
+        LabTicket.query
+        .filter(LabTicket.id == ticket.id)
+        .filter(LabTicket.status.in_([LabTicketStatus.OPEN, LabTicketStatus.READY_FOR_PICKUP]))
+        .update({LabTicket.status: LabTicketStatus.CLOSURE_REQUESTED}, synchronize_session=False)
+    )
+    if updated_rows == 0:
+        db.session.refresh(ticket)
+        message = f"El ticket no se puede operar desde estado {ticket.status}."
+        _log_ticket_rejected(
+            action="LAB_TICKET_CLOSE_REQUEST_REJECTED",
+            actor_user=actor_user,
+            ticket=ticket,
+            reason=message,
+        )
+        return ServiceResult.failure(message)
+
+    db.session.refresh(ticket)
 
     admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
     notifications = []
@@ -164,8 +263,18 @@ def can_close_ticket(status: str | None) -> bool:
 
 
 def close_ticket(ticket: LabTicket, actor_user: User) -> ServiceResult:
+    if ticket.status == LabTicketStatus.CLOSED:
+        message = "El ticket ya está cerrado."
+        _log_ticket_rejected(action="LAB_TICKET_CLOSE_REJECTED", actor_user=actor_user, ticket=ticket, reason=message)
+        return ServiceResult.failure(message)
+    if ticket.status == LabTicketStatus.CLOSED_WITH_DEBT:
+        message = "El ticket ya fue cerrado con adeudo."
+        _log_ticket_rejected(action="LAB_TICKET_CLOSE_REJECTED", actor_user=actor_user, ticket=ticket, reason=message)
+        return ServiceResult.failure(message)
     if not can_close_ticket(ticket.status):
-        return ServiceResult.failure("Solo se pueden cerrar tickets activos o con cierre solicitado.")
+        message = f"El ticket no se puede cerrar desde estado {ticket.status}."
+        _log_ticket_rejected(action="LAB_TICKET_CLOSE_REJECTED", actor_user=actor_user, ticket=ticket, reason=message)
+        return ServiceResult.failure(message)
 
     has_missing = False
     created_debt_ids: list[int] = []
@@ -176,8 +285,14 @@ def close_ticket(ticket: LabTicket, actor_user: User) -> ServiceResult:
         if missing_qty > 0:
             has_missing = True
             item.status = TicketItemStatus.MISSING
-            debt = create_debt_for_ticket(ticket=ticket, item=item, missing_qty=missing_qty, actor_user_id=actor_user.id)
-            if debt:
+            debt_result = create_debt_for_ticket(
+                ticket=ticket,
+                item=item,
+                missing_qty=missing_qty,
+                actor_user_id=actor_user.id,
+            )
+            debt = debt_result.data.get("debt") if debt_result.ok else None
+            if debt_result.ok and debt_result.data.get("created") and debt:
                 created_debt_ids.append(debt.id)
 
     ticket.status = LabTicketStatus.CLOSED_WITH_DEBT if has_missing else LabTicketStatus.CLOSED
@@ -213,6 +328,8 @@ def close_ticket(ticket: LabTicket, actor_user: User) -> ServiceResult:
         description=f"Ticket #{ticket.id} cerrado con estado {ticket.status}",
         metadata={
             "ticket_id": ticket.id,
+            "entity_id": ticket.id,
+            "result": "success",
             "owner_user_id": ticket.owner_user_id,
             "previous_status": previous_ticket_status,
             "new_status": ticket.status,

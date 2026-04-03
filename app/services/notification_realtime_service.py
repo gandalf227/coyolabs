@@ -1,4 +1,5 @@
 import json
+import logging
 import queue
 import threading
 from datetime import datetime
@@ -37,15 +38,32 @@ class NotificationBroker:
 
 
 notification_broker = NotificationBroker()
+_logger = logging.getLogger(__name__)
+_warned_single_process_delivery = False
+
+
+def _warn_single_process_delivery_once() -> None:
+    global _warned_single_process_delivery
+    if _warned_single_process_delivery:
+        return
+    _warned_single_process_delivery = True
+    _logger.warning(
+        "SSE notification broker is process-local; in multi-worker deployments, "
+        "clients connected to other workers may not receive events."
+    )
+
+
+def get_unread_count(user_id: int) -> int:
+    return (
+        Notification.query
+        .filter(Notification.user_id == user_id, Notification.is_read.is_(False))
+        .count()
+    )
 
 
 def notification_to_dict(notification: Notification, unread_count: int | None = None) -> dict:
     if unread_count is None:
-        unread_count = (
-            Notification.query
-            .filter(Notification.user_id == notification.user_id, Notification.is_read.is_(False))
-            .count()
-        )
+        unread_count = get_unread_count(notification.user_id)
 
     return {
         "id": notification.id,
@@ -60,7 +78,9 @@ def notification_to_dict(notification: Notification, unread_count: int | None = 
 
 
 def publish_notification_created(notification: Notification) -> None:
-    payload = notification_to_dict(notification)
+    _warn_single_process_delivery_once()
+    unread_count = get_unread_count(notification.user_id)
+    payload = notification_to_dict(notification, unread_count=unread_count)
     notification_broker.publish(notification.user_id, "notification_created", payload)
 
 

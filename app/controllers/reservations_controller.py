@@ -3,6 +3,7 @@ import json
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
@@ -107,7 +108,7 @@ def overlaps(room: str, date_, start_t, end_t) -> bool:
         .filter(Reservation.start_time < end_t)
         .filter(Reservation.end_time > start_t)
     )
-    return q.count() > 0
+    return q.first() is not None
 
 
 def get_week_start(date_value):
@@ -253,7 +254,7 @@ def my_active_ticket(reservation_id: int):
             actor_user=current_user,
         )
         if not result.ok:
-            flash(result.message or "No se pudo agregar material al ticket.", "error")
+            flash(result.message, "error")
             return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
 
         for notif in result.data.get("notifications", []):
@@ -294,7 +295,7 @@ def my_ticket_request_close(ticket_id: int):
 
     result = request_ticket_closure(ticket=ticket, actor_user=current_user)
     if not result.ok:
-        flash(result.message or "No se pudo solicitar cierre de ticket.", "warning")
+        flash(result.message, "warning")
         return redirect(url_for("reservations.my_active_ticket", reservation_id=ticket.reservation_id))
 
     for notif in result.data.get("notifications", []):
@@ -647,6 +648,40 @@ def admin_approve(res_id: int):
         flash("Reserva no encontrada.", "error")
         return redirect(url_for("reservations.admin_queue"))
 
+    if r.status == ReservationStatus.APPROVED:
+        log_event(
+            module="RESERVATIONS",
+            action="RESERVATION_APPROVE_REJECTED",
+            user_id=current_user.id,
+            entity_label=f"Reservation #{r.id}",
+            description="Intento inválido de aprobar reservación ya aprobada",
+            metadata={"reservation_id": r.id, "entity_id": r.id, "result": "rejected", "reason": "already_approved"},
+        )
+        flash("La reservación ya fue aprobada.", "warning")
+        return redirect(url_for("reservations.admin_queue"))
+    if r.status == ReservationStatus.REJECTED:
+        log_event(
+            module="RESERVATIONS",
+            action="RESERVATION_APPROVE_REJECTED",
+            user_id=current_user.id,
+            entity_label=f"Reservation #{r.id}",
+            description="Intento inválido de aprobar reservación ya rechazada",
+            metadata={"reservation_id": r.id, "entity_id": r.id, "result": "rejected", "reason": "already_rejected"},
+        )
+        flash("La reservación ya fue rechazada.", "warning")
+        return redirect(url_for("reservations.admin_queue"))
+    if r.status != ReservationStatus.PENDING:
+        log_event(
+            module="RESERVATIONS",
+            action="RESERVATION_APPROVE_REJECTED",
+            user_id=current_user.id,
+            entity_label=f"Reservation #{r.id}",
+            description="Intento inválido de aprobar reservación en estado no permitido",
+            metadata={"reservation_id": r.id, "entity_id": r.id, "result": "rejected", "reason": f"invalid_status:{r.status}"},
+        )
+        flash(f"La reservación no se puede aprobar desde estado {r.status}.", "error")
+        return redirect(url_for("reservations.admin_queue"))
+
     if overlaps(r.room, r.date, r.start_time, r.end_time):
         flash("No se puede aprobar: se empalma con otra reserva aprobada.", "error")
         return redirect(url_for("reservations.admin_queue"))
@@ -668,6 +703,40 @@ def admin_reject(res_id: int):
     r = Reservation.query.get(res_id)
     if not r:
         flash("Reserva no encontrada.", "error")
+        return redirect(url_for("reservations.admin_queue"))
+
+    if r.status == ReservationStatus.REJECTED:
+        log_event(
+            module="RESERVATIONS",
+            action="RESERVATION_REJECT_REJECTED",
+            user_id=current_user.id,
+            entity_label=f"Reservation #{r.id}",
+            description="Intento inválido de rechazar reservación ya rechazada",
+            metadata={"reservation_id": r.id, "entity_id": r.id, "result": "rejected", "reason": "already_rejected"},
+        )
+        flash("La reservación ya fue rechazada.", "warning")
+        return redirect(url_for("reservations.admin_queue"))
+    if r.status == ReservationStatus.APPROVED:
+        log_event(
+            module="RESERVATIONS",
+            action="RESERVATION_REJECT_REJECTED",
+            user_id=current_user.id,
+            entity_label=f"Reservation #{r.id}",
+            description="Intento inválido de rechazar reservación ya aprobada",
+            metadata={"reservation_id": r.id, "entity_id": r.id, "result": "rejected", "reason": "already_approved"},
+        )
+        flash("La reservación ya fue aprobada y no se puede rechazar.", "warning")
+        return redirect(url_for("reservations.admin_queue"))
+    if r.status != ReservationStatus.PENDING:
+        log_event(
+            module="RESERVATIONS",
+            action="RESERVATION_REJECT_REJECTED",
+            user_id=current_user.id,
+            entity_label=f"Reservation #{r.id}",
+            description="Intento inválido de rechazar reservación en estado no permitido",
+            metadata={"reservation_id": r.id, "entity_id": r.id, "result": "rejected", "reason": f"invalid_status:{r.status}"},
+        )
+        flash(f"La reservación no se puede rechazar desde estado {r.status}.", "error")
         return redirect(url_for("reservations.admin_queue"))
 
     rejection_notification = reject_reservation(
@@ -751,7 +820,6 @@ def admin_open_ticket(res_id: int):
         )
         db.session.add(ticket_item)
 
-    db.session.commit()
     ticket_opened_notification = Notification(
         user_id=r.user_id,
         title="Ticket de laboratorio abierto",
@@ -759,7 +827,12 @@ def admin_open_ticket(res_id: int):
         link=url_for("reservations.my_active_ticket", reservation_id=r.id),
     )
     db.session.add(ticket_opened_notification)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("No se pudo abrir el ticket por una operación concurrente. Intenta recargar la página.", "warning")
+        return redirect(url_for("reservations.admin_approved"))
     publish_notification_created(ticket_opened_notification)
 
     flash("Ticket de laboratorio abierto correctamente.", "success")
@@ -837,7 +910,6 @@ def admin_ticket_item_update(item_id: int):
     apply_ticket_item_status(item=item, delivered=delivered, returned=returned)
 
     _sync_ticket_ready_status(item.ticket)
-    db.session.commit()
     owner_notification = Notification(
         user_id=item.ticket.owner_user_id,
         title="Ticket de reservación actualizado",
@@ -867,6 +939,14 @@ def admin_ticket_item_mark_ready(item_id: int):
 
     if item.quantity_requested <= item.quantity_delivered:
         flash("No hay pendientes por preparar en este material.", "warning")
+        return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
+
+    if item.status == TicketItemStatus.READY_FOR_PICKUP:
+        flash("Este material ya está marcado como listo para recoger.", "warning")
+        return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
+
+    if item.status == TicketItemStatus.RETURNED:
+        flash("No se puede marcar como listo un material ya devuelto.", "error")
         return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
 
     item.status = TicketItemStatus.READY_FOR_PICKUP
@@ -902,7 +982,7 @@ def admin_ticket_close(ticket_id: int):
 
     result = close_ticket(ticket=ticket, actor_user=current_user)
     if not result.ok:
-        flash(result.message or "No se pudo cerrar el ticket.", "error")
+        flash(result.message, "error")
         return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
 
     close_notification = result.data["close_notification"]
@@ -984,7 +1064,6 @@ def admin_ticket_update_all(ticket_id: int):
             apply_ticket_item_status(item=item, delivered=delivered, returned=returned)
 
         _sync_ticket_ready_status(ticket)
-        db.session.commit()
         bulk_update_notification = Notification(
             user_id=ticket.owner_user_id,
             title="Ticket de reservación actualizado",

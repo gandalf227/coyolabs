@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
+from sqlalchemy.orm import joinedload
 
 from app.utils.roles import is_admin_role
 from app.utils.authz import min_role_required
@@ -60,6 +61,7 @@ def debts_home():
 def my_debts():
     debts = (
         Debt.query
+        .options(joinedload(Debt.material))
         .filter(Debt.user_id == current_user.id)
         .order_by(Debt.created_at.desc())
         .all()
@@ -80,7 +82,13 @@ def my_debts():
 @min_role_required("STAFF")
 @permission_required("debts.view_all")
 def admin_list():
-    debts = Debt.query.order_by(Debt.created_at.desc()).limit(200).all()
+    debts = (
+        Debt.query
+        .options(joinedload(Debt.user), joinedload(Debt.material))
+        .order_by(Debt.created_at.desc())
+        .limit(200)
+        .all()
+    )
 
     return render_template(
         "debts/admin_list.html",
@@ -150,9 +158,13 @@ def admin_close(debt_id: int):
         flash("Adeudo no encontrado.", "error")
         return redirect(url_for("debts.admin_list"))
 
-    result = resolve_debt(debt=debt, actor_user_id=current_user.id)
-    ticket_notification = result["ticket_notification"]
-    admin_notifications = result["admin_notifications"]
+    result = resolve_debt(debt=debt, actor_user=current_user)
+    if not result.ok:
+        flash(result.message, "error")
+        return redirect(url_for("debts.admin_list"))
+
+    ticket_notification = result.data["ticket_notification"]
+    admin_notifications = result.data["admin_notifications"]
     if ticket_notification:
         publish_notification_created(ticket_notification)
     for admin_notif in admin_notifications:

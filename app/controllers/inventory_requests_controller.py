@@ -130,11 +130,15 @@ def add_to_daily_request():
             continue
 
         if qty <= 0:
-            continue
+            flash("Cantidad inválida: debe ser mayor a cero.", "error")
+            return redirect(url_for("inventory_requests.my_daily_request"))
 
         material = Material.query.get(material_id)
         if not material:
             flash("Uno de los materiales seleccionados no existe.", "error")
+            return redirect(url_for("inventory_requests.my_daily_request"))
+        if (material.status or "").strip().lower() == "baja":
+            flash(f"{material.name}: el material está en baja y no se puede solicitar.", "error")
             return redirect(url_for("inventory_requests.my_daily_request"))
         if _is_student_role(current_user.role) and material.career_id != current_user.career_id:
             flash(f"{material.name}: no pertenece a tu carrera.", "error")
