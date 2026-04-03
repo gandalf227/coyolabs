@@ -3,9 +3,10 @@ import json
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
-from app.utils.roles import ROLE_TEACHER, is_admin_role, normalize_role
+from app.utils.roles import ROLE_STUDENT, ROLE_TEACHER, is_admin_role, normalize_role
 from app.models.reservation_item import ReservationItem
 from app.models.material import Material
 from app.models.lab_ticket import LabTicket
@@ -30,6 +31,10 @@ reservations_bp = Blueprint("reservations", __name__, url_prefix="/reservations"
 def _is_professor_role(role: str | None) -> bool:
     normalized = normalize_role(role)
     return normalized == ROLE_TEACHER
+
+
+def _is_student_role(role: str | None) -> bool:
+    return normalize_role(role) == ROLE_STUDENT
 
 
 def _parse_professor_subjects(raw_subjects: str | None) -> list[str]:
@@ -318,6 +323,10 @@ def request_reservation():
             material = Material.query.get(material_id)
             if not material:
                 continue
+            if _is_student_role(current_user.role) and material.career_id != current_user.career_id:
+                db.session.rollback()
+                flash(f"{material.name}: no pertenece a tu carrera.", "error")
+                return redirect(url_for("reservations.request_reservation"))
 
             if material.pieces_qty is not None and qty > material.pieces_qty:
                 db.session.rollback()
@@ -359,6 +368,7 @@ def request_reservation():
     materials = (
         Material.query
         .filter(func.lower(func.coalesce(Material.status, "")) != "baja")
+        .filter(Material.career_id == current_user.career_id if _is_student_role(current_user.role) else True)
         .order_by(Material.name.asc())
         .all()
     )
