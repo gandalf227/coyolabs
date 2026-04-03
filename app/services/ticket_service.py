@@ -43,16 +43,16 @@ def validate_ticket_active(ticket: LabTicket | None) -> ServiceResult:
     return ServiceResult.success(ticket=ticket)
 
 
-def sync_ticket_ready_status(ticket: LabTicket) -> ServiceResult:
+def sync_ticket_ready_status(ticket: LabTicket) -> None:
     has_ready_items = any((item.status or "").upper() == TicketItemStatus.READY_FOR_PICKUP for item in ticket.items)
     if has_ready_items and ticket.status == LabTicketStatus.OPEN:
         ticket.status = LabTicketStatus.READY_FOR_PICKUP
     elif not has_ready_items and ticket.status == LabTicketStatus.READY_FOR_PICKUP:
         ticket.status = LabTicketStatus.OPEN
-    return ServiceResult.success(ticket=ticket)
+    return None
 
 
-def apply_ticket_item_status(item: TicketItem, delivered: int, returned: int) -> ServiceResult:
+def apply_ticket_item_status(item: TicketItem, delivered: int, returned: int) -> None:
     if delivered == 0:
         item.status = TicketItemStatus.REQUESTED
     elif returned == 0:
@@ -61,13 +61,13 @@ def apply_ticket_item_status(item: TicketItem, delivered: int, returned: int) ->
         item.status = TicketItemStatus.MISSING
     else:
         item.status = TicketItemStatus.RETURNED
-    return ServiceResult.success(item=item)
+    return None
 
 
 def add_material_to_ticket(ticket: LabTicket, material: Material, quantity: int, actor_user: User) -> ServiceResult:
     active_result = validate_ticket_active(ticket)
     if not active_result.ok:
-        return ServiceResult.failure("No se pueden agregar materiales a un ticket cerrado.")
+        return active_result
 
     if quantity <= 0:
         return ServiceResult.failure("Selecciona material y una cantidad válida.")
@@ -159,17 +159,13 @@ def request_ticket_closure(ticket: LabTicket, actor_user: User) -> ServiceResult
     )
 
 
-def can_close_ticket(status: str | None) -> ServiceResult:
-    can_close = is_active_lab_ticket_status(status) or is_lab_ticket_closure_requested(status)
-    if not can_close:
-        return ServiceResult.failure("Solo se pueden cerrar tickets activos o con cierre solicitado.", can_close=False)
-    return ServiceResult.success(can_close=True)
+def can_close_ticket(status: str | None) -> bool:
+    return is_active_lab_ticket_status(status) or is_lab_ticket_closure_requested(status)
 
 
 def close_ticket(ticket: LabTicket, actor_user: User) -> ServiceResult:
-    close_validation = can_close_ticket(ticket.status)
-    if not close_validation.ok:
-        return close_validation
+    if not can_close_ticket(ticket.status):
+        return ServiceResult.failure("Solo se pueden cerrar tickets activos o con cierre solicitado.")
 
     has_missing = False
     created_debt_ids: list[int] = []
