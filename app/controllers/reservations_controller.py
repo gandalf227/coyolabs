@@ -27,6 +27,9 @@ from app.utils.validators import normalize_and_validate_group_code
 from app.constants import ROOMS
 
 reservations_bp = Blueprint("reservations", __name__, url_prefix="/reservations")
+ACTIVE_TICKET_STATUSES = {"OPEN", "READY_FOR_PICKUP"}
+TICKET_CLOSURE_REQUESTED = "CLOSURE_REQUESTED"
+BLOCKING_TICKET_STATUSES = ACTIVE_TICKET_STATUSES | {TICKET_CLOSURE_REQUESTED}
 
 
 def _is_professor_role(role: str | None) -> bool:
@@ -36,6 +39,22 @@ def _is_professor_role(role: str | None) -> bool:
 
 def _is_student_role(role: str | None) -> bool:
     return normalize_role(role) == ROLE_STUDENT
+
+
+def _is_active_ticket_status(status: str | None) -> bool:
+    return (status or "").upper() in ACTIVE_TICKET_STATUSES
+
+
+def _is_ticket_closure_requested(status: str | None) -> bool:
+    return (status or "").upper() == TICKET_CLOSURE_REQUESTED
+
+
+def _sync_ticket_ready_status(ticket: LabTicket) -> None:
+    has_ready_items = any((item.status or "").upper() == "READY_FOR_PICKUP" for item in ticket.items)
+    if has_ready_items and ticket.status == "OPEN":
+        ticket.status = "READY_FOR_PICKUP"
+    elif not has_ready_items and ticket.status == "READY_FOR_PICKUP":
+        ticket.status = "OPEN"
 
 
 def _professor_assignments(teacher_id: int) -> list[TeacherAcademicLoad]:
@@ -168,6 +187,168 @@ def my_reservations():
         reservations=reservations,
         active_page="reservations"
     )
+
+
+@reservations_bp.route("/my/<int:reservation_id>/ticket", methods=["GET", "POST"])
+@min_role_required("STUDENT")
+def my_active_ticket(reservation_id: int):
+    reservation = (
+        Reservation.query
+        .options(
+            joinedload(Reservation.lab_tickets).joinedload(LabTicket.items).joinedload(TicketItem.material),
+            joinedload(Reservation.user),
+        )
+        .filter(Reservation.id == reservation_id, Reservation.user_id == current_user.id)
+        .first()
+    )
+    if not reservation:
+        flash("Reserva no encontrada.", "error")
+        return redirect(url_for("reservations.my_reservations"))
+
+    ticket = next(
+        (
+            t for t in reservation.lab_tickets
+            if _is_active_ticket_status(t.status) or _is_ticket_closure_requested(t.status)
+        ),
+        None,
+    )
+    if not ticket:
+        flash("No tienes ticket activo para esta reserva.", "warning")
+        return redirect(url_for("reservations.my_reservations"))
+
+    if request.method == "POST":
+        if not _is_active_ticket_status(ticket.status):
+            flash("No se pueden agregar materiales a un ticket cerrado.", "error")
+            return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
+
+        material_id = request.form.get("material_id", type=int)
+        quantity = request.form.get("quantity", type=int)
+
+        if not material_id or not quantity or quantity <= 0:
+            flash("Selecciona material y una cantidad válida.", "error")
+            return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
+
+        material = Material.query.get(material_id)
+        if not material:
+            flash("Material no encontrado.", "error")
+            return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
+
+        if _is_student_role(current_user.role) and material.career_id != current_user.career_id:
+            flash("No puedes solicitar materiales de otra carrera.", "error")
+            return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
+
+        if material.pieces_qty is not None and quantity > material.pieces_qty:
+            flash(f"{material.name}: solo hay {material.pieces_qty} disponibles para solicitud.", "error")
+            return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
+
+        item = TicketItem.query.filter_by(ticket_id=ticket.id, material_id=material.id).first()
+        if item:
+            item.quantity_requested += quantity
+            if item.quantity_delivered < item.quantity_requested:
+                item.status = "REQUESTED"
+        else:
+            item = TicketItem(
+                ticket_id=ticket.id,
+                material_id=material.id,
+                quantity_requested=quantity,
+                quantity_delivered=0,
+                quantity_returned=0,
+                status="REQUESTED",
+            )
+            db.session.add(item)
+
+        _sync_ticket_ready_status(ticket)
+
+        admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
+        urgent_notifications: list[Notification] = []
+        for admin in admins:
+            notif = Notification(
+                user_id=admin.id,
+                title="Solicitud urgente en ticket activo",
+                message=f"{current_user.email} agregó {quantity} de {material.name} al ticket #{ticket.id}.",
+                link=url_for("reservations.admin_ticket_detail", ticket_id=ticket.id),
+            )
+            db.session.add(notif)
+            urgent_notifications.append(notif)
+
+        log_event(
+            module="LAB_TICKETS",
+            action="LAB_TICKET_ITEM_REQUESTED_BY_USER",
+            user_id=current_user.id,
+            entity_label=f"LabTicket #{ticket.id}",
+            description=f"Usuario agregó material al ticket activo #{ticket.id}",
+            metadata={"ticket_id": ticket.id, "material_id": material.id, "quantity_added": quantity},
+            material_id=material.id,
+        )
+
+        db.session.commit()
+        for notif in urgent_notifications:
+            publish_notification_created(notif)
+
+        flash("Material agregado al ticket activo. El admin fue notificado.", "success")
+        return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
+
+    available_materials = (
+        Material.query
+        .filter(func.lower(func.coalesce(Material.status, "")) != "baja")
+        .filter(Material.career_id == current_user.career_id if _is_student_role(current_user.role) else True)
+        .order_by(Material.name.asc())
+        .all()
+    )
+
+    return render_template(
+        "reservations/my_ticket.html",
+        reservation=reservation,
+        ticket=ticket,
+        materials=available_materials,
+        active_page="reservations",
+    )
+
+
+@reservations_bp.route("/my/tickets/<int:ticket_id>/request-close", methods=["POST"])
+@min_role_required("STUDENT")
+def my_ticket_request_close(ticket_id: int):
+    ticket = (
+        LabTicket.query
+        .options(joinedload(LabTicket.reservation))
+        .filter(LabTicket.id == ticket_id, LabTicket.owner_user_id == current_user.id)
+        .first()
+    )
+    if not ticket:
+        flash("Ticket no encontrado.", "error")
+        return redirect(url_for("reservations.my_reservations"))
+
+    if not _is_active_ticket_status(ticket.status):
+        flash("Solo puedes solicitar cierre para tickets activos.", "warning")
+        return redirect(url_for("reservations.my_active_ticket", reservation_id=ticket.reservation_id))
+
+    ticket.status = TICKET_CLOSURE_REQUESTED
+    admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
+    notifications = []
+    for admin in admins:
+        notif = Notification(
+            user_id=admin.id,
+            title="Solicitud de cierre de ticket",
+            message=f"{current_user.email} solicitó el cierre del ticket #{ticket.id}.",
+            link=url_for("reservations.admin_ticket_detail", ticket_id=ticket.id),
+        )
+        db.session.add(notif)
+        notifications.append(notif)
+
+    log_event(
+        module="LAB_TICKETS",
+        action="LAB_TICKET_CLOSE_REQUESTED_BY_USER",
+        user_id=current_user.id,
+        entity_label=f"LabTicket #{ticket.id}",
+        description=f"Usuario solicitó cierre de ticket #{ticket.id}",
+        metadata={"ticket_id": ticket.id, "reservation_id": ticket.reservation_id},
+    )
+    db.session.commit()
+    for notif in notifications:
+        publish_notification_created(notif)
+
+    flash("Solicitud de cierre enviada. Espera confirmación del administrador.", "success")
+    return redirect(url_for("reservations.my_active_ticket", reservation_id=ticket.reservation_id))
 
 
 @reservations_bp.route("/request", methods=["GET", "POST"])
@@ -432,12 +613,12 @@ def admin_approved():
     )
 
     for r in approved:
-        open_ticket = next((t for t in r.lab_tickets if t.status == "OPEN"), None)
+        open_ticket = next((t for t in r.lab_tickets if (t.status or "").upper() in BLOCKING_TICKET_STATUSES), None)
         r.open_ticket = open_ticket
 
         if open_ticket:
             r.can_open_ticket = False
-            r.open_ticket_reason = "open"
+            r.open_ticket_reason = "active"
             continue
 
         open_window_start = (datetime.combine(r.date, r.start_time) - timedelta(minutes=30)).time()
@@ -457,6 +638,27 @@ def admin_approved():
         "reservations/admin_approved.html",
         reservations=approved,
         active_page="reservations"
+    )
+
+
+@reservations_bp.route("/admin/tickets/closure-requests", methods=["GET"])
+@min_role_required("ADMIN")
+def admin_ticket_closure_requests():
+    tickets = (
+        LabTicket.query
+        .options(
+            joinedload(LabTicket.owner_user),
+            joinedload(LabTicket.reservation),
+            joinedload(LabTicket.items).joinedload(TicketItem.material),
+        )
+        .filter(LabTicket.status == TICKET_CLOSURE_REQUESTED)
+        .order_by(LabTicket.opened_at.asc())
+        .all()
+    )
+    return render_template(
+        "reservations/admin_ticket_closure_requests.html",
+        tickets=tickets,
+        active_page="reservations",
     )
 
 @reservations_bp.route("/admin/approved/history", methods=["GET"])
@@ -564,9 +766,14 @@ def admin_open_ticket(res_id: int):
         flash("Solo se puede abrir ticket para reservas aprobadas.", "error")
         return redirect(url_for("reservations.admin_approved"))
 
-    existing_ticket = LabTicket.query.filter_by(reservation_id=r.id, status="OPEN").first()
+    existing_ticket = (
+        LabTicket.query
+        .filter(LabTicket.reservation_id == r.id)
+        .filter(LabTicket.status.in_(list(BLOCKING_TICKET_STATUSES)))
+        .first()
+    )
     if existing_ticket:
-        flash("Ya existe un ticket abierto para esta reserva.", "error")
+        flash("Ya existe un ticket activo para esta reserva.", "error")
         return redirect(url_for("reservations.admin_approved"))
 
     now = datetime.now()
@@ -622,7 +829,7 @@ def admin_open_ticket(res_id: int):
         user_id=r.user_id,
         title="Ticket de laboratorio abierto",
         message=f"Se abrió el ticket de tu reservación #{r.id}.",
-        link=url_for("reservations.my_reservations"),
+        link=url_for("reservations.my_active_ticket", reservation_id=r.id),
     )
     db.session.add(ticket_opened_notification)
     db.session.commit()
@@ -709,12 +916,13 @@ def admin_ticket_item_update(item_id: int):
     else:
         item.status = "RETURNED"
 
+    _sync_ticket_ready_status(item.ticket)
     db.session.commit()
     owner_notification = Notification(
         user_id=item.ticket.owner_user_id,
         title="Ticket de reservación actualizado",
         message=f"Se actualizó un material en tu ticket #{item.ticket_id}.",
-        link=url_for("reservations.my_reservations"),
+        link=url_for("reservations.my_active_ticket", reservation_id=item.ticket.reservation_id) if item.ticket and item.ticket.reservation_id else url_for("reservations.my_reservations"),
     )
     db.session.add(owner_notification)
     db.session.commit()
@@ -722,6 +930,40 @@ def admin_ticket_item_update(item_id: int):
 
     flash("Ítem del ticket actualizado.", "success")
     return redirect(url_for("reservations.admin_ticket_detail", ticket_id=item.ticket_id))
+
+
+@reservations_bp.route("/admin/tickets/items/<int:item_id>/ready", methods=["POST"])
+@min_role_required("ADMIN")
+def admin_ticket_item_mark_ready(item_id: int):
+    item = TicketItem.query.get(item_id)
+    if not item:
+        flash("Ítem del ticket no encontrado.", "error")
+        return redirect(url_for("reservations.admin_approved"))
+
+    ticket = item.ticket
+    if not ticket or not _is_active_ticket_status(ticket.status):
+        flash("Solo puedes marcar como listo materiales de tickets activos.", "error")
+        return redirect(url_for("reservations.admin_approved"))
+
+    if item.quantity_requested <= item.quantity_delivered:
+        flash("No hay pendientes por preparar en este material.", "warning")
+        return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
+
+    item.status = "READY_FOR_PICKUP"
+    _sync_ticket_ready_status(ticket)
+
+    notif = Notification(
+        user_id=ticket.owner_user_id,
+        title="Material listo para recoger",
+        message=f"Hay material listo para recoger en tu ticket #{ticket.id}.",
+        link=url_for("reservations.my_active_ticket", reservation_id=ticket.reservation_id) if ticket.reservation_id else url_for("reservations.my_reservations"),
+    )
+    db.session.add(notif)
+    db.session.commit()
+    publish_notification_created(notif)
+
+    flash("Material marcado como listo para recoger.", "success")
+    return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
 
 
 @reservations_bp.route("/admin/tickets/<int:ticket_id>/close", methods=["POST"])
@@ -738,8 +980,8 @@ def admin_ticket_close(ticket_id: int):
         flash("Ticket no encontrado.", "error")
         return redirect(url_for("reservations.admin_approved"))
 
-    if ticket.status != "OPEN":
-        flash("Solo se pueden cerrar tickets abiertos.", "error")
+    if not (_is_active_ticket_status(ticket.status) or _is_ticket_closure_requested(ticket.status)):
+        flash("Solo se pueden cerrar tickets activos o con cierre solicitado.", "error")
         return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
 
     has_missing = False
@@ -895,12 +1137,13 @@ def admin_ticket_update_all(ticket_id: int):
             else:
                 item.status = "RETURNED"
 
+        _sync_ticket_ready_status(ticket)
         db.session.commit()
         bulk_update_notification = Notification(
             user_id=ticket.owner_user_id,
             title="Ticket de reservación actualizado",
             message=f"Se actualizaron los materiales del ticket #{ticket_id}.",
-            link=url_for("reservations.my_reservations"),
+            link=url_for("reservations.my_active_ticket", reservation_id=ticket.reservation_id) if ticket.reservation_id else url_for("reservations.my_reservations"),
         )
         db.session.add(bulk_update_notification)
         db.session.commit()

@@ -49,7 +49,7 @@
       <div><strong>Salón/Lab:</strong> {{ ticket.room or '-' }}</div>
       <div><strong>Fecha:</strong> {{ ticket.date or '-' }}</div>
       <div><strong>Estado:</strong>
-        <span class="status-badge {% if ticket.status == 'OPEN' %}status-warn{% elif ticket.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
+        <span class="status-badge {% if ticket.status in ['OPEN', 'READY_FOR_PICKUP', 'CLOSURE_REQUESTED'] %}status-warn{% elif ticket.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
           {{ ticket.status|status_label }}
         </span>
       </div>
@@ -87,6 +87,7 @@
           <th>Devuelto</th>
           <th>Estado</th>
           <th>Notas</th>
+          <th>Operación</th>
         </tr>
       </thead>
 
@@ -120,6 +121,22 @@
           <td>
             <input class="input-notes" name="notes[]" value="{{ item.notes or '' }}">
           </td>
+
+          <td>
+            {% if ticket.status in ['OPEN', 'READY_FOR_PICKUP'] and item.quantity_requested > item.quantity_delivered %}
+              <button
+                type="submit"
+                formaction="{{ url_for('reservations.admin_ticket_item_mark_ready', item_id=item.id) }}"
+                formmethod="post"
+                class="btn btn-ghost"
+                style="height:34px; border-radius:8px;"
+              >
+                Marcar listo
+              </button>
+            {% else %}
+              -
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -142,8 +159,8 @@
 <section class="toolbar-card" style="margin-top: 20px;">
   <div class="toolbar-actions">
 
-    {% if ticket.status == 'OPEN' %}
-    <button type="button" class="btn btn-gold" onclick="saveAndClose()">Guardar + Cerrar</button>
+    {% if ticket.status in ['OPEN', 'READY_FOR_PICKUP', 'CLOSURE_REQUESTED'] %}
+    <button type="button" class="btn btn-gold" onclick="saveAndClose()">Guardar + Confirmar cierre</button>
     {% endif %}
 
     <a class="btn btn-ghost" href="{{ url_for('reservations.admin_approved') }}">Volver</a>
