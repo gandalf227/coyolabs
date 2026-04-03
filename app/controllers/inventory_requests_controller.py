@@ -3,6 +3,7 @@ import json
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
@@ -12,7 +13,9 @@ from app.models.material import Material
 from app.models.notification import Notification
 from app.models.user import User
 from app.services.audit_service import log_event
+from app.services.notification_realtime_service import publish_notification_created
 from app.utils.authz import min_role_required
+from app.utils.roles import ROLE_STUDENT, normalize_role
 
 
 inventory_requests_bp = Blueprint("inventory_requests", __name__, url_prefix="/inventory-requests")
@@ -21,6 +24,10 @@ inventory_requests_bp = Blueprint("inventory_requests", __name__, url_prefix="/i
 STATUS_OPEN = "OPEN"
 STATUS_READY = "READY_FOR_PICKUP"
 STATUS_CLOSED = "CLOSED"
+
+
+def _is_student_role(role: str | None) -> bool:
+    return normalize_role(role) == ROLE_STUDENT
 
 
 def _notify_admins_for_ticket(ticket: InventoryRequestTicket, message: str) -> None:
@@ -77,7 +84,13 @@ def my_daily_request():
         .all()
     )
 
-    materials = Material.query.order_by(Material.name.asc()).all()
+    materials = (
+        Material.query
+        .filter(func.lower(func.coalesce(Material.status, "")) != "baja")
+        .filter(Material.career_id == current_user.career_id if _is_student_role(current_user.role) else True)
+        .order_by(Material.name.asc())
+        .all()
+    )
     materials_json = json.dumps([
         {
             "id": m.id,
@@ -121,6 +134,9 @@ def add_to_daily_request():
         material = Material.query.get(material_id)
         if not material:
             flash("Uno de los materiales seleccionados no existe.", "error")
+            return redirect(url_for("inventory_requests.my_daily_request"))
+        if _is_student_role(current_user.role) and material.career_id != current_user.career_id:
+            flash(f"{material.name}: no pertenece a tu carrera.", "error")
             return redirect(url_for("inventory_requests.my_daily_request"))
 
         if material.pieces_qty is not None and qty > material.pieces_qty:
@@ -285,6 +301,7 @@ def admin_mark_ready(ticket_id: int):
     )
 
     db.session.commit()
+    publish_notification_created(notification)
 
     flash("Pedido marcado como listo y usuario notificado.", "success")
     return redirect(url_for("inventory_requests.admin_ticket_detail", ticket_id=ticket.id))

@@ -11,11 +11,16 @@
   </div>
 
   <div class="topbar-right">
-    <div class="user-chip">
-      <div class="user-avatar">{{ (current_user.email[0] if current_user.is_authenticated else 'U') | upper }}</div>
-      <div class="user-meta">
-        <strong>{{ current_user.role if current_user.is_authenticated else 'Usuario' }}</strong>
-        <span>Acceso institucional</span>
+    <div class="toolbar-actions">
+      {% if current_user.is_authenticated and is_admin_role(current_user.role) %}
+      <a href="{{ url_for('inventory.admin_new_material') }}" class="btn btn-gold"><i class="ph ph-plus-circle"></i><span>Nuevo material</span></a>
+      {% endif %}
+      <div class="user-chip">
+        <div class="user-avatar">{{ (current_user.email[0] if current_user.is_authenticated else 'U') | upper }}</div>
+        <div class="user-meta">
+          <strong>{{ (current_user.role|role_label) if current_user.is_authenticated else 'Usuario' }}</strong>
+          <span>Acceso institucional</span>
+        </div>
       </div>
     </div>
   </div>
@@ -43,11 +48,42 @@
         <i class="ph ph-caret-down select-arrow"></i>
       </div>
     </div>
+    <div class="toolbar-group toolbar-group-select">
+      <label for="career_id">Carrera</label>
+      <div class="select-wrap">
+        <select name="career_id" id="career_id">
+          <option value="">Todas las carreras</option>
+          {% for career in careers %}
+            <option value="{{ career.id }}" {% if selected_career == career.id %}selected{% endif %}>{{ career.name }}</option>
+          {% endfor %}
+        </select>
+        <i class="ph ph-caret-down select-arrow"></i>
+      </div>
+    </div>
+    <div class="toolbar-group toolbar-group-select">
+      <label for="category">Categoría</label>
+      <div class="select-wrap">
+        <select name="category" id="category">
+          <option value="">Todas las categorías</option>
+          {% for category in categories %}
+            <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>
+          {% endfor %}
+        </select>
+        <i class="ph ph-caret-down select-arrow"></i>
+      </div>
+    </div>
 
     <div class="toolbar-actions">
       <button type="submit" class="btn btn-gold"><i class="ph ph-funnel"></i><span>Aplicar filtros</span></button>
       <a href="{{ url_for('inventory.inventory_list') }}" class="btn btn-ghost"><i class="ph ph-x-circle"></i><span>Limpiar</span></a>
     </div>
+
+    {% if current_user.is_authenticated and is_admin_role(current_user.role) %}
+    <label style="display:flex; align-items:center; gap:6px; align-self:end;">
+      <input type="checkbox" name="include_inactive" value="1" {% if include_inactive %}checked{% endif %}>
+      Mostrar materiales de baja
+    </label>
+    {% endif %}
   </form>
 </section>
 
@@ -63,13 +99,15 @@
     <table class="inventory-table">
       <thead>
         <tr>
-          <th>Laboratorio</th><th>Equipo / Material</th><th>Ubicación</th><th>Piezas</th><th>Estado</th><th>Observaciones</th><th class="th-actions">Acciones</th>
+          <th>Laboratorio</th><th>Carrera</th><th>Categoría</th><th>Equipo / Material</th><th>Ubicación</th><th>Piezas</th><th>Estado</th><th>Observaciones</th><th class="th-actions">Acciones</th>
         </tr>
       </thead>
       <tbody>
         {% for m in materials %}
           <tr>
             <td>{{ m.lab.name }}</td>
+            <td>{{ m.career.name if m.career else 'Sin carrera' }}</td>
+            <td>{{ m.category or 'Sin categoría' }}</td>
             <td><a href="{{ url_for('inventory.material_detail', material_id=m.id) }}" class="item-link">{{ m.name | smart_title }}</a></td>
             <td>{{ m.location | smart_title }}</td>
             <td class="td-center">{{ m.pieces_text }}</td>
@@ -79,7 +117,12 @@
               </span>
             </td>
             <td>{{ m.notes or 'Sin observaciones' }}</td>
-            <td class="td-actions"><a href="{{ url_for('inventory.material_detail', material_id=m.id) }}" class="action-btn" title="Ver detalle"><i class="ph ph-eye"></i></a></td>
+            <td class="td-actions">
+              <a href="{{ url_for('inventory.material_detail', material_id=m.id) }}" class="action-btn" title="Ver detalle"><i class="ph ph-eye"></i></a>
+              {% if current_user.is_authenticated and is_admin_role(current_user.role) %}
+              <a href="{{ url_for('inventory.admin_edit_material', material_id=m.id) }}" class="action-btn" title="Editar"><i class="ph ph-pencil-simple"></i></a>
+              {% endif %}
+            </td>
           </tr>
         {% endfor %}
       </tbody>
@@ -88,11 +131,11 @@
 
   <div class="pagination">
     {% if page > 1 %}
-      <a class="page-btn" href="{{ url_for('inventory.inventory_list', lab_id=selected_lab or '', q=q, page=page - 1) }}"><i class="ph ph-caret-left"></i><span>Anterior</span></a>
+      <a class="page-btn" href="{{ url_for('inventory.inventory_list', lab_id=selected_lab or '', career_id=selected_career or '', category=selected_category or '', q=q, page=page - 1, include_inactive='1' if include_inactive else '') }}"><i class="ph ph-caret-left"></i><span>Anterior</span></a>
     {% endif %}
     <span class="page-current">{{ page }}</span>
     {% if page < total_pages %}
-      <a class="page-btn" href="{{ url_for('inventory.inventory_list', lab_id=selected_lab or '', q=q, page=page + 1) }}"><span>Siguiente</span><i class="ph ph-caret-right"></i></a>
+      <a class="page-btn" href="{{ url_for('inventory.inventory_list', lab_id=selected_lab or '', career_id=selected_career or '', category=selected_category or '', q=q, page=page + 1, include_inactive='1' if include_inactive else '') }}"><span>Siguiente</span><i class="ph ph-caret-right"></i></a>
     {% endif %}
   </div>
 </section>

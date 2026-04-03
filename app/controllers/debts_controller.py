@@ -9,9 +9,31 @@ from app.extensions import db
 from app.models.debt import Debt
 from app.models.user import User
 from app.models.material import Material
+from app.services.audit_service import log_event
 
 
 debts_bp = Blueprint("debts", __name__, url_prefix="/debts")
+
+
+def _log_debt_event(action: str, debt: Debt, description: str, metadata: dict | None = None) -> None:
+    payload = {
+        "debt_id": debt.id,
+        "target_user_id": debt.user_id,
+        "material_id": debt.material_id,
+        "status": debt.status,
+    }
+    if metadata:
+        payload.update(metadata)
+
+    log_event(
+        module="DEBTS",
+        action=action,
+        user_id=getattr(current_user, "id", None),
+        entity_label=f"Debt #{debt.id}",
+        description=description,
+        metadata=payload,
+        material_id=debt.material_id,
+    )
 
 
 # -------------------------
@@ -96,6 +118,14 @@ def admin_create():
         )
 
         db.session.add(debt)
+        db.session.flush()
+
+        _log_debt_event(
+            action="DEBT_CREATED",
+            debt=debt,
+            description=f"Adeudo creado para {user.email}",
+            metadata={"reason": debt.reason},
+        )
         db.session.commit()
 
         flash("Adeudo creado.", "success")
@@ -117,7 +147,15 @@ def admin_close(debt_id: int):
         flash("Adeudo no encontrado.", "error")
         return redirect(url_for("debts.admin_list"))
 
+    previous_status = debt.status
     debt.status = "PAID"
+
+    _log_debt_event(
+        action="DEBT_CLOSED",
+        debt=debt,
+        description=f"Adeudo #{debt.id} marcado como pagado",
+        metadata={"previous_status": previous_status, "new_status": debt.status},
+    )
     db.session.commit()
 
     flash("Adeudo marcado como pagado.", "success")
