@@ -1012,7 +1012,6 @@ def admin_ticket_update_all(ticket_id: int):
         for i in range(len(item_ids)):
             try:
                 item_id = int(item_ids[i])
-                delivered = int(delivered_list[i])
                 returned = int(returned_list[i])
             except (ValueError, IndexError):
                 continue
