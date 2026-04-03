@@ -72,6 +72,39 @@ def _is_professor_role(role: str | None) -> bool:
     normalized = normalize_role(role)
     return normalized == ROLE_TEACHER
 
+def _subject_allowed_for_teacher(subject: Subject, teacher: User) -> bool:
+    return bool(subject and subject.is_active)
+
+
+def _subject_allowed_for_teacher(subject: Subject, teacher: User) -> bool:
+    if not subject or not teacher:
+        return False
+
+    if teacher.career_id and subject.career_id != teacher.career_id:
+        return False
+
+    teacher_level = (teacher.academic_level or "").strip().upper()
+    subject_level = (subject.level or "").strip().upper()
+    if teacher_level and subject_level and teacher_level != subject_level:
+        return False
+
+    return True
+
+
+def _subject_allowed_for_teacher(subject: Subject, teacher: User) -> bool:
+    if not subject or not teacher:
+        return False
+
+    if teacher.career_id and subject.career_id != teacher.career_id:
+        return False
+
+    teacher_level = (teacher.academic_level or "").strip().upper()
+    subject_level = (subject.level or "").strip().upper()
+    if teacher_level and subject_level and teacher_level != subject_level:
+        return False
+
+    return True
+
 
 def _subject_allowed_for_teacher(subject: Subject, teacher: User) -> bool:
     if not subject or not teacher:
@@ -421,12 +454,75 @@ def update_phone():
     return redirect(url_for("profile.my_profile"))
 
 
+@profile_bp.route("/update-basic", methods=["POST"])
+@login_required
+def update_basic_profile():
+    full_name = _normalize_full_name(request.form.get("full_name"))
+    phone, phone_error = normalize_and_validate_phone(request.form.get("phone"))
+
+    if not full_name:
+        flash("El nombre completo es obligatorio.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    if phone_error:
+        flash(phone_error, "error")
+        return redirect(url_for("profile.my_profile"))
+
+    blocked_attempts = []
+    restricted_fields = {
+        "matricula": current_user.matricula or "",
+        "career": current_user.career or "",
+        "academic_level": current_user.academic_level or "",
+    }
+    for field_name, current_value in restricted_fields.items():
+        submitted_value = (request.form.get(field_name) or "").strip()
+        if submitted_value and submitted_value != str(current_value):
+            blocked_attempts.append(field_name)
+
+    changed_fields = []
+    if full_name != (current_user.full_name or ""):
+        changed_fields.append("full_name")
+    if phone != (current_user.phone or ""):
+        changed_fields.append("phone")
+
+    current_user.full_name = full_name
+    current_user.phone = phone
+    db.session.commit()
+
+    log_event(
+        module="PROFILE",
+        action="PROFILE_UPDATED",
+        user_id=current_user.id,
+        entity_label=f"User #{current_user.id}",
+        description="Actualización de perfil por el usuario",
+        metadata={
+            "changed_fields": changed_fields,
+            "blocked_fields_attempted": blocked_attempts,
+        },
+    )
+    db.session.commit()
+
+    if blocked_attempts:
+        flash("Se guardaron tus cambios permitidos. Los datos académicos solo pueden modificarse por administración.", "warning")
+        return redirect(url_for("profile.my_profile"))
+
+    if not changed_fields:
+        flash("No detectamos cambios en tu perfil.", "info")
+        return redirect(url_for("profile.my_profile"))
+
+    flash("Tu perfil se actualizó correctamente.", "success")
+    return redirect(url_for("profile.my_profile"))
+
+
 @profile_bp.route("/complete", methods=["GET", "POST"])
 @login_required
 def complete_profile():
     if current_user.profile_completed:
         flash("Tu perfil ya está completo.")
         return redirect(url_for(resolve_landing_endpoint(current_user.role)))
+
+    is_professor = _is_professor_role(current_user.role)
+    is_student = normalize_role(current_user.role) == ROLE_STUDENT
 
     if request.method == "POST":
         full_name = (request.form.get("full_name") or "").strip()
@@ -436,52 +532,21 @@ def complete_profile():
         phone = (request.form.get("phone") or "").strip()
         confirm_data = request.form.get("confirm_data") == "1"
 
+        if not is_professor and not is_student:
+            flash("Tu rol no está habilitado para completar este perfil.", "error")
+            return redirect(url_for(resolve_landing_endpoint(current_user.role)))
+
         if not full_name:
             flash("El nombre completo es obligatorio.")
             return redirect(url_for("profile.complete_profile"))
 
-        if not matricula:
-            flash("La matrícula es obligatoria.")
+        if is_student and not matricula:
+            flash("La matrícula es obligatoria para estudiantes.")
             return redirect(url_for("profile.complete_profile"))
 
         if not career_id:
             flash("La carrera es obligatoria.")
             return redirect(url_for("profile.complete_profile"))
-
-        _, _, career_level_map = _build_profile_catalog_options()
-
-        career_obj = Career.query.get(career_id)
-        if not career_obj:
-            flash("La carrera seleccionada no existe.")
-            return redirect(url_for("profile.complete_profile"))
-        if career_obj.name not in ALLOWED_CAREER_LEVEL_CODES:
-            flash("La carrera seleccionada no está habilitada para este formulario.")
-            return redirect(url_for("profile.complete_profile"))
-
-        is_professor = _is_professor_role(current_user.role)
-        is_student = normalize_role(current_user.role) == ROLE_STUDENT
-
-        if is_student and not academic_level_id:
-            flash("El nivel académico es obligatorio para estudiantes.")
-            return redirect(url_for("profile.complete_profile"))
-
-        level_obj = AcademicLevel.query.get(academic_level_id) if academic_level_id else None
-        if academic_level_id and not level_obj:
-            flash("El nivel académico seleccionado no existe.")
-            return redirect(url_for("profile.complete_profile"))
-        if level_obj and level_obj.code.upper() not in {"TSU", "ING", "LIC"}:
-            flash("El nivel académico seleccionado no está habilitado.")
-            return redirect(url_for("profile.complete_profile"))
-
-        if level_obj:
-            allowed_level_ids = set(career_level_map.get(career_obj.id, []))
-            if level_obj.id not in allowed_level_ids:
-                flash("La combinación de carrera y nivel no es válida.")
-                return redirect(url_for("profile.complete_profile"))
-
-        if not is_professor and not is_student:
-            flash("Tu rol no está habilitado para completar este perfil.", "error")
-            return redirect(url_for(resolve_landing_endpoint(current_user.role)))
 
         if not phone:
             flash("El teléfono es obligatorio.")
@@ -491,16 +556,53 @@ def complete_profile():
             flash("Debes confirmar que tus datos son correctos para continuar.")
             return redirect(url_for("profile.complete_profile"))
 
+        _, _, career_level_map = _build_profile_catalog_options()
+
+        career_obj = Career.query.get(career_id)
+        if not career_obj:
+            flash("La carrera seleccionada no existe.")
+            return redirect(url_for("profile.complete_profile"))
+
+        if career_obj.name not in ALLOWED_CAREER_LEVEL_CODES:
+            flash("La carrera seleccionada no está habilitada para este formulario.")
+            return redirect(url_for("profile.complete_profile"))
+
+        if is_student and not academic_level_id:
+            flash("El nivel académico es obligatorio para estudiantes.")
+            return redirect(url_for("profile.complete_profile"))
+
+        level_obj = AcademicLevel.query.get(academic_level_id) if academic_level_id else None
+
+        if academic_level_id and not level_obj:
+            flash("El nivel académico seleccionado no existe.")
+            return redirect(url_for("profile.complete_profile"))
+
+        if level_obj and level_obj.code.upper() not in {"TSU", "ING", "LIC"}:
+            flash("El nivel académico seleccionado no está habilitado.")
+            return redirect(url_for("profile.complete_profile"))
+
+        if is_student and level_obj:
+            allowed_level_ids = set(career_level_map.get(career_obj.id, []))
+            if level_obj.id not in allowed_level_ids:
+                flash("La combinación de carrera y nivel no es válida.")
+                return redirect(url_for("profile.complete_profile"))
+
         current_user.full_name = full_name
-        current_user.matricula = matricula
         current_user.career_id = career_obj.id
-        current_user.academic_level_id = level_obj.id if level_obj else None
-        current_user.academic_level = level_obj.code if level_obj else None
         current_user.career = career_obj.name
         current_user.career_year = None
         current_user.phone = phone
-        if not _is_professor_role(current_user.role):
+
+        if is_student:
+            current_user.matricula = matricula
+            current_user.academic_level_id = level_obj.id if level_obj else None
+            current_user.academic_level = level_obj.code if level_obj else None
             current_user.professor_subjects = None
+        else:
+            current_user.matricula = None
+            current_user.academic_level_id = level_obj.id if level_obj else None
+            current_user.academic_level = level_obj.code if level_obj else None
+
         current_user.profile_completed = True
         current_user.profile_data_confirmed = True
         current_user.profile_confirmed_at = db.func.now()
@@ -526,8 +628,8 @@ def complete_profile():
     careers, academic_levels, career_level_map = _build_profile_catalog_options()
     return render_template(
         "profile/complete.html",
-        is_professor=_is_professor_role(current_user.role),
-        is_student=normalize_role(current_user.role) == ROLE_STUDENT,
+        is_professor=is_professor,
+        is_student=is_student,
         careers=careers,
         academic_levels=academic_levels,
         career_level_map=career_level_map,

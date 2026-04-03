@@ -9,7 +9,7 @@
     <h1>Mi pedido diario</h1>
     <p class="page-subtitle">Un solo ticket por día. Puedes agregar o quitar materiales antes de enviar.</p>
   </div>
-  {% if current_user.role in ['ADMIN', 'SUPERADMIN'] %}
+  {% if is_admin_role(current_user.role) %}
   <div class="topbar-actions">
     <a href="{{ url_for('inventory_requests.admin_daily_requests') }}" class="btn btn-ghost">Ver pedidos admin</a>
   </div>
