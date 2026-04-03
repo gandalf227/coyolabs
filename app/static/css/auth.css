@@ -32,19 +32,18 @@ body{
   font-family:'Poppins',sans-serif;
   color:var(--white);
   display:flex;
-  align-items:center;
+  align-items:flex-start;
   justify-content:center;
-  padding:clamp(18px,3vw,28px);
-  overflow:hidden;
+  padding: 88px 18px 40px;
+  overflow-x:hidden;
+  overflow-y:auto;
 
-  /* Fondo por defecto = LOGIN */
   background:
     radial-gradient(1200px 600px at 20% 10%, rgba(47,175,90,0.18), transparent 55%),
     radial-gradient(900px 500px at 80% 75%, rgba(0,188,212,0.10), transparent 60%),
     linear-gradient(135deg, var(--login-bg-a), var(--login-bg-b));
   transition: background 600ms ease;
 }
-
 /* Cuando se pasa a REGISTER cambia paleta */
 body.mode-register{
   background:
@@ -146,8 +145,8 @@ body.mode-register .shape.three{
 .card-logo{
   position:absolute;
   left:50%;
-  top:0;
-  transform: translate(-50%, -58%);
+  top:10;
+  transform: translate(-50%, -70%);
   pointer-events:none;
 }
 .card-logo img{
@@ -672,4 +671,6 @@ body {
   margin: 8px 0 0 26px;
   font-size: 0.82rem;
   color: #9ea9bc;
+}.auth-layout{
+  padding-top: 20px;
 }
