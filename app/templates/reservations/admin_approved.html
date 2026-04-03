@@ -1,6 +1,6 @@
 {% extends "layouts/student_base.html" %}
 {% set crumbs = [("Inicio", url_for('root_home')), ("Reservas admin", url_for('reservations.admin_queue')), ("Aprobadas", url_for('reservations.admin_approved'))] %}
-{% block title %}Reservas aprobadas (Admin){% endblock %}
+{% block title %}Reservas aprobadas (Administración){% endblock %}
 {% block content %}
 <header class="topbar">
   <div class="topbar-left">
@@ -26,6 +26,9 @@
     <a class="btn btn-ghost" href="{{ url_for('reservations.admin_approved_history') }}">
       Ver historial
     </a>
+    <a class="btn btn-ghost" href="{{ url_for('reservations.admin_ticket_closure_requests') }}">
+      Cierres solicitados
+    </a>
   </div>
 </section>
 
@@ -47,6 +50,9 @@
           <th>Fecha</th>
           <th>Inicio</th>
           <th>Fin</th>
+          <th>Materia</th>
+          <th>Grupo</th>
+          <th>Solicitante</th>
           <th>Motivo</th>
           <th>Materiales solicitados</th>
           <th class="th-actions">Acciones</th>
@@ -54,7 +60,6 @@
       </thead>
       <tbody>
         {% for r in reservations %}
-        {% set open_ticket = (r.lab_tickets|selectattr('status', 'equalto', 'OPEN')|list|first) if r.lab_tickets else None %}
         <tr>
           <td>{{ r.id }}</td>
           <td>{{ r.user.email }}</td>
@@ -62,6 +67,9 @@
           <td>{{ r.date }}</td>
           <td>{{ r.start_time }}</td>
           <td>{{ r.end_time }}</td>
+          <td>{{ r.subject }}</td>
+          <td>{{ r.group_name }}</td>
+          <td>{{ ((r.user.first_name or '') ~ ' ' ~ (r.user.last_name or ''))|trim or r.user.email }}</td>
           <td>{{ r.purpose or '-' }}</td>
 
           <td>
@@ -82,7 +90,9 @@
           <td>
   {% if r.open_ticket %}
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-      <span class="status-badge status-warn">Ticket abierto</span>
+      <span class="status-badge {% if r.open_ticket.status == 'READY_FOR_PICKUP' %}status-ok{% elif r.open_ticket.status == 'CLOSURE_REQUESTED' %}status-warn{% else %}status-warn{% endif %}">
+        {{ r.open_ticket.status|status_label }}
+      </span>
       <a href="{{ url_for('reservations.admin_ticket_detail', ticket_id=r.open_ticket.id) }}" class="btn btn-ghost" style="height:38px; border-radius:10px;">
         Ver ticket
       </a>

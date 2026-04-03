@@ -2,8 +2,10 @@
 
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template
+from flask import Blueprint, jsonify, render_template
+from flask_login import current_user
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models.material import Material
@@ -11,11 +13,142 @@ from app.models.reservation import Reservation
 from app.models.lab_ticket import LabTicket
 from app.models.ticket_item import TicketItem
 from app.models.debt import Debt
+from app.models.notification import Notification
 from app.models.user import User
 from app.utils.authz import min_role_required
 from app.constants import ROLE_PENDING
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
+
+
+def _build_operational_snapshot(activity_limit: int = 8) -> dict:
+    pending_reservations = (
+        Reservation.query
+        .options(joinedload(Reservation.user))
+        .filter(Reservation.status == "PENDING")
+        .order_by(Reservation.created_at.asc())
+        .limit(activity_limit)
+        .all()
+    )
+
+    active_tickets = (
+        LabTicket.query
+        .options(joinedload(LabTicket.owner_user), joinedload(LabTicket.reservation))
+        .filter(LabTicket.status.in_(["OPEN", "READY_FOR_PICKUP"]))
+        .order_by(LabTicket.opened_at.asc())
+        .limit(activity_limit)
+        .all()
+    )
+
+    ready_items = (
+        TicketItem.query
+        .options(
+            joinedload(TicketItem.ticket).joinedload(LabTicket.owner_user),
+            joinedload(TicketItem.material),
+        )
+        .filter(TicketItem.status == "READY_FOR_PICKUP")
+        .order_by(TicketItem.id.desc())
+        .limit(activity_limit)
+        .all()
+    )
+
+    closure_requested = (
+        LabTicket.query
+        .options(joinedload(LabTicket.owner_user), joinedload(LabTicket.reservation))
+        .filter(LabTicket.status == "CLOSURE_REQUESTED")
+        .order_by(LabTicket.opened_at.asc())
+        .limit(activity_limit)
+        .all()
+    )
+
+    open_debts_recent = (
+        Debt.query
+        .options(joinedload(Debt.user), joinedload(Debt.material))
+        .filter(Debt.status == "OPEN")
+        .order_by(Debt.created_at.desc())
+        .limit(activity_limit)
+        .all()
+    )
+
+    recent_activity = (
+        Notification.query
+        .filter(Notification.user_id == current_user.id)
+        .order_by(Notification.created_at.desc())
+        .limit(activity_limit)
+        .all()
+    )
+
+    return {
+        "counts": {
+            "pending_reservations": Reservation.query.filter(Reservation.status == "PENDING").count(),
+            "active_tickets": LabTicket.query.filter(LabTicket.status.in_(["OPEN", "READY_FOR_PICKUP"])).count(),
+            "ready_items": TicketItem.query.filter(TicketItem.status == "READY_FOR_PICKUP").count(),
+            "closure_requested_tickets": LabTicket.query.filter(LabTicket.status == "CLOSURE_REQUESTED").count(),
+            "open_debts": Debt.query.filter(Debt.status == "OPEN").count(),
+        },
+        "pending_reservations": [
+            {
+                "id": r.id,
+                "user": r.user.email if r.user else "-",
+                "room": r.room,
+                "date": str(r.date),
+                "time": f"{r.start_time}-{r.end_time}",
+                "link": "/reservations/admin",
+            }
+            for r in pending_reservations
+        ],
+        "active_tickets": [
+            {
+                "id": t.id,
+                "status": t.status,
+                "user": t.owner_user.email if t.owner_user else "-",
+                "reservation_id": t.reservation_id,
+                "room": t.room or "-",
+                "link": f"/reservations/admin/tickets/{t.id}",
+            }
+            for t in active_tickets
+        ],
+        "ready_items": [
+            {
+                "ticket_id": item.ticket_id,
+                "material": item.material.name if item.material else f"ID {item.material_id}",
+                "quantity_requested": item.quantity_requested,
+                "quantity_delivered": item.quantity_delivered,
+                "user": item.ticket.owner_user.email if item.ticket and item.ticket.owner_user else "-",
+                "link": f"/reservations/admin/tickets/{item.ticket_id}",
+            }
+            for item in ready_items
+        ],
+        "closure_requested_tickets": [
+            {
+                "id": t.id,
+                "user": t.owner_user.email if t.owner_user else "-",
+                "reservation_id": t.reservation_id,
+                "room": t.room or "-",
+                "link": f"/reservations/admin/tickets/{t.id}",
+            }
+            for t in closure_requested
+        ],
+        "open_debts_recent": [
+            {
+                "id": d.id,
+                "user": d.user.email if d.user else "-",
+                "material": d.material.name if d.material else "-",
+                "created_at": str(d.created_at),
+                "link": "/debts/admin",
+            }
+            for d in open_debts_recent
+        ],
+        "recent_activity": [
+            {
+                "title": n.title,
+                "message": n.message,
+                "created_at": str(n.created_at),
+                "link": n.link or "/notifications",
+            }
+            for n in recent_activity
+        ],
+    }
 
 
 @dashboard_bp.route("/", methods=["GET"])
@@ -140,4 +273,11 @@ def dashboard_home():
         top_materials=top_materials,
         top_debtors=top_debtors,
         top_rooms=top_rooms,
+        ops_snapshot=_build_operational_snapshot(),
     )
+
+
+@dashboard_bp.route("/ops-feed", methods=["GET"])
+@min_role_required("ADMIN")
+def dashboard_ops_feed():
+    return jsonify(_build_operational_snapshot())

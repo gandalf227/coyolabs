@@ -1,6 +1,6 @@
 {% extends "layouts/student_base.html" %}
 {% set crumbs = [("Inicio", url_for('root_home'))] %}
-{% block title %}{{ "Dashboard" if active_page == "dashboard" else "Inicio" }}{% endblock %}
+{% block title %}{{ "Panel" if active_page == "dashboard" else "Inicio" }}{% endblock %}
 
 {% block content %}
 <style>
@@ -211,17 +211,124 @@
     grid-template-columns: 1fr;
   }
 }
+
+.ops-grid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap:14px;
+  margin-bottom:18px;
+}
+
+.ops-card{
+  border:1px solid var(--stroke);
+  border-radius:18px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  box-shadow: var(--shadow-md);
+  padding:14px;
+}
+
+.ops-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.ops-count{
+  font-size:1.35rem;
+  font-weight:800;
+}
+
+.ops-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.ops-item{
+  border:1px solid var(--stroke);
+  border-radius:12px;
+  background: rgba(255,255,255,0.45);
+  padding:10px;
+}
+
+.ops-item a{ color: inherit; text-decoration:none; }
+
+@media (max-width: 1200px){
+  .ops-grid{ grid-template-columns: 1fr; }
+}
 </style>
 
 <header class="topbar">
   <div class="topbar-left">
     <p class="page-kicker">{{ "Panel general" if active_page == "dashboard" else "Inicio" }}</p>
-    <h1>{{ "Dashboard institucional" if active_page == "dashboard" else "Inicio institucional" }}</h1>
+    <h1>{{ "Panel institucional" if active_page == "dashboard" else "Inicio institucional" }}</h1>
     <p class="page-subtitle">
       {{ "Resumen ejecutivo del sistema y accesos rápidos." if active_page == "dashboard" else "Resumen del sistema y accesos rápidos." }}
     </p>
   </div>
 </header>
+
+<section class="table-card" style="margin-bottom:18px;">
+  <div class="topbar" style="margin-bottom:12px;">
+    <div class="topbar-left">
+      <p class="page-kicker">Tiempo real</p>
+      <h2 style="font-size:1.4rem; margin-bottom:0;">Tablero operativo del laboratorio</h2>
+      <p class="page-subtitle" style="margin-top:6px;">Se actualiza automáticamente con eventos críticos.</p>
+    </div>
+  </div>
+
+  <div class="ops-grid">
+    <article class="ops-card">
+      <div class="ops-head">
+        <strong>Reservaciones pendientes</strong>
+        <span class="ops-count" id="opsPendingCount">{{ ops_snapshot.counts.pending_reservations }}</span>
+      </div>
+      <div class="ops-list" id="opsPendingList"></div>
+    </article>
+
+    <article class="ops-card">
+      <div class="ops-head">
+        <strong>Tickets activos</strong>
+        <span class="ops-count" id="opsActiveTicketsCount">{{ ops_snapshot.counts.active_tickets }}</span>
+      </div>
+      <div class="ops-list" id="opsActiveTicketsList"></div>
+    </article>
+
+    <article class="ops-card">
+      <div class="ops-head">
+        <strong>Material listo para recoger</strong>
+        <span class="ops-count" id="opsReadyItemsCount">{{ ops_snapshot.counts.ready_items }}</span>
+      </div>
+      <div class="ops-list" id="opsReadyItemsList"></div>
+    </article>
+
+    <article class="ops-card">
+      <div class="ops-head">
+        <strong>Cierre solicitado</strong>
+        <span class="ops-count" id="opsClosureCount">{{ ops_snapshot.counts.closure_requested_tickets }}</span>
+      </div>
+      <div class="ops-list" id="opsClosureList"></div>
+    </article>
+
+    <article class="ops-card">
+      <div class="ops-head">
+        <strong>Adeudos abiertos recientes</strong>
+        <span class="ops-count" id="opsDebtsCount">{{ ops_snapshot.counts.open_debts }}</span>
+      </div>
+      <div class="ops-list" id="opsDebtsList"></div>
+    </article>
+
+    <article class="ops-card">
+      <div class="ops-head">
+        <strong>Actividad reciente</strong>
+        <span class="status-badge status-warn">LIVE</span>
+      </div>
+      <div class="ops-list" id="opsActivityList"></div>
+    </article>
+  </div>
+</section>
 
 <section class="dashboard-notice-grid">
   {% if is_admin_role(current_user.role) and pending_users_count > 0 %}
@@ -376,7 +483,7 @@
         <div class="mini-item">
           <div class="mini-top">
             <strong>Reserva #{{ r.id }} · {{ r.room }}</strong>
-            <span class="status-badge {{ badge_class }}">{{ r.status }}</span>
+            <span class="status-badge {{ badge_class }}">{{ r.status|status_label }}</span>
           </div>
           <div class="mini-meta">
             {{ r.user.email if r.user else '-' }} · {{ r.date }} · {{ r.start_time }} - {{ r.end_time }}
@@ -451,7 +558,7 @@
         <div class="mini-item">
           <div class="mini-top">
             <strong>Ticket #{{ t.id }}</strong>
-            <span class="status-badge {{ ticket_badge }}">{{ t.status }}</span>
+            <span class="status-badge {{ ticket_badge }}">{{ t.status|status_label }}</span>
           </div>
           <div class="mini-meta">
             {{ t.owner_user.email if t.owner_user else '-' }} · {{ t.room or '-' }} · {{ t.opened_at }}
@@ -558,7 +665,7 @@
           <th>ID</th>
           <th>Usuario</th>
           <th>Material</th>
-          <th>Status</th>
+          <th>Estado</th>
           <th>Fecha</th>
         </tr>
       </thead>
@@ -573,7 +680,7 @@
           <td>{{ d.user.email if d.user else '-' }}</td>
           <td>{{ d.material.name if d.material else '-' }}</td>
           <td>
-            <span class="status-badge {{ debt_badge }}">{{ d.status }}</span>
+            <span class="status-badge {{ debt_badge }}">{{ d.status|status_label }}</span>
           </td>
           <td>{{ d.created_at }}</td>
         </tr>
@@ -587,7 +694,70 @@
     <h3>Sin adeudos recientes</h3>
     <p>No hay actividad reciente en adeudos.</p>
   </section>
-  {% endif %}
+{% endif %}
 </section>
+
+<script>
+const initialOpsSnapshot = {{ ops_snapshot | tojson }};
+
+function renderOpsList(containerId, items, renderer) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  if (!items || !items.length) {
+    container.innerHTML = '<div class="ops-item" style="opacity:.7;">Sin elementos</div>';
+    return;
+  }
+  container.innerHTML = items.slice(0, 5).map(renderer).join("");
+}
+
+function renderOpsSnapshot(snapshot) {
+  document.getElementById("opsPendingCount").textContent = snapshot.counts.pending_reservations;
+  document.getElementById("opsActiveTicketsCount").textContent = snapshot.counts.active_tickets;
+  document.getElementById("opsReadyItemsCount").textContent = snapshot.counts.ready_items;
+  document.getElementById("opsClosureCount").textContent = snapshot.counts.closure_requested_tickets;
+  document.getElementById("opsDebtsCount").textContent = snapshot.counts.open_debts;
+
+  renderOpsList("opsPendingList", snapshot.pending_reservations, (item) => `
+    <div class="ops-item"><a href="${item.link}"><strong>#${item.id}</strong> · ${item.user}<br><span>${item.room} · ${item.date} ${item.time}</span></a></div>
+  `);
+  renderOpsList("opsActiveTicketsList", snapshot.active_tickets, (item) => `
+    <div class="ops-item"><a href="${item.link}"><strong>Ticket #${item.id}</strong> · ${item.user}<br><span>${item.status} · ${item.room}</span></a></div>
+  `);
+  renderOpsList("opsReadyItemsList", snapshot.ready_items, (item) => `
+    <div class="ops-item"><a href="${item.link}"><strong>Ticket #${item.ticket_id}</strong> · ${item.material}<br><span>${item.user}</span></a></div>
+  `);
+  renderOpsList("opsClosureList", snapshot.closure_requested_tickets, (item) => `
+    <div class="ops-item"><a href="${item.link}"><strong>Ticket #${item.id}</strong> · ${item.user}<br><span>${item.room}</span></a></div>
+  `);
+  renderOpsList("opsDebtsList", snapshot.open_debts_recent, (item) => `
+    <div class="ops-item"><a href="${item.link}"><strong>Adeudo #${item.id}</strong> · ${item.user}<br><span>${item.material}</span></a></div>
+  `);
+  renderOpsList("opsActivityList", snapshot.recent_activity, (item) => `
+    <div class="ops-item"><a href="${item.link}"><strong>${item.title}</strong><br><span>${item.message}</span></a></div>
+  `);
+}
+
+async function refreshOpsSnapshot() {
+  try {
+    const resp = await fetch("{{ url_for('dashboard.dashboard_ops_feed') }}", { credentials: "same-origin" });
+    if (!resp.ok) return;
+    const snapshot = await resp.json();
+    renderOpsSnapshot(snapshot);
+  } catch (_) {}
+}
+
+renderOpsSnapshot(initialOpsSnapshot);
+
+if (window.EventSource) {
+  const opsSource = new EventSource("{{ url_for('notifications.stream_notifications') }}");
+  opsSource.addEventListener("notification_created", () => refreshOpsSnapshot());
+  opsSource.addEventListener("error", () => {
+    opsSource.close();
+    setTimeout(refreshOpsSnapshot, 3000);
+  });
+}
+
+setInterval(refreshOpsSnapshot, 15000);
+</script>
 
 {% endblock %}
