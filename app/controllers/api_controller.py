@@ -8,12 +8,34 @@ from app.utils.security import api_key_required
 
 from app.models.user import User
 from app.services.debt_service import user_has_open_debts
+from app.utils.roles import role_at_least
 
 
 
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
+
+
+def _resolve_ra_user(raw_email: str | None) -> tuple[User | None, tuple[dict, int] | None]:
+    user_email = (raw_email or "").strip().lower()
+    if not user_email:
+        return None, ({"error": "user_email es requerido para esta operación"}, 400)
+
+    user = User.query.filter_by(email=user_email).first()
+    if not user:
+        return None, ({"error": "usuario no existe"}, 404)
+
+    if not role_at_least(user.role, "STUDENT"):
+        return None, ({"error": "rol no autorizado para RA"}, 403)
+
+    if not user.is_active or user.is_banned:
+        return None, ({"error": "usuario sin acceso activo"}, 403)
+
+    if not user.is_verified:
+        return None, ({"error": "usuario no verificado"}, 403)
+
+    return user, None
 
 
 def material_to_dict(m: Material) -> dict:
@@ -86,14 +108,10 @@ def ra_event():
     metadata = data.get("metadata")
 
 
-    user_email = (data.get("user_email") or "").strip().lower()
-
-    if not user_email:
-        return jsonify({"error": "user_email es requerido para eventos RA"}), 400
-
-    user = User.query.filter_by(email=user_email).first()
-    if not user:
-        return jsonify({"error": "usuario no existe"}), 404
+    user, resolve_error = _resolve_ra_user(data.get("user_email"))
+    if resolve_error:
+        payload, status = resolve_error
+        return jsonify(payload), status
 
     if user_has_open_debts(user.id):
         return jsonify({"error": "usuario con adeudo activo, RA bloqueada"}), 403
@@ -126,6 +144,14 @@ def ra_event():
 @api_bp.route("/ra/materials/<int:material_id>", methods=["GET"])
 @api_key_required
 def ra_get_material(material_id: int):
+    user, resolve_error = _resolve_ra_user(request.args.get("user_email"))
+    if resolve_error:
+        payload, status = resolve_error
+        return jsonify(payload), status
+
+    if user_has_open_debts(user.id):
+        return jsonify({"error": "usuario con adeudo activo, RA bloqueada"}), 403
+
     m = Material.query.get(material_id)
     if not m:
         return jsonify({"error": "Material no encontrado"}), 404
