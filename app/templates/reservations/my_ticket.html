@@ -20,7 +20,7 @@
       <div><strong>Horario:</strong> {{ reservation.start_time }} - {{ reservation.end_time }}</div>
       <div>
         <strong>Estado ticket:</strong>
-        <span class="status-badge {% if ticket.status in ['OPEN', 'READY_FOR_PICKUP'] %}status-warn{% elif ticket.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
+        <span class="status-badge {% if ticket.status in ['OPEN', 'READY_FOR_PICKUP', 'CLOSURE_REQUESTED'] %}status-warn{% elif ticket.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
           {{ ticket.status|status_label }}
         </span>
       </div>
@@ -57,6 +57,22 @@
       <button type="submit" class="btn btn-gold">Agregar al ticket</button>
     </div>
   </form>
+</section>
+{% endif %}
+
+{% if ticket.status in ['OPEN', 'READY_FOR_PICKUP'] %}
+<section class="toolbar-card" style="margin-top:18px;">
+  <div class="toolbar-actions">
+    <form method="post" action="{{ url_for('reservations.my_ticket_request_close', ticket_id=ticket.id) }}">
+      <button type="submit" class="btn btn-ghost">Solicitar cierre</button>
+    </form>
+  </div>
+</section>
+{% elif ticket.status == 'CLOSURE_REQUESTED' %}
+<section class="toolbar-card" style="margin-top:18px;">
+  <p style="margin:0; font-weight:600;">
+    Tu solicitud de cierre ya fue enviada. El administrador debe confirmar el cierre final.
+  </p>
 </section>
 {% endif %}
 

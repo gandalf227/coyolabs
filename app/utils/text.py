@@ -20,6 +20,7 @@ STATUS_LABELS = {
     "CLOSED_WITH_DEBT": "Cerrado con adeudo",
     "READY": "Listo para recoger",
     "READY_FOR_PICKUP": "Listo para recoger",
+    "CLOSURE_REQUESTED": "Cierre solicitado",
     "REPORTED": "Reportado",
     "IN_STORAGE": "En resguardo",
     "RETURNED": "Devuelto",

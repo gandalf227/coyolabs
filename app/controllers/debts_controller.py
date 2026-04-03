@@ -1,3 +1,5 @@
+import re
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
 
@@ -9,7 +11,10 @@ from app.extensions import db
 from app.models.debt import Debt
 from app.models.user import User
 from app.models.material import Material
+from app.models.lab_ticket import LabTicket
+from app.models.notification import Notification
 from app.services.audit_service import log_event
+from app.services.notification_realtime_service import publish_notification_created
 
 
 debts_bp = Blueprint("debts", __name__, url_prefix="/debts")
@@ -34,6 +39,18 @@ def _log_debt_event(action: str, debt: Debt, description: str, metadata: dict | 
         metadata=payload,
         material_id=debt.material_id,
     )
+
+
+def _extract_ticket_id_from_reason(reason: str | None) -> int | None:
+    if not reason:
+        return None
+    match = re.search(r"ticket\s*#(\d+)", reason, flags=re.IGNORECASE)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
 
 
 # -------------------------
@@ -149,6 +166,7 @@ def admin_close(debt_id: int):
 
     previous_status = debt.status
     debt.status = "PAID"
+    debt.closed_at = db.func.now()
 
     _log_debt_event(
         action="DEBT_CLOSED",
@@ -156,7 +174,41 @@ def admin_close(debt_id: int):
         description=f"Adeudo #{debt.id} marcado como pagado",
         metadata={"previous_status": previous_status, "new_status": debt.status},
     )
+
+    ticket_to_close = None
+    ticket_id = _extract_ticket_id_from_reason(debt.reason)
+    if ticket_id:
+        ticket = LabTicket.query.get(ticket_id)
+        if ticket and ticket.owner_user_id == debt.user_id and ticket.status == "CLOSED_WITH_DEBT":
+            remaining_open_debts = (
+                Debt.query
+                .filter(Debt.user_id == debt.user_id, Debt.status == "OPEN")
+                .filter(Debt.reason.ilike(f"%ticket #{ticket_id}%"))
+                .count()
+            )
+            if remaining_open_debts == 0:
+                ticket.status = "CLOSED"
+                ticket_to_close = ticket
+
+    ticket_notification = None
+    if ticket_to_close:
+        _log_debt_event(
+            action="LAB_TICKET_CORRECTED_AFTER_DEBT",
+            debt=debt,
+            description=f"Ticket #{ticket_to_close.id} corregido a CLOSED tras resolver adeudo",
+            metadata={"ticket_id": ticket_to_close.id},
+        )
+        ticket_notification = Notification(
+            user_id=ticket_to_close.owner_user_id,
+            title="Ticket corregido",
+            message=f"Tu ticket #{ticket_to_close.id} fue corregido a cerrado tras resolver el adeudo.",
+            link=url_for("reservations.my_reservations"),
+        )
+        db.session.add(ticket_notification)
+
     db.session.commit()
+    if ticket_notification:
+        publish_notification_created(ticket_notification)
 
     flash("Adeudo marcado como pagado.", "success")
     return redirect(url_for("debts.admin_list"))
