@@ -82,6 +82,14 @@
 {% if is_professor %}
 <section class="table-card" style="margin-top:16px;">
   <h3 style="margin:0 0 12px 0;">Mi carga académica (materia + grupo)</h3>
+  <p style="margin:0 0 12px 0; color:var(--text-dim);">
+    Gestiona únicamente tus asignaciones docentes. No se permiten duplicados de la misma materia y grupo.
+  </p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+    <span class="status-badge status-ok">Asignaciones activas: {{ teacher_loads|length }}</span>
+    <span class="status-badge status-neutral">Carrera docente: {{ teacher_scope.career or 'No definida' }}</span>
+    <span class="status-badge status-neutral">Nivel docente: {{ teacher_scope.level or 'No definido' }}</span>
+  </div>
 
   <form method="get" action="{{ url_for('profile.my_profile') }}" class="toolbar" style="grid-template-columns: 1fr 1fr 1fr auto;">
     <div class="toolbar-group">
@@ -129,7 +137,7 @@
       <label>Materia</label>
       <div class="select-wrap">
         <select name="subject_id" required>
-          <option value="">Selecciona una materia</option>
+          <option value="">Selecciona una materia del catálogo filtrado</option>
           {% for s in available_subjects %}
           <option value="{{ s.id }}">{{ s.name }} · {{ s.career.name if s.career else '-' }} · {{ s.level }} C{{ s.quarter }}</option>
           {% endfor %}
@@ -150,6 +158,9 @@
       <button type="submit" class="btn btn-gold">Agregar asignación</button>
     </div>
   </form>
+  {% if available_subjects|length == 0 %}
+    <p style="margin-top:10px; color:var(--text-dim);">No hay materias disponibles con los filtros actuales.</p>
+  {% endif %}
 
   {% if teacher_loads %}
   <div class="table-wrap" style="margin-top:12px;">
@@ -161,6 +172,7 @@
           <th>Nivel</th>
           <th>Cuatrimestre</th>
           <th>Grupo</th>
+          <th>Registro</th>
           <th>Acción</th>
         </tr>
       </thead>
@@ -172,6 +184,7 @@
           <td>{{ load.subject.level if load.subject else '-' }}</td>
           <td>{{ load.subject.quarter if load.subject else '-' }}</td>
           <td>{{ load.group_code }}</td>
+          <td>{{ load.created_at }}</td>
           <td>
             <form method="post" action="{{ url_for('profile.remove_teaching_load', load_id=load.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

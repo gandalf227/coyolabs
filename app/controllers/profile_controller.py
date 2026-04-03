@@ -73,6 +73,21 @@ def _is_professor_role(role: str | None) -> bool:
     return normalized == ROLE_TEACHER
 
 
+def _subject_allowed_for_teacher(subject: Subject, teacher: User) -> bool:
+    if not subject or not teacher:
+        return False
+
+    if teacher.career_id and subject.career_id != teacher.career_id:
+        return False
+
+    teacher_level = (teacher.academic_level or "").strip().upper()
+    subject_level = (subject.level or "").strip().upper()
+    if teacher_level and subject_level and teacher_level != subject_level:
+        return False
+
+    return True
+
+
 @profile_bp.route("/", methods=["GET"])
 @login_required
 def my_profile():
@@ -104,6 +119,7 @@ def my_profile():
     catalog_filters = {"q": "", "career_id": "", "level": ""}
     catalog_careers = []
     catalog_levels = []
+    teacher_scope = {"career": None, "level": None}
     if _is_professor_role(current_user.role):
         q = (request.args.get("q") or "").strip()
         selected_career_id = request.args.get("career_id", type=int)
@@ -122,6 +138,10 @@ def my_profile():
             .order_by(TeacherAcademicLoad.group_code.asc())
             .all()
         )
+        teacher_scope = {
+            "career": current_user.career_rel.name if current_user.career_rel else (current_user.career or None),
+            "level": current_user.academic_level,
+        }
         catalog_q = (
             Subject.query
             .options(joinedload(Subject.career), joinedload(Subject.academic_level))
@@ -134,6 +154,10 @@ def my_profile():
             catalog_q = catalog_q.filter(Subject.career_id == selected_career_id)
         if selected_level:
             catalog_q = catalog_q.filter(func.upper(Subject.level) == selected_level)
+        if current_user.career_id:
+            catalog_q = catalog_q.filter(Subject.career_id == current_user.career_id)
+        if current_user.academic_level:
+            catalog_q = catalog_q.filter(func.upper(Subject.level) == current_user.academic_level.upper())
 
         available_subjects = (
             catalog_q
@@ -162,6 +186,7 @@ def my_profile():
         catalog_filters=catalog_filters,
         catalog_careers=catalog_careers,
         catalog_levels=catalog_levels,
+        teacher_scope=teacher_scope,
     )
 
 
@@ -187,6 +212,12 @@ def add_teaching_load():
     if not subject:
         flash("Materia no encontrada.", "error")
         return redirect(url_for("profile.my_profile"))
+    if not subject.is_active:
+        flash("La materia seleccionada está inactiva.", "error")
+        return redirect(url_for("profile.my_profile"))
+    if not _subject_allowed_for_teacher(subject, current_user):
+        flash("No puedes asignar materias fuera de tu carrera o nivel académico.", "error")
+        return redirect(url_for("profile.my_profile"))
 
     existing = TeacherAcademicLoad.query.filter_by(
         teacher_id=current_user.id,
@@ -203,6 +234,15 @@ def add_teaching_load():
         group_code=group_code,
     )
     db.session.add(load)
+    db.session.commit()
+    log_event(
+        module="PROFILE",
+        action="TEACHING_LOAD_ADDED",
+        user_id=current_user.id,
+        entity_label=f"TeacherLoad #{load.id}",
+        description=f"Carga agregada: {subject.name} · grupo {group_code}",
+        metadata={"load_id": load.id, "subject_id": subject.id, "group_code": group_code},
+    )
     db.session.commit()
 
     flash("Carga académica agregada.", "success")
@@ -221,7 +261,19 @@ def remove_teaching_load(load_id: int):
         flash("No autorizado.", "error")
         return redirect(url_for("profile.my_profile"))
 
+    subject_name = load.subject.name if load.subject else f"Materia #{load.subject_id}"
+    group_code = load.group_code
+
     db.session.delete(load)
+    db.session.commit()
+    log_event(
+        module="PROFILE",
+        action="TEACHING_LOAD_REMOVED",
+        user_id=current_user.id,
+        entity_label=f"TeacherLoad #{load_id}",
+        description=f"Carga eliminada: {subject_name} · grupo {group_code}",
+        metadata={"load_id": load_id, "subject_id": load.subject_id, "group_code": group_code},
+    )
     db.session.commit()
 
     flash("Asignación eliminada.", "success")
