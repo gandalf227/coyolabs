@@ -2,17 +2,6 @@
 {% set crumbs = [("Inicio", url_for('root_home')), ("Mi perfil", url_for('profile.my_profile'))] %}
 {% block title %}Mi perfil{% endblock %}
 
-{% set status_map = {
-  "APPROVED": "Aprobado",
-  "PENDING": "Pendiente",
-  "REJECTED": "Rechazado",
-  "IN_PROGRESS": "En curso",
-  "COMPLETED": "Completado",
-  "OPEN": "Abierto",
-  "CLOSED": "Cerrado",
-  "PAID": "Pagado",
-  "CANCELLED": "Cancelado"
-} %}
 
 {% block content %}
 <header class="topbar">
@@ -30,7 +19,7 @@
       <div style="display:grid; gap:8px;">
         <div><strong>Nombre completo:</strong> {{ current_user.full_name or '-' }}</div>
         <div><strong>Correo electrónico:</strong> {{ current_user.email }}</div>
-        <div><strong>Rol:</strong> {{ current_user.role }}</div>
+        <div><strong>Rol:</strong> {{ current_user.role|role_label }}</div>
         <div><strong>Matrícula:</strong> {{ current_user.matricula or '-' }}</div>
         <div><strong>Teléfono:</strong> {{ current_user.phone or '-' }}</div>
         <div><strong>Correo verificado:</strong> {{ 'Sí' if current_user.is_verified else 'No' }}</div>
@@ -42,7 +31,7 @@
       <h3 style="margin-top:0;">Actualización de datos</h3>
       {% if is_admin_role(current_user.role) %}
         <p style="margin-top:0; color:var(--text-dim);">
-          Tu cuenta tiene privilegios administrativos ({{ current_user.role }}). No necesitas solicitar actualización de perfil.
+          Tu cuenta tiene privilegios administrativos ({{ current_user.role|role_label }}). No necesitas solicitar actualización de perfil.
         </p>
       {% elif is_professor %}
         <p style="margin-top:0; color:var(--text-dim);">
@@ -93,6 +82,14 @@
 {% if is_professor %}
 <section class="table-card" style="margin-top:16px;">
   <h3 style="margin:0 0 12px 0;">Mi carga académica (materia + grupo)</h3>
+  <p style="margin:0 0 12px 0; color:var(--text-dim);">
+    Gestiona únicamente tus asignaciones docentes. No se permiten duplicados de la misma materia y grupo.
+  </p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+    <span class="status-badge status-ok">Asignaciones activas: {{ teacher_loads|length }}</span>
+    <span class="status-badge status-neutral">Carrera docente: {{ teacher_scope.career or 'No definida' }}</span>
+    <span class="status-badge status-neutral">Nivel docente: {{ teacher_scope.level or 'No definido' }}</span>
+  </div>
 
   <form method="get" action="{{ url_for('profile.my_profile') }}" class="toolbar" style="grid-template-columns: 1fr 1fr 1fr auto;">
     <div class="toolbar-group">
@@ -140,7 +137,7 @@
       <label>Materia</label>
       <div class="select-wrap">
         <select name="subject_id" required>
-          <option value="">Selecciona una materia</option>
+          <option value="">Selecciona una materia del catálogo filtrado</option>
           {% for s in available_subjects %}
           <option value="{{ s.id }}">{{ s.name }} · {{ s.career.name if s.career else '-' }} · {{ s.level }} C{{ s.quarter }}</option>
           {% endfor %}
@@ -161,6 +158,9 @@
       <button type="submit" class="btn btn-gold">Agregar asignación</button>
     </div>
   </form>
+  {% if available_subjects|length == 0 %}
+    <p style="margin-top:10px; color:var(--text-dim);">No hay materias disponibles con los filtros actuales.</p>
+  {% endif %}
 
   {% if teacher_loads %}
   <div class="table-wrap" style="margin-top:12px;">
@@ -172,6 +172,7 @@
           <th>Nivel</th>
           <th>Cuatrimestre</th>
           <th>Grupo</th>
+          <th>Registro</th>
           <th>Acción</th>
         </tr>
       </thead>
@@ -183,6 +184,7 @@
           <td>{{ load.subject.level if load.subject else '-' }}</td>
           <td>{{ load.subject.quarter if load.subject else '-' }}</td>
           <td>{{ load.group_code }}</td>
+          <td>{{ load.created_at }}</td>
           <td>
             <form method="post" action="{{ url_for('profile.remove_teaching_load', load_id=load.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -228,7 +230,7 @@
           <td>{{ r.end_time }}</td>
           <td>
             <span class="status-badge {% if r.status == 'APPROVED' %}status-ok{% elif r.status == 'PENDING' %}status-warn{% else %}status-bad{% endif %}">
-              {{ status_map.get(r.status, r.status) }}
+              {{ r.status|status_label }}
             </span>
           </td>
           <td>{{ r.purpose or '-' }}</td>
@@ -267,7 +269,7 @@
           <td>{{ t.date or (t.reservation.date if t.reservation else '-') }}</td>
           <td>
             <span class="status-badge {% if t.status == 'OPEN' %}status-warn{% elif t.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
-              {{ status_map.get(t.status, t.status) }}
+              {{ t.status|status_label }}
             </span>
           </td>
           <td>{{ t.opened_at }}</td>
@@ -305,7 +307,7 @@
           <td>{{ d.reason or '-' }}</td>
           <td>
             <span class="status-badge {% if d.status == 'OPEN' %}status-bad{% else %}status-ok{% endif %}">
-              {{ status_map.get(d.status, d.status) }}
+              {{ d.status|status_label }}
             </span>
           </td>
           <td>{{ d.created_at }}</td>

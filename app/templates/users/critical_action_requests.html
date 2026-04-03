@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Solicitudes críticas", url_for('users.critical_action_requests'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Solicitudes críticas", url_for('users.critical_action_requests'))] %}
 {% block title %}Solicitudes críticas{% endblock %}
 
 {% block content %}
@@ -9,9 +9,9 @@
     <h1>Solicitudes de acciones críticas</h1>
     <p class="page-subtitle">
       {% if is_superadmin %}
-      SUPERADMIN puede aprobar/rechazar acciones críticas de administración.
+      El administrador principal puede aprobar o rechazar acciones críticas de administración.
       {% else %}
-      Consulta el estado de tus solicitudes críticas enviadas a SUPERADMIN.
+      Consulta el estado de tus solicitudes críticas enviadas a administración.
       {% endif %}
     </p>
   </div>
@@ -29,7 +29,7 @@
           <th>Solicitante</th>
           <th>Usuario objetivo</th>
           <th>Acción</th>
-          <th>Status</th>
+          <th>Estado</th>
           <th>Creada</th>
           <th>Revisión</th>
           <th>Acciones</th>
@@ -44,7 +44,7 @@
           <td>{{ action_labels.get(req.action_type, req.action_type) }}</td>
           <td>
             <span class="status-badge {% if req.status == 'PENDING' %}status-warn{% elif req.status == 'APPROVED' %}status-ok{% else %}status-bad{% endif %}">
-              {{ req.status }}
+              {{ req.status|status_label }}
             </span>
           </td>
           <td>{{ req.created_at }}</td>

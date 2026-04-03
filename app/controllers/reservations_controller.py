@@ -3,9 +3,10 @@ import json
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
-from app.utils.roles import ROLE_TEACHER, is_admin_role, normalize_role
+from app.utils.roles import ROLE_STUDENT, ROLE_TEACHER, is_admin_role, normalize_role
 from app.models.reservation_item import ReservationItem
 from app.models.material import Material
 from app.models.lab_ticket import LabTicket
@@ -30,6 +31,10 @@ reservations_bp = Blueprint("reservations", __name__, url_prefix="/reservations"
 def _is_professor_role(role: str | None) -> bool:
     normalized = normalize_role(role)
     return normalized == ROLE_TEACHER
+
+
+def _is_student_role(role: str | None) -> bool:
+    return normalize_role(role) == ROLE_STUDENT
 
 
 def _parse_professor_subjects(raw_subjects: str | None) -> list[str]:
@@ -60,6 +65,11 @@ def _professor_assignments(teacher_id: int) -> list[TeacherAcademicLoad]:
         .filter(TeacherAcademicLoad.teacher_id == teacher_id)
         .all()
     )
+
+
+def _build_requester_name() -> str:
+    full_name = f"{(current_user.first_name or '').strip()} {(current_user.last_name or '').strip()}".strip()
+    return full_name or (current_user.email or "").strip()
 
 
 def parse_date(value: str):
@@ -163,7 +173,8 @@ def my_reservations():
         Reservation.query
         .options(
             joinedload(Reservation.items).joinedload(ReservationItem.material),
-            joinedload(Reservation.lab_tickets)
+            joinedload(Reservation.lab_tickets),
+            joinedload(Reservation.user)
         )
         .filter(Reservation.user_id == current_user.id)
         .order_by(Reservation.created_at.desc())
@@ -228,9 +239,10 @@ def request_reservation():
         end_s = (request.form.get("end_time") or "").strip()
         purpose = (request.form.get("purpose") or "").strip()
         group_name = (request.form.get("group_name") or "").strip()
-        teacher_name = (request.form.get("teacher_name") or "").strip()
+        requester_name = _build_requester_name()
         subject = (request.form.get("subject") or "").strip()
         signed = request.form.get("signed") == "1"
+        selected_subject_id = None
 
         if is_professor:
             group_name, group_error = normalize_and_validate_group_code(group_name)
@@ -250,6 +262,7 @@ def request_reservation():
                 flash("La materia/grupo seleccionados no pertenecen a tu carga académica.", "error")
                 return redirect(url_for("reservations.request_reservation"))
             subject = valid_assignment.subject.name
+            selected_subject_id = valid_assignment.subject.id
 
         if (
             not room
@@ -257,12 +270,16 @@ def request_reservation():
             or not start_s
             or not end_s
             or not group_name
-            or not teacher_name
             or not subject
             or not signed
         ):
             flash("Faltan datos obligatorios o no confirmaste la firma.", "error")
             return redirect(url_for("reservations.request_reservation"))
+
+        if not selected_subject_id:
+            matched_subject = Subject.query.filter(func.lower(Subject.name) == subject.lower()).first()
+            if matched_subject:
+                selected_subject_id = matched_subject.id
 
         try:
             date_ = parse_date(date_s)
@@ -293,8 +310,9 @@ def request_reservation():
             end_time=end_t,
             purpose=purpose or None,
             group_name=group_name,
-            teacher_name=teacher_name,
+            teacher_name=requester_name,
             subject=subject,
+            subject_id=selected_subject_id,
             signed=signed,
             status="PENDING",
         )
@@ -318,6 +336,10 @@ def request_reservation():
             material = Material.query.get(material_id)
             if not material:
                 continue
+            if _is_student_role(current_user.role) and material.career_id != current_user.career_id:
+                db.session.rollback()
+                flash(f"{material.name}: no pertenece a tu carrera.", "error")
+                return redirect(url_for("reservations.request_reservation"))
 
             if material.pieces_qty is not None and qty > material.pieces_qty:
                 db.session.rollback()
@@ -356,7 +378,13 @@ def request_reservation():
         flash("Solicitud enviada. Queda pendiente de aprobación.", "success")
         return redirect(url_for("reservations.my_reservations"))
 
-    materials = Material.query.order_by(Material.name.asc()).all()
+    materials = (
+        Material.query
+        .filter(func.lower(func.coalesce(Material.status, "")) != "baja")
+        .filter(Material.career_id == current_user.career_id if _is_student_role(current_user.role) else True)
+        .order_by(Material.name.asc())
+        .all()
+    )
     materials_json = json.dumps([
         {
             "id": m.id,
@@ -391,7 +419,8 @@ def admin_queue():
     pending = (
         Reservation.query
         .options(
-            joinedload(Reservation.items).joinedload(ReservationItem.material)
+            joinedload(Reservation.items).joinedload(ReservationItem.material),
+            joinedload(Reservation.user)
         )
         .filter(Reservation.status == "PENDING")
         .order_by(Reservation.created_at.asc())
@@ -702,6 +731,8 @@ def admin_ticket_close(ticket_id: int):
         return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
 
     has_missing = False
+    created_debt_ids: list[int] = []
+    previous_ticket_status = ticket.status
 
     for item in ticket.items:
         missing_qty = item.quantity_delivered - item.quantity_returned
@@ -725,6 +756,24 @@ def admin_ticket_close(ticket_id: int):
                     reason=f"Faltante de {missing_qty} unidad(es) en ticket #{ticket.id} - {material_name}"
                 )
                 db.session.add(debt)
+                db.session.flush()
+                created_debt_ids.append(debt.id)
+                log_event(
+                    module="DEBTS",
+                    action="DEBT_CREATED",
+                    user_id=current_user.id,
+                    entity_label=f"Debt #{debt.id}",
+                    description=f"Adeudo generado automáticamente por faltante en ticket #{ticket.id}",
+                    metadata={
+                        "debt_id": debt.id,
+                        "ticket_id": ticket.id,
+                        "target_user_id": ticket.owner_user_id,
+                        "material_id": item.material_id,
+                        "missing_qty": missing_qty,
+                        "origin": "LAB_TICKET_CLOSE",
+                    },
+                    material_id=item.material_id,
+                )
 
     ticket.status = "CLOSED_WITH_DEBT" if has_missing else "CLOSED"
     ticket.closed_by_user_id = current_user.id
@@ -735,7 +784,13 @@ def admin_ticket_close(ticket_id: int):
         user_id=current_user.id,
         entity_label=f"LabTicket #{ticket.id}",
         description=f"Ticket #{ticket.id} cerrado con estado {ticket.status}",
-        metadata={"ticket_id": ticket.id, "owner_user_id": ticket.owner_user_id, "status": ticket.status},
+        metadata={
+            "ticket_id": ticket.id,
+            "owner_user_id": ticket.owner_user_id,
+            "previous_status": previous_ticket_status,
+            "new_status": ticket.status,
+            "created_debt_ids": created_debt_ids,
+        },
     )
 
     db.session.commit()

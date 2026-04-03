@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('inventory.inventory_list')), ("Adeudos", url_for('debts.admin_list')), ("Crear", url_for('debts.admin_create'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Adeudos", url_for('debts.admin_list')), ("Crear", url_for('debts.admin_create'))] %}
 {% block title %}Crear adeudo{% endblock %}
 
 {% block content %}
