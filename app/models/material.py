@@ -9,9 +9,12 @@ class Material(db.Model):
     # Relación a laboratorio
     lab_id = db.Column(db.Integer, db.ForeignKey("labs.id"), nullable=False)
     lab = db.relationship("Lab", backref="materials")
+    career_id = db.Column(db.Integer, db.ForeignKey("careers.id"), nullable=True)
+    career = db.relationship("Career", backref="materials")
 
     # Datos base (lo que aparece en Excel)
     name = db.Column(db.Text, nullable=False)             # Equipo / Material
+    category = db.Column(db.String(80), nullable=True, index=True)  # Categoría operativa
     location = db.Column(db.Text, nullable=True)          # Ubicación/Estante/Gabinete
     status = db.Column(db.Text, nullable=True)            # Estado
 

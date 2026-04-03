@@ -46,7 +46,7 @@
           {% if is_admin_nav %}
           <a href="{{ url_for('dashboard.dashboard_home') }}" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
             <i class="ph ph-gauge nav-icon"></i>
-            <span class="nav-label">Dashboard</span>
+            <span class="nav-label">Panel</span>
           </a>
           {% endif %}
           <a href="{{ url_for('inventory.inventory_list') }}" class="nav-item {% if active_page == 'inventory' %}active{% endif %}">
@@ -119,7 +119,12 @@
       <div class="sidebar-footer">
         <div class="sidebar-footer-card">
           <span class="footer-label">{{ current_user.email if current_user.is_authenticated else 'Usuario' }}</span>
-          <strong>{{ current_user.role if current_user.is_authenticated else 'Sin sesión' }}</strong>
+          <strong>{{ (current_user.role|role_label) if current_user.is_authenticated else 'Sin sesión' }}</strong>
+        </div>
+        <div style="margin-top:8px; font-size:.78rem; color:var(--text-dim); display:flex; gap:6px; flex-wrap:wrap;">
+          <a href="{{ url_for('legal.privacy_notice') }}" style="color:inherit; text-decoration:none;">Privacidad</a>
+          <span>•</span>
+          <a href="{{ url_for('legal.terms_and_conditions') }}" style="color:inherit; text-decoration:none;">Términos</a>
         </div>
       </div>
     </aside>
@@ -154,7 +159,7 @@
               {% for category, msg in messages %}
                 <p class="flash-line">
                   <span class="status-badge {% if category == 'success' %}status-ok{% elif category in ['warning', 'warn', 'info'] %}status-warn{% else %}status-bad{% endif %}">
-                    {{ (category or 'info') | upper }}
+                    {{ category|flash_category_label }}
                   </span>
                   {{ msg }}
                 </p>

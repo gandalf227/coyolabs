@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Foro", url_for('forum.forum_home')), (post.title, url_for('forum.post_detail', post_id=post.id))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Foro", url_for('forum.forum_home')), (post.title, url_for('forum.post_detail', post_id=post.id))] %}
 {% block title %}{{ post.title }}{% endblock %}
 
 {% block content %}
