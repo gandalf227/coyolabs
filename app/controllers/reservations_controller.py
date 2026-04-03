@@ -1006,6 +1006,7 @@ def admin_ticket_close(ticket_id: int):
                 debt = Debt(
                     user_id=ticket.owner_user_id,
                     material_id=item.material_id,
+                    ticket_id=ticket.id,
                     status="OPEN",
                     reason=f"Faltante de {missing_qty} unidad(es) en ticket #{ticket.id} - {material_name}"
                 )

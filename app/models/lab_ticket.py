@@ -26,6 +26,7 @@ class LabTicket(db.Model):
     owner_user = db.relationship("User", foreign_keys=[owner_user_id])
     opened_by_user = db.relationship("User", foreign_keys=[opened_by_user_id])
     closed_by_user = db.relationship("User", foreign_keys=[closed_by_user_id])
+    debts = db.relationship("Debt", back_populates="ticket")
 
     def __repr__(self) -> str:
         return f"<LabTicket {self.id} {self.status}>"

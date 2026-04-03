@@ -1,7 +1,6 @@
-import re
-
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
+from sqlalchemy import and_, or_
 
 from app.utils.roles import is_admin_role
 from app.utils.authz import min_role_required
@@ -39,18 +38,6 @@ def _log_debt_event(action: str, debt: Debt, description: str, metadata: dict | 
         metadata=payload,
         material_id=debt.material_id,
     )
-
-
-def _extract_ticket_id_from_reason(reason: str | None) -> int | None:
-    if not reason:
-        return None
-    match = re.search(r"ticket\s*#(\d+)", reason, flags=re.IGNORECASE)
-    if not match:
-        return None
-    try:
-        return int(match.group(1))
-    except ValueError:
-        return None
 
 
 # -------------------------
@@ -176,14 +163,19 @@ def admin_close(debt_id: int):
     )
 
     ticket_to_close = None
-    ticket_id = _extract_ticket_id_from_reason(debt.reason)
+    ticket_id = debt.ticket_id
     if ticket_id:
         ticket = LabTicket.query.get(ticket_id)
         if ticket and ticket.owner_user_id == debt.user_id and ticket.status == "CLOSED_WITH_DEBT":
             remaining_open_debts = (
                 Debt.query
                 .filter(Debt.user_id == debt.user_id, Debt.status == "OPEN")
-                .filter(Debt.reason.ilike(f"%ticket #{ticket_id}%"))
+                .filter(
+                    or_(
+                        Debt.ticket_id == ticket_id,
+                        and_(Debt.ticket_id.is_(None), Debt.reason.ilike(f"%ticket #{ticket_id}%")),
+                    )
+                )
                 .count()
             )
             if remaining_open_debts == 0:
