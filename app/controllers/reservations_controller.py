@@ -37,27 +37,6 @@ def _is_student_role(role: str | None) -> bool:
     return normalize_role(role) == ROLE_STUDENT
 
 
-def _parse_professor_subjects(raw_subjects: str | None) -> list[str]:
-    if not raw_subjects:
-        return []
-
-    parts = []
-    for chunk in raw_subjects.replace(";", ",").replace("\n", ",").split(","):
-        subject = chunk.strip()
-        if subject:
-            parts.append(subject)
-
-    unique = []
-    seen = set()
-    for item in parts:
-        key = item.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(item)
-    return unique
-
-
 def _professor_assignments(teacher_id: int) -> list[TeacherAcademicLoad]:
     return (
         TeacherAcademicLoad.query
@@ -143,6 +122,8 @@ def build_week_schedule(week_days, selected_room=None):
         Reservation.room.asc(),
         Reservation.date.asc(),
         Reservation.start_time.asc()
+    ).options(
+        joinedload(Reservation.user)
     ).all()
 
     schedule = {
@@ -228,10 +209,6 @@ def request_reservation():
         subject_name: sorted(groups)
         for subject_name, groups in professor_groups_by_subject.items()
     }
-    if is_professor and not professor_subjects:
-        # fallback legacy en caso de que aún tengan datos antiguos
-        professor_subjects = _parse_professor_subjects(getattr(current_user, "professor_subjects", None))
-
     if request.method == "POST":
         room = (request.form.get("room") or "").strip()
         date_s = (request.form.get("date") or "").strip()
@@ -244,12 +221,12 @@ def request_reservation():
         signed = request.form.get("signed") == "1"
         selected_subject_id = None
 
-        if is_professor:
-            group_name, group_error = normalize_and_validate_group_code(group_name)
-            if group_error:
-                flash(group_error, "error")
-                return redirect(url_for("reservations.request_reservation"))
+        group_name, group_error = normalize_and_validate_group_code(group_name)
+        if group_error:
+            flash(group_error, "error")
+            return redirect(url_for("reservations.request_reservation"))
 
+        if is_professor:
             if not assignments:
                 flash("No tienes materias asignadas. Completa tu perfil o solicita actualización de materias.", "error")
                 return redirect(url_for("reservations.request_reservation"))
