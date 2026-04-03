@@ -1,4 +1,5 @@
 from app.extensions import db
+from app.utils.statuses import DebtStatus
 
 
 class Debt(db.Model):
@@ -13,9 +14,11 @@ class Debt(db.Model):
     # Material relacionado (opcional: algunos adeudos pueden ser “genéricos”)
     material_id = db.Column(db.Integer, db.ForeignKey("materials.id"), nullable=True)
     material = db.relationship("Material", backref="debts")
+    ticket_id = db.Column(db.Integer, db.ForeignKey("lab_tickets.id"), nullable=True, index=True)
+    ticket = db.relationship("LabTicket", back_populates="debts")
 
     # Estado del adeudo
-    status = db.Column(db.String(20), nullable=False, default="OPEN")  # OPEN / PAID / CANCELED
+    status = db.Column(db.String(20), nullable=False, default=DebtStatus.OPEN)
 
     # Motivo / detalle
     reason = db.Column(db.Text, nullable=True)

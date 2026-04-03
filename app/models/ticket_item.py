@@ -1,4 +1,5 @@
 from app.extensions import db
+from app.utils.statuses import TicketItemStatus
 
 
 class TicketItem(db.Model):
@@ -13,7 +14,7 @@ class TicketItem(db.Model):
     quantity_delivered = db.Column(db.Integer, nullable=False, default=0)
     quantity_returned = db.Column(db.Integer, nullable=False, default=0)
 
-    status = db.Column(db.String(30), nullable=False, default="REQUESTED")
+    status = db.Column(db.String(30), nullable=False, default=TicketItemStatus.REQUESTED)
     notes = db.Column(db.Text, nullable=True)
 
     ticket = db.relationship("LabTicket", backref="items")
