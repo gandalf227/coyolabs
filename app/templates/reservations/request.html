@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Mis reservas", url_for('reservations.my_reservations')), ("Solicitar", url_for('reservations.request_reservation'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Mis reservas", url_for('reservations.my_reservations')), ("Solicitar", url_for('reservations.request_reservation'))] %}
 {% block title %}Solicitar reserva{% endblock %}
 
 {% block content %}
@@ -224,10 +224,15 @@
     </div>
 
     <div class="toolbar-group">
-      <label>Nombre del profesor</label>
+      <label>Solicitante</label>
       <div class="search-box">
         <i class="ph ph-user search-icon"></i>
-          <input class="form-control" type="text" name="teacher_name" placeholder="Nombre del docente responsable" required>
+        <input
+          class="form-control"
+          type="text"
+          value="{{ ((current_user.first_name or '') ~ ' ' ~ (current_user.last_name or ''))|trim or current_user.email }}"
+          readonly
+        >
       </div>
     </div>
 
@@ -406,7 +411,10 @@
                     {{ item.start_time.strftime('%H:%M') }} - {{ item.end_time.strftime('%H:%M') }}
                   </div>
                   <div style="font-size:.92rem; opacity:.92;">{{ item.subject }}</div>
-                  <div style="font-size:.85rem; opacity:.76;">{{ item.group_name }} · {{ item.teacher_name }}</div>
+                  <div style="font-size:.85rem; opacity:.76;">
+                    {{ item.group_name }} ·
+                    {{ ((item.user.first_name or '') ~ ' ' ~ (item.user.last_name or ''))|trim or item.user.email if item.user else item.teacher_name }}
+                  </div>
                 </div>
                 {% endfor %}
               </div>

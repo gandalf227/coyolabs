@@ -1,5 +1,5 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('home.home_dashboard')), ("Mis reservas", url_for('reservations.my_reservations'))] %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Mis reservas", url_for('reservations.my_reservations'))] %}
 {% block title %}Mis reservas{% endblock %}
 
 {% block content %}
@@ -37,9 +37,13 @@
           <th>Fecha</th>
           <th>Inicio</th>
           <th>Fin</th>
+          <th>Materia</th>
+          <th>Grupo</th>
+          <th>Solicitante</th>
           <th>Materiales</th>
           <th>Ticket</th>
-          <th>Status</th>
+          <th>Acciones ticket</th>
+          <th>Estado</th>
           <th>Nota admin</th>
         </tr>
       </thead>
@@ -52,6 +56,9 @@
           <td>{{ r.date }}</td>
           <td>{{ r.start_time }}</td>
           <td>{{ r.end_time }}</td>
+          <td>{{ r.subject }}</td>
+          <td>{{ r.group_name }}</td>
+          <td>{{ ((r.user.first_name or '') ~ ' ' ~ (r.user.last_name or ''))|trim or r.user.email }}</td>
 
           <td>
             {% if r.items %}
@@ -73,8 +80,8 @@
 
           <td>
             {% if ticket %}
-              <span class="status-badge {% if ticket.status == 'OPEN' %}status-warn{% elif ticket.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
-                {{ ticket.status }}
+              <span class="status-badge {% if ticket.status in ['OPEN', 'READY_FOR_PICKUP'] %}status-warn{% elif ticket.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
+                {{ ticket.status|status_label }}
               </span>
             {% else %}
               -
@@ -82,8 +89,20 @@
           </td>
 
           <td>
+            {% if ticket and ticket.status in ['OPEN', 'READY_FOR_PICKUP'] %}
+              <a href="{{ url_for('reservations.my_active_ticket', reservation_id=r.id) }}" class="btn btn-ghost" style="height:34px; border-radius:8px;">
+                Ver ticket activo
+              </a>
+            {% elif ticket %}
+              <span style="opacity:.7;">Cerrado</span>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+
+          <td>
             <span class="status-badge {% if r.status == 'APPROVED' %}status-ok{% elif r.status == 'PENDING' %}status-warn{% else %}status-bad{% endif %}">
-              {{ r.status }}
+              {{ r.status|status_label }}
             </span>
           </td>
 
