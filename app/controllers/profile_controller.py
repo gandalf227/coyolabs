@@ -136,6 +136,21 @@ def _subject_allowed_for_teacher(subject: Subject, teacher: User) -> bool:
     return True
 
 
+def _subject_allowed_for_teacher(subject: Subject, teacher: User) -> bool:
+    if not subject or not teacher:
+        return False
+
+    if teacher.career_id and subject.career_id != teacher.career_id:
+        return False
+
+    teacher_level = (teacher.academic_level or "").strip().upper()
+    subject_level = (subject.level or "").strip().upper()
+    if teacher_level and subject_level and teacher_level != subject_level:
+        return False
+
+    return True
+
+
 @profile_bp.route("/", methods=["GET"])
 @login_required
 def my_profile():

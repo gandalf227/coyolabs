@@ -206,9 +206,23 @@ def admin_close(debt_id: int):
         )
         db.session.add(ticket_notification)
 
+    admin_notifications = []
+    admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
+    for admin in admins:
+        admin_notif = Notification(
+            user_id=admin.id,
+            title="Adeudo resuelto",
+            message=f"El adeudo #{debt.id} fue marcado como pagado.",
+            link=url_for("debts.admin_list"),
+        )
+        db.session.add(admin_notif)
+        admin_notifications.append(admin_notif)
+
     db.session.commit()
     if ticket_notification:
         publish_notification_created(ticket_notification)
+    for admin_notif in admin_notifications:
+        publish_notification_created(admin_notif)
 
     flash("Adeudo marcado como pagado.", "success")
     return redirect(url_for("debts.admin_list"))

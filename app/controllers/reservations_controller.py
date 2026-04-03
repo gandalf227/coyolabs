@@ -1057,6 +1057,21 @@ def admin_ticket_close(ticket_id: int):
     db.session.add(close_notification)
     db.session.commit()
     publish_notification_created(close_notification)
+    if created_debt_ids:
+        admin_notifications = []
+        admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
+        for admin in admins:
+            notif = Notification(
+                user_id=admin.id,
+                title="Adeudo generado por cierre de ticket",
+                message=f"El ticket #{ticket.id} cerró con adeudo. Revisa deudor y seguimiento.",
+                link=url_for("debts.admin_list"),
+            )
+            db.session.add(notif)
+            admin_notifications.append(notif)
+        db.session.commit()
+        for notif in admin_notifications:
+            publish_notification_created(notif)
 
     flash("Ticket cerrado correctamente.", "success")
     return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
