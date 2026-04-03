@@ -10,6 +10,186 @@
   {% block extra_css %}{% endblock %}
 </head>
 <body>
+  <style>
+    .brand-logo-shell--button {
+      position: relative;
+      border: none;
+      cursor: pointer;
+      transition: transform .16s ease, box-shadow .16s ease;
+    }
+    .brand-logo-shell--button:hover { transform: translateY(-1px); }
+    .brand-logo-shell--button:focus-visible {
+      outline: 2px solid rgba(224,177,44,.75);
+      outline-offset: 2px;
+    }
+    .notification-badge {
+      position: absolute;
+      right: -4px;
+      top: -4px;
+      min-width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      background: #d93d3d;
+      color: #fff;
+      font-size: .68rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6px;
+      box-shadow: 0 3px 10px rgba(0,0,0,.18);
+    }
+    .notification-badge.is-hidden { display: none; }
+    .notification-center {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      top: 74px;
+      z-index: 95;
+      display: none;
+    }
+    .notification-center.is-open { display: block; }
+    .notification-center__panel {
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: var(--panel);
+      box-shadow: 0 14px 28px rgba(0,0,0,.13);
+      overflow: hidden;
+    }
+    .notification-center__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--stroke);
+      background: rgba(255,255,255,.45);
+    }
+    .notification-center__list {
+      max-height: 360px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px;
+    }
+    .notification-center__empty {
+      padding: 16px 10px;
+      text-align: center;
+      color: var(--text-dim);
+    }
+    .notification-center-item {
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: var(--panel-2);
+      padding: 10px;
+    }
+    .notification-center-item--unread { border-color: rgba(224,177,44,.5); }
+    .notification-center-item__title { font-weight: 700; margin-bottom: 4px; }
+    .notification-center-item__message { font-size: .9rem; margin-bottom: 8px; }
+    .notification-center-item__meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: .78rem;
+      color: var(--text-dim);
+    }
+    #notification-container {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: min(390px, calc(100vw - 22px));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 130;
+      pointer-events: none;
+    }
+    .notification {
+      pointer-events: auto;
+      position: relative;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: var(--panel);
+      box-shadow: 0 14px 30px rgba(0,0,0,.16);
+      overflow: hidden;
+      transform: translateX(120%);
+      opacity: 0;
+      animation: toast-slide-in .24s ease forwards;
+    }
+    .notification.is-closing { animation: toast-slide-out .22s ease forwards; }
+    .notification__progress {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 3px;
+      width: 100%;
+      transform-origin: left center;
+      animation: toast-progress linear forwards;
+    }
+    .notification:hover .notification__progress { animation-play-state: paused; }
+    .notification__body {
+      display: grid;
+      grid-template-columns: 34px 1fr 22px;
+      gap: 10px;
+      align-items: start;
+      padding: 12px 12px 11px;
+    }
+    .notification__icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 15px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
+    }
+    .notification__header {
+      font-size: .92rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .notification__text {
+      margin: 0;
+      font-size: .86rem;
+      line-height: 1.3;
+      color: var(--text-dim);
+    }
+    .notification__close {
+      border: none;
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 14px;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+    }
+    .notification__close:hover { background: rgba(0,0,0,.06); color: var(--text); }
+    .notification--success .notification__icon,
+    .notification--success .notification__progress { background: #1f9d62; }
+    .notification--error .notification__icon,
+    .notification--error .notification__progress { background: #cf4d4d; }
+    .notification--warning .notification__icon,
+    .notification--warning .notification__progress { background: #d09a19; }
+    .notification--info .notification__icon,
+    .notification--info .notification__progress { background: #3e7edc; }
+    @keyframes toast-slide-in {
+      from { transform: translateX(120%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes toast-slide-out {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(115%); opacity: 0; }
+    }
+    @keyframes toast-progress {
+      from { transform: scaleX(1); }
+      to { transform: scaleX(0); }
+    }
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="{{ url_for('static', filename='js/ui-animations.js') }}"></script>
   <div class="app-layout">
@@ -20,17 +200,29 @@
             <i class="ph ph-caret-left"></i>
           </button>
 
-          <a href="{{ url_for('root_home') }}" class="brand-link">
-            <div class="brand-logo-shell">
+          <button id="logoNotificationToggle" class="brand-logo-shell brand-logo-shell--button" type="button" aria-label="Centro de notificaciones">
               <img src="{{ url_for('static', filename='img/coyolabs.png') }}" alt="CoyoLabs Logo" class="brand-logo">
-            </div>
+              <span id="notificationBadge" class="notification-badge is-hidden">0</span>
+          </button>
 
+          <a href="{{ url_for('root_home') }}" class="brand-link">
             <div class="brand-text">
               <h2>CoyoLabs</h2>
               <p>Sistema institucional</p>
             </div>
           </a>
         </div>
+        {% if current_user.is_authenticated %}
+        <div id="notificationCenter" class="notification-center">
+          <section class="notification-center__panel">
+            <header class="notification-center__header">
+              <strong>Notificaciones</strong>
+              <a href="{{ url_for('notifications.list_notifications') }}" class="btn btn-ghost" style="height:30px; border-radius:8px;">Ver todo</a>
+            </header>
+            <div id="notificationPanelList" class="notification-center__list"></div>
+          </section>
+        </div>
+        {% endif %}
       </div>
       <div class="sidebar-scroll">
         <nav class="sidebar-nav">
@@ -153,20 +345,8 @@
           </section>
         {% endif %}
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <section class="toolbar-card toolbar-card--compact">
-              {% for category, msg in messages %}
-                <p class="flash-line">
-                  <span class="status-badge {% if category == 'success' %}status-ok{% elif category in ['warning', 'warn', 'info'] %}status-warn{% else %}status-bad{% endif %}">
-                    {{ category|flash_category_label }}
-                  </span>
-                  {{ msg }}
-                </p>
-              {% endfor %}
-            </section>
-          {% endif %}
-        {% endwith %}
+        {% set flash_messages = get_flashed_messages(with_categories=true) %}
+        <script id="flashMessagesData" type="application/json">{{ flash_messages|tojson }}</script>
 
         {% if current_user.is_authenticated and active_page not in ['home', 'dashboard'] %}
           {% include "components/back_button.html" %}
@@ -176,6 +356,7 @@
       </section>
     </main>
   </div>
+  <div id="notification-container"></div>
 
   <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
   <script>
@@ -197,6 +378,204 @@
       });
     })();
   </script>
+  {% if current_user.is_authenticated %}
+  <script>
+    (function () {
+      const notificationContainer = document.getElementById("notification-container");
+      const badge = document.getElementById("notificationBadge");
+      const panelList = document.getElementById("notificationPanelList");
+      const center = document.getElementById("notificationCenter");
+      const logoToggle = document.getElementById("logoNotificationToggle");
+      const csrfToken = "{{ csrf_token }}";
+      if (!badge || !panelList || !center || !logoToggle || !notificationContainer) return;
+
+      const state = { items: [], unreadCount: 0 };
+
+      function normalizeToastType(type) {
+        const value = String(type || "").toLowerCase();
+        if (value === "success") return "success";
+        if (value === "error" || value === "danger") return "error";
+        if (value === "warning" || value === "warn") return "warning";
+        return "info";
+      }
+
+      function updateBadge(value) {
+        const normalized = Number.isFinite(value) ? value : 0;
+        state.unreadCount = normalized;
+        if (normalized <= 0) {
+          badge.textContent = "0";
+          badge.classList.add("is-hidden");
+          return;
+        }
+        badge.textContent = normalized > 99 ? "99+" : String(normalized);
+        badge.classList.remove("is-hidden");
+      }
+
+      function createNotification({ title, message, type = "info", duration = 4000 }) {
+        const toastType = normalizeToastType(type);
+        const iconByType = {
+          success: "ph-check-circle",
+          error: "ph-x-circle",
+          warning: "ph-warning-circle",
+          info: "ph-info",
+        };
+        const toast = document.createElement("article");
+        toast.className = `notification notification--${toastType}`;
+        toast.innerHTML = `
+          <div class="notification__progress" style="animation-duration:${duration}ms"></div>
+          <div class="notification__body">
+            <span class="notification__icon"><i class="ph ${iconByType[toastType]}"></i></span>
+            <div>
+              <div class="notification__header">${title || "Notificación"}</div>
+              <p class="notification__text">${message || ""}</p>
+            </div>
+            <button type="button" class="notification__close" aria-label="Cerrar"><i class="ph ph-x"></i></button>
+          </div>
+        `;
+        notificationContainer.appendChild(toast);
+
+        let timer = null;
+        let remaining = duration;
+        let startedAt = Date.now();
+
+        function closeToast() {
+          if (!toast.isConnected) return;
+          toast.classList.add("is-closing");
+          setTimeout(() => toast.remove(), 220);
+        }
+        function startTimer() {
+          startedAt = Date.now();
+          timer = setTimeout(closeToast, remaining);
+        }
+        function pauseTimer() {
+          clearTimeout(timer);
+          remaining -= (Date.now() - startedAt);
+          if (remaining < 120) remaining = 120;
+        }
+
+        startTimer();
+        toast.addEventListener("mouseenter", pauseTimer);
+        toast.addEventListener("mouseleave", startTimer);
+        toast.querySelector(".notification__close")?.addEventListener("click", closeToast);
+      }
+
+      function renderNotificationPanel() {
+        if (!state.items.length) {
+          panelList.innerHTML = '<div class="notification-center__empty">Sin notificaciones recientes.</div>';
+          return;
+        }
+
+        panelList.innerHTML = "";
+        state.items.slice(0, 5).forEach((n) => {
+          const wrapper = document.createElement("div");
+          wrapper.className = `notification-center-item ${n.is_read ? "" : "notification-center-item--unread"}`;
+          wrapper.innerHTML = `
+            <div class="notification-center-item__title">${n.title}</div>
+            <div class="notification-center-item__message">${n.message}</div>
+            <div class="notification-center-item__meta">
+              <span>${n.created_at_label || ""}</span>
+              <span style="display:flex; gap:6px;">
+                ${n.link ? `<a href="${n.link}" class="btn btn-ghost" style="height:28px;border-radius:8px;">Abrir</a>` : ""}
+                ${!n.is_read ? `<button type="button" class="btn btn-ghost notif-mark-read" data-id="${n.id}" style="height:28px;border-radius:8px;">Marcar leída</button>` : ""}
+              </span>
+            </div>
+          `;
+          panelList.appendChild(wrapper);
+        });
+
+        panelList.querySelectorAll(".notif-mark-read").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const notifId = btn.getAttribute("data-id");
+            try {
+              const body = new URLSearchParams();
+              body.set("csrf_token", csrfToken);
+              const resp = await fetch(`/notifications/${notifId}/read`, {
+                method: "POST",
+                headers: { "X-Requested-With": "XMLHttpRequest", "Content-Type": "application/x-www-form-urlencoded" },
+                body: body.toString(),
+                credentials: "same-origin"
+              });
+              if (!resp.ok) return;
+              const data = await resp.json();
+              const found = state.items.find((item) => String(item.id) === String(notifId));
+              if (found) found.is_read = true;
+              updateBadge(data.unread_count || 0);
+              renderNotificationPanel();
+            } catch (_) {}
+          });
+        });
+      }
+
+      function upsertNotification(payload) {
+        const idx = state.items.findIndex((n) => n.id === payload.id);
+        if (idx >= 0) state.items[idx] = payload;
+        else state.items.unshift(payload);
+        state.items = state.items.slice(0, 20);
+      }
+
+      async function loadInitialFeed() {
+        try {
+          const resp = await fetch("{{ url_for('notifications.feed_notifications') }}", { credentials: "same-origin" });
+          if (!resp.ok) return;
+          const data = await resp.json();
+          state.items = Array.isArray(data.notifications) ? data.notifications : [];
+          updateBadge(data.unread_count || 0);
+          renderNotificationPanel();
+        } catch (_) {}
+      }
+
+      function inferNotificationType(payload) {
+        const text = `${payload.title || ""} ${payload.message || ""}`.toLowerCase();
+        if (text.includes("rechazada") || text.includes("error") || text.includes("adeudo")) return "error";
+        if (text.includes("aprobada") || text.includes("listo") || text.includes("abierto")) return "success";
+        if (text.includes("pendiente") || text.includes("actualizado")) return "warning";
+        return "info";
+      }
+
+      function connectSSE() {
+        const source = new EventSource("{{ url_for('notifications.stream_notifications') }}");
+        source.addEventListener("notification_created", (event) => {
+          const payload = JSON.parse(event.data || "{}");
+          upsertNotification(payload);
+          updateBadge(payload.unread_count || 0);
+          renderNotificationPanel();
+          createNotification({
+            title: payload.title || "Nueva notificación",
+            message: payload.message || "",
+            type: inferNotificationType(payload),
+          });
+        });
+        source.addEventListener("error", () => {
+          source.close();
+          setTimeout(connectSSE, 2000);
+        });
+      }
+
+      const flashRaw = document.getElementById("flashMessagesData")?.textContent || "[]";
+      let flashMessages = [];
+      try {
+        flashMessages = JSON.parse(flashRaw);
+      } catch (_) {}
+      flashMessages.forEach((item) => {
+        const category = Array.isArray(item) ? item[0] : "info";
+        const message = Array.isArray(item) ? item[1] : "";
+        createNotification({
+          title: "Sistema",
+          message: message || "",
+          type: normalizeToastType(category),
+        });
+      });
+
+      logoToggle.addEventListener("click", () => center.classList.toggle("is-open"));
+      document.addEventListener("click", (evt) => {
+        if (!evt.target.closest(".brand")) center.classList.remove("is-open");
+      });
+
+      loadInitialFeed();
+      connectSSE();
+    })();
+  </script>
+  {% endif %}
   {% block extra_js %}{% endblock %}
 </body>
 </html>

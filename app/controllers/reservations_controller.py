@@ -21,6 +21,7 @@ from app.extensions import db
 from app.models.reservation import Reservation
 from app.services.audit_service import log_event
 from app.services.debt_service import user_has_open_debts
+from app.services.notification_realtime_service import publish_notification_created
 from app.utils.authz import min_role_required
 from app.utils.validators import normalize_and_validate_group_code
 from app.constants import ROOMS
@@ -497,6 +498,13 @@ def admin_approve(res_id: int):
 
     r.status = "APPROVED"
     r.admin_note = (request.form.get("admin_note") or "").strip() or None
+    approval_notification = Notification(
+        user_id=r.user_id,
+        title="Reservación aprobada",
+        message=f"Tu reservación #{r.id} fue aprobada.",
+        link=url_for("reservations.my_reservations"),
+    )
+    db.session.add(approval_notification)
     log_event(
         module="RESERVATIONS",
         action="RESERVATION_APPROVED",
@@ -506,6 +514,7 @@ def admin_approve(res_id: int):
         metadata={"reservation_id": r.id, "target_user_id": r.user_id},
     )
     db.session.commit()
+    publish_notification_created(approval_notification)
 
     flash("Reserva aprobada.", "success")
     return redirect(url_for("reservations.admin_queue"))
@@ -521,6 +530,13 @@ def admin_reject(res_id: int):
 
     r.status = "REJECTED"
     r.admin_note = (request.form.get("admin_note") or "").strip() or None
+    rejection_notification = Notification(
+        user_id=r.user_id,
+        title="Reservación rechazada",
+        message=f"Tu reservación #{r.id} fue rechazada.",
+        link=url_for("reservations.my_reservations"),
+    )
+    db.session.add(rejection_notification)
     log_event(
         module="RESERVATIONS",
         action="RESERVATION_REJECTED",
@@ -530,6 +546,7 @@ def admin_reject(res_id: int):
         metadata={"reservation_id": r.id, "target_user_id": r.user_id},
     )
     db.session.commit()
+    publish_notification_created(rejection_notification)
 
     flash("Reserva rechazada.", "success")
     return redirect(url_for("reservations.admin_queue"))
@@ -601,6 +618,15 @@ def admin_open_ticket(res_id: int):
         db.session.add(ticket_item)
 
     db.session.commit()
+    ticket_opened_notification = Notification(
+        user_id=r.user_id,
+        title="Ticket de laboratorio abierto",
+        message=f"Se abrió el ticket de tu reservación #{r.id}.",
+        link=url_for("reservations.my_reservations"),
+    )
+    db.session.add(ticket_opened_notification)
+    db.session.commit()
+    publish_notification_created(ticket_opened_notification)
 
     flash("Ticket de laboratorio abierto correctamente.", "success")
     return redirect(url_for("reservations.admin_approved"))
@@ -684,6 +710,15 @@ def admin_ticket_item_update(item_id: int):
         item.status = "RETURNED"
 
     db.session.commit()
+    owner_notification = Notification(
+        user_id=item.ticket.owner_user_id,
+        title="Ticket de reservación actualizado",
+        message=f"Se actualizó un material en tu ticket #{item.ticket_id}.",
+        link=url_for("reservations.my_reservations"),
+    )
+    db.session.add(owner_notification)
+    db.session.commit()
+    publish_notification_created(owner_notification)
 
     flash("Ítem del ticket actualizado.", "success")
     return redirect(url_for("reservations.admin_ticket_detail", ticket_id=item.ticket_id))
@@ -771,6 +806,15 @@ def admin_ticket_close(ticket_id: int):
     )
 
     db.session.commit()
+    close_notification = Notification(
+        user_id=ticket.owner_user_id,
+        title="Ticket de reservación cerrado",
+        message=f"Tu ticket #{ticket.id} se cerró con estado {ticket.status}.",
+        link=url_for("reservations.my_reservations"),
+    )
+    db.session.add(close_notification)
+    db.session.commit()
+    publish_notification_created(close_notification)
 
     flash("Ticket cerrado correctamente.", "success")
     return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
@@ -778,6 +822,11 @@ def admin_ticket_close(ticket_id: int):
 @reservations_bp.route("/admin/tickets/<int:ticket_id>/update-all", methods=["POST"])
 @min_role_required("ADMIN")
 def admin_ticket_update_all(ticket_id: int):
+    ticket = LabTicket.query.get(ticket_id)
+    if not ticket:
+        flash("Ticket no encontrado.", "error")
+        return redirect(url_for("reservations.admin_approved"))
+
     item_ids = request.form.getlist("item_id[]")
     delivered_list = request.form.getlist("quantity_delivered[]")
     returned_list = request.form.getlist("quantity_returned[]")
@@ -847,6 +896,15 @@ def admin_ticket_update_all(ticket_id: int):
                 item.status = "RETURNED"
 
         db.session.commit()
+        bulk_update_notification = Notification(
+            user_id=ticket.owner_user_id,
+            title="Ticket de reservación actualizado",
+            message=f"Se actualizaron los materiales del ticket #{ticket_id}.",
+            link=url_for("reservations.my_reservations"),
+        )
+        db.session.add(bulk_update_notification)
+        db.session.commit()
+        publish_notification_created(bulk_update_notification)
         flash("Todos los materiales actualizados correctamente.", "success")
         return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket_id))
 

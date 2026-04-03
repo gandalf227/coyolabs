@@ -125,7 +125,11 @@ def create_app():
                 .all()
             )
 
-            unread = sum(1 for n in notifs if not n.is_read)
+            unread = (
+                Notification.query
+                .filter(Notification.user_id == current_user.id, Notification.is_read.is_(False))
+                .count()
+            )
 
             return dict(
                 header_notifications=notifs,

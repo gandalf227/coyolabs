@@ -13,6 +13,7 @@ from app.models.material import Material
 from app.models.notification import Notification
 from app.models.user import User
 from app.services.audit_service import log_event
+from app.services.notification_realtime_service import publish_notification_created
 from app.utils.authz import min_role_required
 from app.utils.roles import ROLE_STUDENT, normalize_role
 
@@ -300,6 +301,7 @@ def admin_mark_ready(ticket_id: int):
     )
 
     db.session.commit()
+    publish_notification_created(notification)
 
     flash("Pedido marcado como listo y usuario notificado.", "success")
     return redirect(url_for("inventory_requests.admin_ticket_detail", ticket_id=ticket.id))
