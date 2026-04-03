@@ -1,4 +1,11 @@
 import re
+from app.utils.statuses import (
+    DebtStatus,
+    InventoryRequestStatus,
+    LabTicketStatus,
+    ReservationStatus,
+    TicketItemStatus,
+)
 
 ROLE_LABELS = {
     "ADMIN": "Administrador",
@@ -10,23 +17,23 @@ ROLE_LABELS = {
 }
 
 STATUS_LABELS = {
-    "APPROVED": "Aprobado",
-    "PENDING": "Pendiente",
-    "REJECTED": "Rechazado",
-    "OPEN": "Abierto",
-    "CLOSED": "Cerrado",
+    ReservationStatus.APPROVED: "Aprobado",
+    ReservationStatus.PENDING: "Pendiente",
+    ReservationStatus.REJECTED: "Rechazado",
+    InventoryRequestStatus.OPEN: "Abierto",
+    InventoryRequestStatus.CLOSED: "Cerrado",
     "IN_PROGRESS": "En curso",
     "COMPLETED": "Completado",
-    "CLOSED_WITH_DEBT": "Cerrado con adeudo",
+    LabTicketStatus.CLOSED_WITH_DEBT: "Cerrado con adeudo",
     "READY": "Listo para recoger",
-    "READY_FOR_PICKUP": "Listo para recoger",
-    "CLOSURE_REQUESTED": "Cierre solicitado",
+    LabTicketStatus.READY_FOR_PICKUP: "Listo para recoger",
+    LabTicketStatus.CLOSURE_REQUESTED: "Cierre solicitado",
     "REPORTED": "Reportado",
     "IN_STORAGE": "En resguardo",
-    "RETURNED": "Devuelto",
-    "PAID": "Pagado",
+    TicketItemStatus.RETURNED: "Devuelto",
+    DebtStatus.PAID: "Pagado",
     "CANCELLED": "Cancelado",
-    "CANCELED": "Cancelado",
+    DebtStatus.CANCELED: "Cancelado",
 }
 
 FLASH_CATEGORY_LABELS = {
