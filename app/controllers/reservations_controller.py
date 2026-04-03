@@ -246,18 +246,17 @@ def my_active_ticket(reservation_id: int):
             flash("No puedes solicitar materiales de otra carrera.", "error")
             return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
 
-        try:
-            urgent_notifications = add_material_to_ticket(
-                ticket=ticket,
-                material=material,
-                quantity=quantity,
-                actor_user=current_user,
-            )
-        except ValueError as exc:
-            flash(str(exc), "error")
+        result = add_material_to_ticket(
+            ticket=ticket,
+            material=material,
+            quantity=quantity,
+            actor_user=current_user,
+        )
+        if not result.ok:
+            flash(result.message or "No se pudo agregar material al ticket.", "error")
             return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
 
-        for notif in urgent_notifications:
+        for notif in result.data.get("notifications", []):
             publish_notification_created(notif)
 
         flash("Material agregado al ticket activo. El admin fue notificado.", "success")
@@ -293,13 +292,12 @@ def my_ticket_request_close(ticket_id: int):
         flash("Ticket no encontrado.", "error")
         return redirect(url_for("reservations.my_reservations"))
 
-    try:
-        notifications = request_ticket_closure(ticket=ticket, actor_user=current_user)
-    except ValueError as exc:
-        flash(str(exc), "warning")
+    result = request_ticket_closure(ticket=ticket, actor_user=current_user)
+    if not result.ok:
+        flash(result.message or "No se pudo solicitar cierre de ticket.", "warning")
         return redirect(url_for("reservations.my_active_ticket", reservation_id=ticket.reservation_id))
 
-    for notif in notifications:
+    for notif in result.data.get("notifications", []):
         publish_notification_created(notif)
 
     flash("Solicitud de cierre enviada. Espera confirmación del administrador.", "success")
@@ -902,14 +900,13 @@ def admin_ticket_close(ticket_id: int):
         flash("Ticket no encontrado.", "error")
         return redirect(url_for("reservations.admin_approved"))
 
-    try:
-        result = close_ticket(ticket=ticket, actor_user=current_user)
-    except ValueError as exc:
-        flash(str(exc), "error")
+    result = close_ticket(ticket=ticket, actor_user=current_user)
+    if not result.ok:
+        flash(result.message or "No se pudo cerrar el ticket.", "error")
         return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket.id))
 
-    close_notification = result["close_notification"]
-    admin_notifications = result["admin_notifications"]
+    close_notification = result.data["close_notification"]
+    admin_notifications = result.data["admin_notifications"]
 
     publish_notification_created(close_notification)
     for notif in admin_notifications:

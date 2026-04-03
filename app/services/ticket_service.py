@@ -1,4 +1,6 @@
+from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 from flask import url_for
 
@@ -11,7 +13,6 @@ from app.models.user import User
 from app.services.audit_service import log_event
 from app.services.debt_service import create_debt_for_ticket
 from app.utils.statuses import (
-    BLOCKING_LAB_TICKET_STATUSES,
     LabTicketStatus,
     TicketItemStatus,
     is_active_lab_ticket_status,
@@ -19,19 +20,39 @@ from app.utils.statuses import (
 )
 
 
-def validate_ticket_active(ticket: LabTicket | None) -> bool:
-    return bool(ticket and is_active_lab_ticket_status(ticket.status))
+@dataclass(slots=True)
+class ServiceResult:
+    ok: bool
+    message: str | None = None
+    data: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def success(cls, message: str | None = None, **data: Any) -> "ServiceResult":
+        return cls(ok=True, message=message, data=data)
+
+    @classmethod
+    def failure(cls, message: str, **data: Any) -> "ServiceResult":
+        return cls(ok=False, message=message, data=data)
 
 
-def sync_ticket_ready_status(ticket: LabTicket) -> None:
+def validate_ticket_active(ticket: LabTicket | None) -> ServiceResult:
+    if not ticket:
+        return ServiceResult.failure("Ticket no encontrado.")
+    if not is_active_lab_ticket_status(ticket.status):
+        return ServiceResult.failure("Solo puedes operar tickets activos.", ticket=ticket)
+    return ServiceResult.success(ticket=ticket)
+
+
+def sync_ticket_ready_status(ticket: LabTicket) -> ServiceResult:
     has_ready_items = any((item.status or "").upper() == TicketItemStatus.READY_FOR_PICKUP for item in ticket.items)
     if has_ready_items and ticket.status == LabTicketStatus.OPEN:
         ticket.status = LabTicketStatus.READY_FOR_PICKUP
     elif not has_ready_items and ticket.status == LabTicketStatus.READY_FOR_PICKUP:
         ticket.status = LabTicketStatus.OPEN
+    return ServiceResult.success(ticket=ticket)
 
 
-def apply_ticket_item_status(item: TicketItem, delivered: int, returned: int) -> None:
+def apply_ticket_item_status(item: TicketItem, delivered: int, returned: int) -> ServiceResult:
     if delivered == 0:
         item.status = TicketItemStatus.REQUESTED
     elif returned == 0:
@@ -40,17 +61,19 @@ def apply_ticket_item_status(item: TicketItem, delivered: int, returned: int) ->
         item.status = TicketItemStatus.MISSING
     else:
         item.status = TicketItemStatus.RETURNED
+    return ServiceResult.success(item=item)
 
 
-def add_material_to_ticket(ticket: LabTicket, material: Material, quantity: int, actor_user: User) -> list[Notification]:
-    if not validate_ticket_active(ticket):
-        raise ValueError("No se pueden agregar materiales a un ticket cerrado.")
+def add_material_to_ticket(ticket: LabTicket, material: Material, quantity: int, actor_user: User) -> ServiceResult:
+    active_result = validate_ticket_active(ticket)
+    if not active_result.ok:
+        return ServiceResult.failure("No se pueden agregar materiales a un ticket cerrado.")
 
     if quantity <= 0:
-        raise ValueError("Selecciona material y una cantidad válida.")
+        return ServiceResult.failure("Selecciona material y una cantidad válida.")
 
     if material.pieces_qty is not None and quantity > material.pieces_qty:
-        raise ValueError(f"{material.name}: solo hay {material.pieces_qty} disponibles para solicitud.")
+        return ServiceResult.failure(f"{material.name}: solo hay {material.pieces_qty} disponibles para solicitud.")
 
     item = TicketItem.query.filter_by(ticket_id=ticket.id, material_id=material.id).first()
     if item:
@@ -93,12 +116,17 @@ def add_material_to_ticket(ticket: LabTicket, material: Material, quantity: int,
     )
 
     db.session.commit()
-    return notifications
+    return ServiceResult.success(
+        notifications=notifications,
+        item=item,
+        ticket=ticket,
+    )
 
 
-def request_ticket_closure(ticket: LabTicket, actor_user: User) -> list[Notification]:
-    if not validate_ticket_active(ticket):
-        raise ValueError("Solo puedes solicitar cierre para tickets activos.")
+def request_ticket_closure(ticket: LabTicket, actor_user: User) -> ServiceResult:
+    active_result = validate_ticket_active(ticket)
+    if not active_result.ok:
+        return ServiceResult.failure("Solo puedes solicitar cierre para tickets activos.")
 
     ticket.status = LabTicketStatus.CLOSURE_REQUESTED
 
@@ -123,16 +151,25 @@ def request_ticket_closure(ticket: LabTicket, actor_user: User) -> list[Notifica
         metadata={"ticket_id": ticket.id, "reservation_id": ticket.reservation_id},
     )
     db.session.commit()
-    return notifications
+
+    return ServiceResult.success(
+        message="Solicitud de cierre enviada.",
+        ticket=ticket,
+        notifications=notifications,
+    )
 
 
-def can_close_ticket(status: str | None) -> bool:
-    return is_active_lab_ticket_status(status) or is_lab_ticket_closure_requested(status)
+def can_close_ticket(status: str | None) -> ServiceResult:
+    can_close = is_active_lab_ticket_status(status) or is_lab_ticket_closure_requested(status)
+    if not can_close:
+        return ServiceResult.failure("Solo se pueden cerrar tickets activos o con cierre solicitado.", can_close=False)
+    return ServiceResult.success(can_close=True)
 
 
-def close_ticket(ticket: LabTicket, actor_user: User) -> dict:
-    if not can_close_ticket(ticket.status):
-        raise ValueError("Solo se pueden cerrar tickets activos o con cierre solicitado.")
+def close_ticket(ticket: LabTicket, actor_user: User) -> ServiceResult:
+    close_validation = can_close_ticket(ticket.status)
+    if not close_validation.ok:
+        return close_validation
 
     has_missing = False
     created_debt_ids: list[int] = []
@@ -140,7 +177,6 @@ def close_ticket(ticket: LabTicket, actor_user: User) -> dict:
 
     for item in ticket.items:
         missing_qty = item.quantity_delivered - item.quantity_returned
-
         if missing_qty > 0:
             has_missing = True
             item.status = TicketItemStatus.MISSING
@@ -151,6 +187,27 @@ def close_ticket(ticket: LabTicket, actor_user: User) -> dict:
     ticket.status = LabTicketStatus.CLOSED_WITH_DEBT if has_missing else LabTicketStatus.CLOSED
     ticket.closed_by_user_id = actor_user.id
     ticket.closed_at = datetime.now()
+
+    close_notification = Notification(
+        user_id=ticket.owner_user_id,
+        title="Ticket de reservación cerrado",
+        message=f"Tu ticket #{ticket.id} se cerró con estado {ticket.status}.",
+        link=url_for("reservations.my_reservations"),
+    )
+    db.session.add(close_notification)
+
+    admin_notifications: list[Notification] = []
+    if created_debt_ids:
+        admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
+        for admin in admins:
+            notif = Notification(
+                user_id=admin.id,
+                title="Adeudo generado por cierre de ticket",
+                message=f"El ticket #{ticket.id} cerró con adeudo. Revisa deudor y seguimiento.",
+                link=url_for("debts.admin_list"),
+            )
+            db.session.add(notif)
+            admin_notifications.append(notif)
 
     log_event(
         module="LAB_TICKETS",
@@ -169,35 +226,9 @@ def close_ticket(ticket: LabTicket, actor_user: User) -> dict:
 
     db.session.commit()
 
-    close_notification = Notification(
-        user_id=ticket.owner_user_id,
-        title="Ticket de reservación cerrado",
-        message=f"Tu ticket #{ticket.id} se cerró con estado {ticket.status}.",
-        link=url_for("reservations.my_reservations"),
+    return ServiceResult.success(
+        close_notification=close_notification,
+        admin_notifications=admin_notifications,
+        created_debt_ids=created_debt_ids,
+        ticket=ticket,
     )
-    db.session.add(close_notification)
-    db.session.commit()
-
-    admin_notifications = []
-    if created_debt_ids:
-        admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
-        for admin in admins:
-            notif = Notification(
-                user_id=admin.id,
-                title="Adeudo generado por cierre de ticket",
-                message=f"El ticket #{ticket.id} cerró con adeudo. Revisa deudor y seguimiento.",
-                link=url_for("debts.admin_list"),
-            )
-            db.session.add(notif)
-            admin_notifications.append(notif)
-        db.session.commit()
-
-    return {
-        "close_notification": close_notification,
-        "admin_notifications": admin_notifications,
-        "created_debt_ids": created_debt_ids,
-    }
-
-
-def blocking_ticket_statuses() -> set[str]:
-    return set(BLOCKING_LAB_TICKET_STATUSES)
