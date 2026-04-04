@@ -355,7 +355,6 @@ def request_reservation():
         group_name = (request.form.get("group_name") or "").strip()
         requester_name = _build_requester_name()
         subject = (request.form.get("subject") or "").strip()
-        signed = request.form.get("signed") == "1"
         selected_subject_id = None
 
         group_name, group_error = normalize_and_validate_group_code(group_name)
@@ -385,9 +384,8 @@ def request_reservation():
             or not end_s
             or not group_name
             or not subject
-            or not signed
         ):
-            flash("Faltan datos obligatorios o no confirmaste la firma.", "error")
+            flash("Faltan datos obligatorios.", "error")
             return redirect(url_for("reservations.request_reservation"))
 
         if not selected_subject_id:
@@ -405,6 +403,12 @@ def request_reservation():
 
         if end_t <= start_t:
             flash("La hora final debe ser mayor a la hora inicial.", "error")
+            return redirect(url_for("reservations.request_reservation"))
+
+        allowed_start_time = parse_time("08:00")
+        allowed_end_time = parse_time("21:00")
+        if start_t < allowed_start_time or end_t > allowed_end_time:
+            flash("Las reservaciones solo están permitidas entre 08:00 y 21:00.", "error")
             return redirect(url_for("reservations.request_reservation"))
 
         minutes = duration_minutes(start_t, end_t)
@@ -427,7 +431,7 @@ def request_reservation():
             teacher_name=requester_name,
             subject=subject,
             subject_id=selected_subject_id,
-            signed=signed,
+            signed=True,
             status=ReservationStatus.PENDING,
         )
 

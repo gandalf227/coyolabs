@@ -12,6 +12,12 @@
 </header>
 
 <section class="toolbar-card">
+  <div class="toolbar-actions">
+    <a href="{{ url_for('inventory_requests.admin_daily_requests') }}" class="btn btn-ghost">Volver</a>
+  </div>
+</section>
+
+<section class="toolbar-card">
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
     <span class="status-badge {% if ticket.status == 'OPEN' %}status-warn{% elif ticket.status == 'READY_FOR_PICKUP' %}status-ok{% else %}status-bad{% endif %}">{{ ticket.status|status_label }}</span>
 
