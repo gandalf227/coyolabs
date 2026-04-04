@@ -227,8 +227,9 @@ def my_active_ticket(reservation_id: int):
         return redirect(url_for("reservations.my_reservations"))
 
     if request.method == "POST":
-        if not validate_ticket_active(ticket):
-            flash("No se pueden agregar materiales a un ticket cerrado.", "error")
+        active_result = validate_ticket_active(ticket)
+        if not active_result.ok:
+            flash(active_result.message or "No se pueden agregar materiales a un ticket cerrado.", "error")
             return redirect(url_for("reservations.my_active_ticket", reservation_id=reservation.id))
 
         material_id = request.form.get("material_id", type=int)

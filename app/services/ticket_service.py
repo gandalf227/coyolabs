@@ -280,64 +280,86 @@ def close_ticket(ticket: LabTicket, actor_user: User) -> ServiceResult:
     created_debt_ids: list[int] = []
     previous_ticket_status = ticket.status
 
-    for item in ticket.items:
-        missing_qty = item.quantity_delivered - item.quantity_returned
-        if missing_qty > 0:
-            has_missing = True
-            item.status = TicketItemStatus.MISSING
-            debt_result = create_debt_for_ticket(
-                ticket=ticket,
-                item=item,
-                missing_qty=missing_qty,
-                actor_user_id=actor_user.id,
-            )
-            debt = debt_result.data.get("debt") if debt_result.ok else None
-            if debt_result.ok and debt_result.data.get("created") and debt:
-                created_debt_ids.append(debt.id)
+    try:
+        for item in ticket.items:
+            missing_qty = item.quantity_delivered - item.quantity_returned
+            if missing_qty > 0:
+                has_missing = True
+                item.status = TicketItemStatus.MISSING
+                debt_result = create_debt_for_ticket(
+                    ticket=ticket,
+                    item=item,
+                    missing_qty=missing_qty,
+                    actor_user_id=actor_user.id,
+                )
+                if not debt_result.ok:
+                    db.session.rollback()
+                    message = debt_result.message or "No se pudo generar el adeudo durante el cierre del ticket."
+                    _log_ticket_rejected(
+                        action="LAB_TICKET_CLOSE_REJECTED",
+                        actor_user=actor_user,
+                        ticket=ticket,
+                        reason=message,
+                    )
+                    return ServiceResult.failure(message)
+                debt = debt_result.data.get("debt") if debt_result.ok else None
+                if debt_result.ok and debt_result.data.get("created") and debt:
+                    created_debt_ids.append(debt.id)
 
-    ticket.status = LabTicketStatus.CLOSED_WITH_DEBT if has_missing else LabTicketStatus.CLOSED
-    ticket.closed_by_user_id = actor_user.id
-    ticket.closed_at = datetime.now()
+        ticket.status = LabTicketStatus.CLOSED_WITH_DEBT if has_missing else LabTicketStatus.CLOSED
+        ticket.closed_by_user_id = actor_user.id
+        ticket.closed_at = datetime.now()
 
-    close_notification = Notification(
-        user_id=ticket.owner_user_id,
-        title="Ticket de reservación cerrado",
-        message=f"Tu ticket #{ticket.id} se cerró con estado {ticket.status}.",
-        link=url_for("reservations.my_reservations"),
-    )
-    db.session.add(close_notification)
+        close_notification = Notification(
+            user_id=ticket.owner_user_id,
+            title="Ticket de reservación cerrado",
+            message=f"Tu ticket #{ticket.id} se cerró con estado {ticket.status}.",
+            link=url_for("reservations.my_reservations"),
+        )
+        db.session.add(close_notification)
 
-    admin_notifications: list[Notification] = []
-    if created_debt_ids:
-        admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
-        for admin in admins:
-            notif = Notification(
-                user_id=admin.id,
-                title="Adeudo generado por cierre de ticket",
-                message=f"El ticket #{ticket.id} cerró con adeudo. Revisa deudor y seguimiento.",
-                link=url_for("debts.admin_list"),
-            )
-            db.session.add(notif)
-            admin_notifications.append(notif)
+        admin_notifications: list[Notification] = []
+        if created_debt_ids:
+            admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
+            for admin in admins:
+                notif = Notification(
+                    user_id=admin.id,
+                    title="Adeudo generado por cierre de ticket",
+                    message=f"El ticket #{ticket.id} cerró con adeudo. Revisa deudor y seguimiento.",
+                    link=url_for("debts.admin_list"),
+                )
+                db.session.add(notif)
+                admin_notifications.append(notif)
 
-    log_event(
-        module="LAB_TICKETS",
-        action="LAB_TICKET_CLOSED",
-        user_id=actor_user.id,
-        entity_label=f"LabTicket #{ticket.id}",
-        description=f"Ticket #{ticket.id} cerrado con estado {ticket.status}",
-        metadata={
-            "ticket_id": ticket.id,
-            "entity_id": ticket.id,
-            "result": "success",
-            "owner_user_id": ticket.owner_user_id,
-            "previous_status": previous_ticket_status,
-            "new_status": ticket.status,
-            "created_debt_ids": created_debt_ids,
-        },
-    )
+        log_event(
+            module="LAB_TICKETS",
+            action="LAB_TICKET_CLOSED",
+            user_id=actor_user.id,
+            entity_label=f"LabTicket #{ticket.id}",
+            description=f"Ticket #{ticket.id} cerrado con estado {ticket.status}",
+            metadata={
+                "ticket_id": ticket.id,
+                "entity_id": ticket.id,
+                "result": "success",
+                "owner_user_id": ticket.owner_user_id,
+                "previous_status": previous_ticket_status,
+                "new_status": ticket.status,
+                "created_debt_ids": created_debt_ids,
+            },
+        )
 
-    db.session.commit()
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        message = "No se pudo cerrar el ticket por un error inesperado."
+        technical_reason = f"{message} [{exc.__class__.__name__}: {exc}]"
+        _log_ticket_rejected(
+            action="LAB_TICKET_CLOSE_REJECTED",
+            actor_user=actor_user,
+            ticket=ticket,
+            reason=technical_reason,
+        )
+        return ServiceResult.failure(message)
 
     return ServiceResult.success(
         close_notification=close_notification,
