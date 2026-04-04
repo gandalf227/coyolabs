@@ -59,12 +59,23 @@ def user_has_open_debts(user_id: int) -> bool:
 
 
 def create_debt_for_ticket(ticket: LabTicket, item: TicketItem, missing_qty: int, actor_user_id: int | None) -> ServiceResult:
-    existing_debt = Debt.query.filter_by(
-        user_id=ticket.owner_user_id,
-        material_id=item.material_id,
-        status=DebtStatus.OPEN,
-    ).first()
+    existing_debt = (
+        Debt.query
+        .filter(
+            Debt.user_id == ticket.owner_user_id,
+            Debt.material_id == item.material_id,
+            Debt.status == DebtStatus.OPEN,
+            or_(
+                Debt.ticket_id == ticket.id,
+                Debt.ticket_id.is_(None),
+            ),
+        )
+        .order_by(Debt.id.desc())
+        .first()
+    )
     if existing_debt:
+        if existing_debt.ticket_id is None:
+            existing_debt.ticket_id = ticket.id
         return ServiceResult.success(debt=existing_debt, created=False)
 
     material_name = item.material.name if item.material else f"Material ID {item.material_id}"
