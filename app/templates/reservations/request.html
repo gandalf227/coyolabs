@@ -182,10 +182,26 @@
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+@media (max-width: 900px) {
+  .reservation-request-form {
+    grid-template-columns: 1fr !important;
+  }
+
+  .reservation-calendar-filter {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .reservation-calendar-filter .toolbar-group,
+  .reservation-calendar-filter .btn {
+    width: 100%;
+  }
+}
 </style>
 
 <section class="toolbar-card">
-  <form method="post" class="toolbar" style="grid-template-columns: repeat(2, minmax(280px, 1fr));">
+  <form method="post" class="toolbar reservation-request-form" style="grid-template-columns: repeat(2, minmax(280px, 1fr));">
     <div class="toolbar-group">
       <label>Salón/Laboratorio</label>
       <div class="select-wrap">
@@ -346,7 +362,7 @@
       </p>
     </div>
 
-    <form method="get" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+    <form method="get" class="reservation-calendar-filter" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
       <div class="toolbar-group" style="min-width:220px; margin:0;">
         <label>Filtrar por salón</label>
         <div class="select-wrap">

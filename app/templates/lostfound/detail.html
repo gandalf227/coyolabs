@@ -2,10 +2,29 @@
 {% set crumbs = [("Inicio", url_for('root_home')), ("Objetos perdidos", url_for('lostfound.list_items')), ("Detalle", url_for('lostfound.detail', item_id=item.id))] %}
 {% block title %}Detalle objeto perdido{% endblock %}
 {% block content %}
+<style>
+@media (max-width: 768px){
+  .lostfound-detail-back .btn{
+    width: 100%;
+  }
+
+  .lostfound-detail-admin-form{
+    grid-template-columns: 1fr !important;
+  }
+
+  .lostfound-detail-admin-form .toolbar-actions{
+    width: 100%;
+  }
+
+  .lostfound-detail-admin-form .toolbar-actions .btn{
+    width: 100%;
+  }
+}
+</style>
 <header class="topbar"><div class="topbar-left"><p class="page-kicker">Objetos perdidos</p><h1>Detalle del registro #{{ item.id }}</h1><p class="page-subtitle">Información del objeto y acciones administrativas.</p></div></header>
 
 <section class="toolbar-card">
-  <div class="toolbar-actions">
+  <div class="toolbar-actions lostfound-detail-back">
     <a class="btn btn-ghost" href="{{ url_for('lostfound.list_items') }}">Volver</a>
   </div>
 </section>
@@ -22,7 +41,7 @@
 {% if current_user.is_authenticated and is_admin_role(current_user.role) %}
 <section class="toolbar-card">
   <h3 style="margin-bottom: 10px;">Acciones (Administración)</h3>
-  <form method="post" action="{{ url_for('lostfound.admin_set_status', item_id=item.id) }}" class="toolbar" style="grid-template-columns: 1fr 1fr auto;">
+  <form method="post" action="{{ url_for('lostfound.admin_set_status', item_id=item.id) }}" class="toolbar lostfound-detail-admin-form" style="grid-template-columns: 1fr 1fr auto;">
     <div class="toolbar-group"><label for="status">Nuevo estado</label><div class="select-wrap"><select id="status" name="status" required><option value="REPORTED" {% if item.status == 'REPORTED' %}selected{% endif %}>Reportado</option><option value="IN_STORAGE" {% if item.status == 'IN_STORAGE' %}selected{% endif %}>En resguardo</option><option value="RETURNED" {% if item.status == 'RETURNED' %}selected{% endif %}>Devuelto</option></select><i class="ph ph-caret-down select-arrow"></i></div></div>
     <div class="toolbar-group"><label for="admin_note">Nota (opcional)</label><div class="search-box"><i class="ph ph-note search-icon"></i><input id="admin_note" type="text" name="admin_note" placeholder="Ejemplo: Entregado en coordinación"></div></div>
     <div class="toolbar-actions"><button type="submit" class="btn btn-gold">Actualizar</button></div>
