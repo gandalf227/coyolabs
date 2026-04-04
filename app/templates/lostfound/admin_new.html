@@ -13,14 +13,14 @@
 
 <section class="toolbar-card">
   <form method="post" class="toolbar" style="grid-template-columns: repeat(2, minmax(280px, 1fr));">
-    <div class="toolbar-group"><label for="title">Título (obligatorio)</label><div class="search-box"><i class="ph ph-tag search-icon"></i><input id="title" type="text" name="title" required></div></div>
-    <div class="toolbar-group"><label for="evidence_ref">Evidencia (URL/texto)</label><div class="search-box"><i class="ph ph-link search-icon"></i><input id="evidence_ref" type="text" name="evidence_ref"></div></div>
+    <div class="toolbar-group"><label for="title">Título (obligatorio)</label><div class="search-box"><i class="ph ph-tag search-icon"></i><input id="title" type="text" name="title" placeholder="Ejemplo: Mochila negra con llavero" required></div></div>
+    <div class="toolbar-group"><label for="evidence_ref">Evidencia (URL/texto)</label><div class="search-box"><i class="ph ph-link search-icon"></i><input id="evidence_ref" type="text" name="evidence_ref" placeholder="URL de foto o referencia breve"></div></div>
 
     <div class="toolbar-group" style="grid-column: 1 / -1;">
       <label for="description">Descripción (opcional)</label>
       <div class="search-box" style="height: auto; min-height: 128px; align-items: flex-start; padding-top: 14px;">
         <i class="ph ph-note-pencil search-icon" style="margin-top: 2px;"></i>
-        <textarea id="description" name="description" rows="4" style="width:100%; border:none; background:transparent; outline:none; color:var(--text); font-size:.96rem; resize:vertical;"></textarea>
+        <textarea id="description" name="description" rows="4" placeholder="Describe características clave para facilitar la identificación" style="width:100%; border:none; background:transparent; outline:none; color:var(--text); font-size:.96rem; resize:vertical;"></textarea>
       </div>
     </div>
 

@@ -193,7 +193,7 @@
   <h3 style="margin:0 0 12px 0;">Agregar materiales al pedido de hoy</h3>
   <form method="post" action="{{ url_for('inventory_requests.add_to_daily_request') }}">
     <div class="material-search">
-      <input type="text" id="materialSearch" placeholder="Buscar material...">
+      <input type="text" id="materialSearch" placeholder="Buscar material por nombre, código o ubicación">
       <div id="autocompleteList" class="autocomplete-list"></div>
     </div>
 
