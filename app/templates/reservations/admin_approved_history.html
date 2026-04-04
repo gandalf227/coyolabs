@@ -1,20 +1,20 @@
 {% extends "layouts/student_base.html" %}
-{% set crumbs = [("Inicio", url_for('root_home')), ("Reservas admin", url_for('reservations.admin_queue')), ("Historial aprobadas", url_for('reservations.admin_approved_history'))] %}
-{% block title %}Historial de reservas aprobadas{% endblock %}
+{% set crumbs = [("Inicio", url_for('root_home')), ("Reservas admin", url_for('reservations.admin_queue')), ("Historial reservas en curso", url_for('reservations.admin_approved_history'))] %}
+{% block title %}Historial de reservas en curso{% endblock %}
 
 {% block content %}
 <header class="topbar">
   <div class="topbar-left">
     <p class="page-kicker">Reservaciones</p>
-    <h1>Historial de reservas aprobadas</h1>
-    <p class="page-subtitle">Consulta reservas aprobadas anteriores. Esta vista es solo informativa.</p>
+    <h1>Historial de reservas en curso</h1>
+    <p class="page-subtitle">Consulta reservas en curso anteriores. Esta vista es solo informativa.</p>
   </div>
 </header>
 
 <section class="toolbar-card">
   <div class="toolbar-actions">
     <a class="btn btn-ghost" href="{{ url_for('reservations.admin_approved') }}">
-      Volver a aprobadas de hoy
+      Volver a reservas en curso de hoy
     </a>
     <a class="btn btn-ghost" href="{{ url_for('reservations.admin_queue') }}">
       Ver pendientes
@@ -26,7 +26,7 @@
   <section class="empty-state">
     <i class="ph ph-calendar-check empty-icon"></i>
     <h3>Sin historial</h3>
-    <p>No hay reservas aprobadas anteriores.</p>
+    <p>No hay reservas en curso anteriores.</p>
   </section>
 {% else %}
 <section class="table-card">
