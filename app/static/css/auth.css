@@ -674,3 +674,44 @@ body {
 }.auth-layout{
   padding-top: 20px;
 }
+
+/* ====== CONSISTENCIA VISUAL FORM CONTROLS (AUTH) ====== */
+.auth-layout label{
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.auth-layout .field{
+  min-height: 54px;
+  border-radius: 16px;
+  padding: 0 14px;
+}
+
+.auth-layout .field input{
+  font-size: 0.96rem;
+}
+
+.auth-layout .btn{
+  min-height: 54px;
+  border-radius: 16px;
+  padding: 0 18px;
+}
+
+.auth-layout .consent-check input[type="checkbox"]{
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  accent-color: #E0B12C;
+}
+
+@media (max-width: 420px){
+  .auth-layout .field{
+    min-height: 50px;
+    border-radius: 14px;
+  }
+
+  .auth-layout .btn{
+    min-height: 50px;
+    border-radius: 14px;
+  }
+}
