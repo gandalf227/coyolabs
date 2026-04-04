@@ -407,6 +407,12 @@ def request_reservation():
             flash("La hora final debe ser mayor a la hora inicial.", "error")
             return redirect(url_for("reservations.request_reservation"))
 
+        allowed_start_time = parse_time("08:00")
+        allowed_end_time = parse_time("21:00")
+        if start_t < allowed_start_time or end_t > allowed_end_time:
+            flash("Las reservaciones solo están permitidas entre 08:00 y 21:00.", "error")
+            return redirect(url_for("reservations.request_reservation"))
+
         minutes = duration_minutes(start_t, end_t)
         if minutes > 120:
             flash("La duración máxima permitida es de 2 horas.", "error")
