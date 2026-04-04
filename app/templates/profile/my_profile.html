@@ -40,10 +40,10 @@
         <form method="post" action="{{ url_for('profile.update_phone') }}" class="toolbar" style="grid-template-columns:1fr auto;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <div class="toolbar-group">
-            <label>Teléfono</label>
+            <label>Teléfono de contacto</label>
             <div class="search-box">
               <i class="ph ph-phone search-icon"></i>
-              <input type="text" name="phone" value="{{ current_user.phone or '' }}" required>
+              <input type="text" name="phone" value="{{ current_user.phone or '' }}" placeholder="Ej.: 656-123-4567" required>
             </div>
           </div>
           <div class="toolbar-actions" style="align-self:end;">
