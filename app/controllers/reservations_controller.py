@@ -1020,6 +1020,10 @@ def admin_ticket_update_all(ticket_id: int):
             item = TicketItem.query.get(item_id)
             if not item:
                 continue
+            if item.ticket_id != ticket_id:
+                flash("Se detectó un ítem que no pertenece a este ticket.", "error")
+                db.session.rollback()
+                return redirect(url_for("reservations.admin_ticket_detail", ticket_id=ticket_id))
 
             if delivered < 0 or returned < 0:
                 flash("Las cantidades no pueden ser negativas.", "error")
