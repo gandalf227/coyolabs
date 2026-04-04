@@ -355,7 +355,6 @@ def request_reservation():
         group_name = (request.form.get("group_name") or "").strip()
         requester_name = _build_requester_name()
         subject = (request.form.get("subject") or "").strip()
-        signed = request.form.get("signed") == "1"
         selected_subject_id = None
 
         group_name, group_error = normalize_and_validate_group_code(group_name)
@@ -385,9 +384,8 @@ def request_reservation():
             or not end_s
             or not group_name
             or not subject
-            or not signed
         ):
-            flash("Faltan datos obligatorios o no confirmaste la firma.", "error")
+            flash("Faltan datos obligatorios.", "error")
             return redirect(url_for("reservations.request_reservation"))
 
         if not selected_subject_id:
@@ -433,7 +431,7 @@ def request_reservation():
             teacher_name=requester_name,
             subject=subject,
             subject_id=selected_subject_id,
-            signed=signed,
+            signed=True,
             status=ReservationStatus.PENDING,
         )
 
