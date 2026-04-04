@@ -193,12 +193,20 @@
     text-align:left;
   }
 
+  .reports-metrics-grid{
+    grid-template-columns: repeat(2, minmax(320px, 1fr));
+  }
+
   @media (max-width: 1180px){
     .reports-grid{
       grid-template-columns: 1fr;
     }
     .metrics-grid{
       grid-template-columns: 1fr;
+    }
+
+    .reports-metrics-grid{
+      grid-template-columns: 1fr !important;
     }
   }
 
@@ -240,6 +248,9 @@
       <p class="report-help">
         Entra a la vista completa con <strong>Ver</strong> o descarga el archivo con <strong>Descargar</strong>.
       </p>
+    </div>
+    <div class="topbar-actions">
+      <a class="btn btn-ghost" href="{{ url_for('root_home') }}">Volver</a>
     </div>
   </header>
 
@@ -397,7 +408,7 @@
         </div>
       </div>
 
-      <div class="reports-grid" style="grid-template-columns: repeat(2, minmax(320px, 1fr));">
+      <div class="reports-grid reports-metrics-grid">
         <div class="report-note">
           <strong>Reservaciones por estado</strong>
           <table class="mini-table" style="margin-top:8px;">
