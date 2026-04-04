@@ -9,28 +9,36 @@
 .row-missing { background: rgba(211, 47, 47, 0.08); transition: all .2s ease; }
 
 .input-mini input {
-  width: 70px; height: 36px; border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.08);
-  background: #f7f4ec; text-align: center;
+  width: 78px; height: 42px; border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,0.48); text-align: center;
   font-weight: 600; transition: all .2s ease;
+  color: var(--text);
 }
 .input-mini input:focus {
-  outline: none; border-color: #d4af37;
-  background: #fff; box-shadow: 0 0 0 2px rgba(212,175,55,0.15);
+  outline: none; border-color: rgba(199,159,51,0.35);
+  background: rgba(255,255,255,0.72); box-shadow: 0 0 0 4px rgba(199,159,51,0.08);
 }
 
 .input-notes {
-  width: 220px; height: 36px; border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.08);
-  background: #f7f4ec; padding: 0 10px;
+  width: 240px; height: 42px; border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,0.48); padding: 0 12px;
+  color: var(--text);
 }
 .input-notes:focus {
-  outline: none; border-color: #d4af37;
-  background: #fff; box-shadow: 0 0 0 2px rgba(212,175,55,0.15);
+  outline: none; border-color: rgba(199,159,51,0.35);
+  background: rgba(255,255,255,0.72); box-shadow: 0 0 0 4px rgba(199,159,51,0.08);
 }
+
+.input-notes::placeholder { color: var(--text-dim); }
 
 .fade-in { animation: fadeIn .3s ease; }
 @keyframes fadeIn { from {opacity:0; transform: translateY(5px);} to {opacity:1;} }
+
+@media (max-width: 768px) {
+  .input-notes { width: 100%; min-width: 180px; }
+}
 </style>
 
 <header class="topbar">
@@ -103,13 +111,13 @@
 
           <td>
             <div class="input-mini">
-              <input type="number" name="quantity_delivered[]" value="{{ item.quantity_delivered }}">
+              <input type="number" name="quantity_delivered[]" value="{{ item.quantity_delivered }}" placeholder="0">
             </div>
           </td>
 
           <td>
             <div class="input-mini">
-              <input type="number" name="quantity_returned[]" value="{{ item.quantity_returned }}">
+              <input type="number" name="quantity_returned[]" value="{{ item.quantity_returned }}" placeholder="0">
             </div>
           </td>
 
@@ -119,7 +127,7 @@
           </td>
 
           <td>
-            <input class="input-notes" name="notes[]" value="{{ item.notes or '' }}">
+            <input class="input-notes" name="notes[]" value="{{ item.notes or '' }}" placeholder="Notas del material">
           </td>
 
           <td>
