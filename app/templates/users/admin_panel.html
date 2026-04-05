@@ -3,6 +3,27 @@
 {% block title %}Administración de usuarios{% endblock %}
 
 {% block content %}
+<style>
+.users-admin-edit-form{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.users-admin-edit-form .search-box,
+.users-admin-edit-form .select-wrap,
+.users-admin-edit-form .btn{
+  min-height: 54px;
+}
+
+.users-admin-quick-actions{
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+</style>
+
 <header class="topbar">
   <div class="topbar-left">
     <p class="page-kicker">Administración</p>
@@ -82,7 +103,7 @@
           <td><span class="status-badge {% if user.is_active %}status-ok{% else %}status-bad{% endif %}">{{ 'Sí' if user.is_active else 'No' }}</span></td>
           <td><span class="status-badge {% if user.is_banned %}status-bad{% else %}status-ok{% endif %}">{{ 'Sí' if user.is_banned else 'No' }}</span></td>
           <td>
-            <form method="post" action="{{ url_for('users.admin_update_user', user_id=user.id) }}" style="display:grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap:8px;">
+            <form method="post" action="{{ url_for('users.admin_update_user', user_id=user.id) }}" class="users-admin-edit-form">
               <div class="search-box">
                 <i class="ph ph-envelope search-icon"></i>
                 <input type="email" name="email" value="{{ user.email }}" required>
@@ -132,7 +153,7 @@
               <button type="submit" class="btn btn-gold">Guardar cambios</button>
             </form>
 
-            <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+            <div class="users-admin-quick-actions">
               <form method="post" action="{{ url_for('users.admin_enable_user', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Activar</button></form>
               <form method="post" action="{{ url_for('users.admin_disable_user', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Desactivar</button></form>
               <form method="post" action="{{ url_for('users.admin_unban_user', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Desbloquear</button></form>
