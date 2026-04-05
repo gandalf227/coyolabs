@@ -65,7 +65,7 @@ def create_post():
         title = (request.form.get("title") or "").strip()
         content = (request.form.get("content") or "").strip()
         category = (request.form.get("category") or "GENERAL").strip().upper()
-        is_anonymous = request.form.get("is_anonymous") == "1"
+        is_anonymous = False
 
         if not title:
             flash("El título es obligatorio.", "error")
@@ -131,7 +131,7 @@ def post_detail(post_id: int):
 
     if request.method == "POST":
         content = (request.form.get("content") or "").strip()
-        is_anonymous = request.form.get("is_anonymous") == "1"
+        is_anonymous = False
         if not content:
             flash("El comentario no puede estar vacío.", "error")
             return redirect(url_for("forum.post_detail", post_id=post.id))
