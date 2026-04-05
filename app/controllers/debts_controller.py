@@ -1,3 +1,5 @@
+import logging
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
 from sqlalchemy.orm import joinedload
@@ -8,6 +10,7 @@ from app.utils.permission_required import permission_required
 
 from app.extensions import db
 from app.models.debt import Debt
+from app.models.notification import Notification
 from app.models.user import User
 from app.models.material import Material
 from app.services.debt_service import resolve_debt
@@ -17,6 +20,7 @@ from app.utils.statuses import DebtStatus
 
 
 debts_bp = Blueprint("debts", __name__, url_prefix="/debts")
+logger = logging.getLogger(__name__)
 
 
 def _log_debt_event(action: str, debt: Debt, description: str, metadata: dict | None = None) -> None:
@@ -137,7 +141,21 @@ def admin_create():
             description=f"Adeudo creado para {user.email}",
             metadata={"reason": debt.reason},
         )
+        user_notification = Notification(
+            user_id=user.id,
+            title="Nuevo adeudo registrado",
+            message="Se registró un adeudo en tu cuenta. Revisa el detalle en el módulo de adeudos.",
+            link=url_for("debts.my_debts"),
+        )
+        db.session.add(user_notification)
         db.session.commit()
+        try:
+            publish_notification_created(user_notification)
+        except Exception:
+            logger.warning(
+                "SSE publish failed after debt creation",
+                extra={"debt_id": debt.id, "notification_id": user_notification.id, "target_user_id": user_notification.user_id},
+            )
 
         flash("Adeudo creado.", "success")
         return redirect(url_for("debts.admin_list"))
@@ -166,9 +184,21 @@ def admin_close(debt_id: int):
     ticket_notification = result.data["ticket_notification"]
     admin_notifications = result.data["admin_notifications"]
     if ticket_notification:
-        publish_notification_created(ticket_notification)
+        try:
+            publish_notification_created(ticket_notification)
+        except Exception:
+            logger.warning(
+                "SSE publish failed after debt resolution (ticket notification)",
+                extra={"debt_id": debt.id, "notification_id": ticket_notification.id, "target_user_id": ticket_notification.user_id},
+            )
     for admin_notif in admin_notifications:
-        publish_notification_created(admin_notif)
+        try:
+            publish_notification_created(admin_notif)
+        except Exception:
+            logger.warning(
+                "SSE publish failed after debt resolution (admin notification)",
+                extra={"debt_id": debt.id, "notification_id": admin_notif.id, "target_user_id": admin_notif.user_id},
+            )
 
     flash("Adeudo marcado como pagado.", "success")
     return redirect(url_for("debts.admin_list"))

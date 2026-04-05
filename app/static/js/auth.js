@@ -22,6 +22,7 @@
   const changeEmailInput = document.getElementById("change_email_input");
   const saveAndResendBtn = document.getElementById("saveAndResendBtn");
   const changeEmailStatus = document.getElementById("changeEmailStatus");
+  const authNotifications = document.querySelectorAll(".auth-notification-stack .notification");
 
   // Helpers
   const pulseOverlay = () => {
@@ -182,6 +183,13 @@
     } finally {
       saveAndResendBtn.disabled = false;
     }
+  });
+
+  authNotifications.forEach((notification) => {
+    const closeBtn = notification.querySelector(".notification__close");
+    closeBtn?.addEventListener("click", () => {
+      notification.remove();
+    });
   });
   
 })();
