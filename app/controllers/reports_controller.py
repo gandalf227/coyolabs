@@ -3,6 +3,9 @@ from io import StringIO, BytesIO
 from urllib.parse import urlencode
 from flask import Blueprint, Response, render_template, request, url_for
 from sqlalchemy import func
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment
+from openpyxl.utils import get_column_letter
 from app.models.lab import Lab
 from app.models.material import Material
 from app.models.debt import Debt
@@ -33,6 +36,48 @@ def csv_response(filename: str, headers: list[str], rows: list[list]):
     return Response(
         data,
         mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def excel_response(filename: str, headers: list[str], rows: list[list]):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Reporte"
+
+    ws.append(headers)
+    for row in rows:
+        ws.append(row)
+
+    header_font = Font(bold=True)
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    body_alignment = Alignment(vertical="top", wrap_text=True)
+
+    for col_idx, _ in enumerate(headers, start=1):
+        header_cell = ws.cell(row=1, column=col_idx)
+        header_cell.font = header_font
+        header_cell.alignment = header_alignment
+
+    max_widths = [len(str(h)) if h is not None else 0 for h in headers]
+    for row_idx, row in enumerate(rows, start=2):
+        for col_idx, value in enumerate(row, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.alignment = body_alignment
+            text_value = "" if value is None else str(value)
+            if len(text_value) > max_widths[col_idx - 1]:
+                max_widths[col_idx - 1] = len(text_value)
+
+    for col_idx, width in enumerate(max_widths, start=1):
+        adjusted = max(12, min(width + 2, 60))
+        ws.column_dimensions[get_column_letter(col_idx)].width = adjusted
+
+    bio = BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+
+    return Response(
+        bio.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
@@ -221,6 +266,7 @@ def render_report_view(
     filter_fields=None,
     selected_columns=None,
     all_columns=None,
+    download_excel_url=None,
 ):
     return render_template(
         "reports/report_view.html",
@@ -230,6 +276,7 @@ def render_report_view(
         all_columns=all_columns or headers,
         selected_columns=selected_columns or headers,
         download_url=download_url,
+        download_excel_url=download_excel_url,
         report_description=report_description,
         extra_meta=extra_meta,
         filter_fields=filter_fields or [],
@@ -327,6 +374,19 @@ def report_inventory():
     return csv_response(fname, headers, rows)
 
 
+@reports_bp.route("/inventory.xlsx", methods=["GET"])
+@min_role_required("ADMIN")
+def report_inventory_excel():
+    lab_id = request.args.get("lab_id", type=int)
+    status = (request.args.get("status") or "").strip()
+    search = (request.args.get("search") or "").strip()
+    headers, rows = build_inventory_rows(lab_id=lab_id, status=status or None, search=search or None)
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
+    fname = "inventory.xlsx" if not lab_id else f"inventory_lab_{lab_id}.xlsx"
+    return excel_response(fname, headers, rows)
+
+
 @reports_bp.route("/view/inventory", methods=["GET"])
 @min_role_required("ADMIN")
 def report_inventory_view():
@@ -359,6 +419,7 @@ def report_inventory_view():
         ],
         selected_columns=selected_columns,
         all_columns=all_headers,
+        download_excel_url=build_download_url("reports.report_inventory_excel"),
     )
 
 
@@ -371,6 +432,17 @@ def report_debts():
     selected_columns = parse_selected_columns(headers)
     headers, rows = project_rows(headers, rows, selected_columns)
     return csv_response("debts.csv", headers, rows)
+
+
+@reports_bp.route("/debts.xlsx", methods=["GET"])
+@min_role_required("ADMIN")
+def report_debts_excel():
+    status = (request.args.get("status") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    headers, rows = build_debts_rows(status=status or None, user_id=user_id)
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
+    return excel_response("debts.xlsx", headers, rows)
 
 
 @reports_bp.route("/view/debts", methods=["GET"])
@@ -394,6 +466,7 @@ def report_debts_view():
         ],
         selected_columns=selected_columns,
         all_columns=all_headers,
+        download_excel_url=build_download_url("reports.report_debts_excel"),
     )
 
 
@@ -420,6 +493,31 @@ def report_logbook():
     selected_columns = parse_selected_columns(headers)
     headers, rows = project_rows(headers, rows, selected_columns)
     return csv_response("logbook.csv", headers, rows)
+
+
+@reports_bp.route("/logbook.xlsx", methods=["GET"])
+@min_role_required("ADMIN")
+def report_logbook_excel():
+    action = (request.args.get("action") or "").strip()
+    module = (request.args.get("module") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    material_id = request.args.get("material_id", type=int)
+    description = (request.args.get("description") or "").strip()
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+
+    headers, rows = build_logbook_rows(
+        action=action or None,
+        module=module or None,
+        user_id=user_id,
+        material_id=material_id,
+        description=description or None,
+        date_from=date_from or None,
+        date_to=date_to or None,
+    )
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
+    return excel_response("logbook.xlsx", headers, rows)
 
 
 @reports_bp.route("/view/logbook", methods=["GET"])
@@ -462,6 +560,7 @@ def report_logbook_view():
         ],
         selected_columns=selected_columns,
         all_columns=all_headers,
+        download_excel_url=build_download_url("reports.report_logbook_excel"),
     )
 
 
@@ -484,6 +583,27 @@ def report_reservations():
     selected_columns = parse_selected_columns(headers)
     headers, rows = project_rows(headers, rows, selected_columns)
     return csv_response("reservations.csv", headers, rows)
+
+
+@reports_bp.route("/reservations.xlsx", methods=["GET"])
+@min_role_required("ADMIN")
+def report_reservations_excel():
+    status = (request.args.get("status") or "").strip()
+    room = (request.args.get("room") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+
+    headers, rows = build_reservations_rows(
+        status=status or None,
+        room=room or None,
+        user_id=user_id,
+        date_from=date_from or None,
+        date_to=date_to or None,
+    )
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
+    return excel_response("reservations.xlsx", headers, rows)
 
 
 @reports_bp.route("/view/reservations", methods=["GET"])
@@ -520,6 +640,7 @@ def report_reservations_view():
         ],
         selected_columns=selected_columns,
         all_columns=all_headers,
+        download_excel_url=build_download_url("reports.report_reservations_excel"),
     )
 
 
@@ -586,6 +707,7 @@ def logbook_admin_view():
     selected_columns = parse_selected_columns(headers)
     visible_columns, visible_rows = project_rows(headers, rows, selected_columns)
     export_url = build_download_url("reports.report_logbook")
+    export_excel_url = build_download_url("reports.report_logbook_excel")
 
     return render_template(
         "reports/logbook_admin.html",
@@ -594,6 +716,7 @@ def logbook_admin_view():
         all_columns=headers,
         selected_columns=selected_columns,
         export_url=export_url,
+        export_excel_url=export_excel_url,
         action=action,
         module=module,
         user_id=user_id,
