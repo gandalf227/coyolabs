@@ -29,6 +29,12 @@ def _author_label(user, is_anonymous: bool) -> str:
     return user.email if user else "N/A"
 
 
+def _can_edit_post(post: ForumPost) -> bool:
+    if not post or not getattr(current_user, "is_authenticated", False):
+        return False
+    return (post.author_id == current_user.id) or _is_admin()
+
+
 @forum_bp.route("/", methods=["GET"])
 @min_role_required("STUDENT")
 def forum_home():
@@ -161,8 +167,63 @@ def post_detail(post_id: int):
         post=post,
         comments=comments,
         is_admin=_is_admin(),
+        can_edit_post=_can_edit_post(post),
         is_superadmin=_is_superadmin(),
         author_label_fn=_author_label,
+        active_page="forum",
+    )
+
+
+@forum_bp.route("/posts/<int:post_id>/edit", methods=["GET", "POST"])
+@min_role_required("STUDENT")
+def edit_post(post_id: int):
+    post = ForumPost.query.get_or_404(post_id)
+
+    if not _can_edit_post(post):
+        flash("No tienes permiso para editar esta publicación.", "error")
+        return redirect(url_for("forum.post_detail", post_id=post.id))
+
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()
+        content = (request.form.get("content") or "").strip()
+        category = (request.form.get("category") or post.category).strip().upper()
+
+        if not title:
+            flash("El título es obligatorio.", "error")
+            return redirect(url_for("forum.edit_post", post_id=post.id))
+
+        if len(title) > 180:
+            flash("El título excede el máximo de 180 caracteres.", "error")
+            return redirect(url_for("forum.edit_post", post_id=post.id))
+
+        if not content:
+            flash("El contenido es obligatorio.", "error")
+            return redirect(url_for("forum.edit_post", post_id=post.id))
+
+        if category not in FORUM_CATEGORIES:
+            category = "GENERAL"
+
+        post.title = title
+        post.content = content
+        post.category = category
+
+        log_event(
+            module="FORUM",
+            action="FORUM_POST_UPDATED",
+            user_id=current_user.id,
+            entity_label=f"ForumPost #{post.id}",
+            description=f"Publicación editada #{post.id}",
+            metadata={"post_id": post.id, "edited_by": current_user.id},
+        )
+        db.session.commit()
+
+        flash("Publicación actualizada.", "success")
+        return redirect(url_for("forum.post_detail", post_id=post.id))
+
+    return render_template(
+        "forum/edit.html",
+        post=post,
+        categories=FORUM_CATEGORIES,
         active_page="forum",
     )
 

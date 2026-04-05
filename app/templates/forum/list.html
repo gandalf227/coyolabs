@@ -10,15 +10,15 @@
     <p class="page-subtitle">Comparte dudas y recomendaciones sobre laboratorios, materiales y software.</p>
   </div>
   <div class="topbar-actions" style="display:flex; gap:8px;">
-    <a class="btn btn-outline" href="{{ url_for('forum.forum_home') }}">Todas</a>
-    <a class="btn btn-primary" href="{{ url_for('forum.create_post') }}">Nueva publicación</a>
+    <a class="btn btn-ghost" href="{{ url_for('forum.forum_home') }}">Todas</a>
+    <a class="btn btn-gold" href="{{ url_for('forum.create_post') }}">Nueva publicación</a>
   </div>
 </header>
 
 <section class="toolbar-card" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
   <span class="text-dim">Categorías:</span>
   {% for c in categories %}
-    <a class="btn {% if selected_category == c %}btn-primary{% else %}btn-outline{% endif %}" href="{{ url_for('forum.forum_home', category=c) }}">{{ c }}</a>
+    <a class="btn {% if selected_category == c %}btn-gold{% else %}btn-ghost{% endif %}" href="{{ url_for('forum.forum_home', category=c) }}">{{ c }}</a>
   {% endfor %}
 </section>
 

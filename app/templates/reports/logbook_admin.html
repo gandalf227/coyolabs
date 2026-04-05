@@ -37,24 +37,59 @@
       <label for="material_id">ID de material</label>
       <div class="search-box"><i class="ph ph-hash search-icon"></i><input type="number" id="material_id" name="material_id" value="{{ material_id or '' }}" placeholder="Ejemplo: 128"></div>
     </div>
+    <div class="toolbar-group">
+      <label for="description">Descripción contiene</label>
+      <div class="search-box"><i class="ph ph-text-align-left search-icon"></i><input type="text" id="description" name="description" value="{{ description or '' }}" placeholder="Texto libre"></div>
+    </div>
+    <div class="toolbar-group">
+      <label for="date_from">Desde</label>
+      <input class="form-control" type="date" id="date_from" name="date_from" value="{{ date_from or '' }}">
+    </div>
+    <div class="toolbar-group">
+      <label for="date_to">Hasta</label>
+      <input class="form-control" type="date" id="date_to" name="date_to" value="{{ date_to or '' }}">
+    </div>
+    <div class="toolbar-group" style="grid-column: 1 / -1;">
+      <details>
+        <summary><strong>Columnas visibles y exportables</strong></summary>
+        <div class="toolbar" style="grid-template-columns: repeat(4, minmax(160px, 1fr)); margin-top: 10px;">
+          {% for col in all_columns %}
+            <label class="form-control" style="display:flex; align-items:center; gap:8px; min-height:unset;">
+              <input type="checkbox" name="cols" value="{{ col }}" {% if col in selected_columns %}checked{% endif %}>
+              <span>{{ col }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </details>
+    </div>
     <div class="toolbar-actions">
       <button type="submit" class="btn btn-gold"><i class="ph ph-funnel"></i><span>Filtrar</span></button>
       <a href="{{ url_for('reports.logbook_admin_view') }}" class="btn btn-ghost"><i class="ph ph-x-circle"></i><span>Limpiar</span></a>
+      <a href="{{ export_url }}" class="btn btn-ghost"><i class="ph ph-download-simple"></i><span>Descargar CSV</span></a>
+      <a href="{{ export_excel_url }}" class="btn btn-gold"><i class="ph ph-file-xls"></i><span>Descargar Excel</span></a>
     </div>
   </form>
 </section>
 
-{% if events|length == 0 %}
+{% if rows|length == 0 %}
   <section class="empty-state"><i class="ph ph-list empty-icon"></i><h3>Sin resultados</h3><p>No hay eventos con esos filtros.</p></section>
 {% else %}
 <section class="table-card">
   <div class="table-wrap">
     <table class="inventory-table" style="min-width: 1100px;">
-      <thead><tr><th>ID</th><th>Fecha</th><th>User ID</th><th>Módulo</th><th>Entidad</th><th>Action</th><th>Description</th><th>Metadata</th></tr></thead>
+      <thead>
+        <tr>
+          {% for col in columns %}
+            <th>{{ col }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
       <tbody>
-        {% for e in events %}
+        {% for row in rows %}
           <tr>
-            <td>{{ e.id }}</td><td>{{ e.created_at }}</td><td>{{ e.user_id }}</td><td>{{ e.module or '-' }}</td><td>{{ e.entity_label or '-' }}</td><td>{{ e.action }}</td><td>{{ e.description }}</td><td><pre style="white-space: pre-wrap; color: var(--text-soft);">{{ e.metadata_json }}</pre></td>
+            {% for value in row %}
+              <td>{{ value if value is not none and value != '' else '-' }}</td>
+            {% endfor %}
           </tr>
         {% endfor %}
       </tbody>
