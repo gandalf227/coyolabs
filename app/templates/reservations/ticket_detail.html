@@ -49,130 +49,132 @@
   </div>
 </header>
 
-<section class="table-card">
-  <div class="table-wrap" style="padding: 18px 22px;">
-    <div style="display:grid; grid-template-columns: repeat(3, minmax(240px, 1fr)); gap:14px;">
-      <div><strong>Reserva:</strong> {{ ticket.reservation_id or '-' }}</div>
-      <div><strong>Responsable:</strong> {{ ticket.owner_user.email if ticket.owner_user else '-' }}</div>
-      <div><strong>Salón/Lab:</strong> {{ ticket.room or '-' }}</div>
-      <div><strong>Fecha:</strong> {{ ticket.date or '-' }}</div>
-      <div><strong>Estado:</strong>
-        <span class="status-badge {% if ticket.status in ['OPEN', 'READY_FOR_PICKUP', 'CLOSURE_REQUESTED'] %}status-warn{% elif ticket.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
-          {{ ticket.status|status_label }}
-        </span>
-      </div>
-      <div><strong>Abierto:</strong> {{ ticket.opened_at or '-' }}</div>
+<div id="ticket-detail-container">
+  <section class="table-card">
+    <div class="table-wrap" style="padding: 18px 22px;">
+      <div style="display:grid; grid-template-columns: repeat(3, minmax(240px, 1fr)); gap:14px;">
+        <div><strong>Reserva:</strong> {{ ticket.reservation_id or '-' }}</div>
+        <div><strong>Responsable:</strong> {{ ticket.owner_user.email if ticket.owner_user else '-' }}</div>
+        <div><strong>Salón/Lab:</strong> {{ ticket.room or '-' }}</div>
+        <div><strong>Fecha:</strong> {{ ticket.date or '-' }}</div>
+        <div><strong>Estado:</strong>
+          <span class="status-badge {% if ticket.status in ['OPEN', 'READY_FOR_PICKUP', 'CLOSURE_REQUESTED'] %}status-warn{% elif ticket.status == 'CLOSED' %}status-ok{% else %}status-bad{% endif %}">
+            {{ ticket.status|status_label }}
+          </span>
+        </div>
+        <div><strong>Abierto:</strong> {{ ticket.opened_at or '-' }}</div>
 
-<div>
-  <strong>Abierto por:</strong>
-  {{ ticket.opened_by_user.email if ticket.opened_by_user else '-' }}
-</div>
-
-<div>
-  <strong>Cerrado:</strong>
-  {{ ticket.closed_at or '-' }}
-</div>
-
-<div>
-  <strong>Cerrado por:</strong>
-  {{ ticket.closed_by_user.email if ticket.closed_by_user else '-' }}
-</div>
-    </div>
+  <div>
+    <strong>Abierto por:</strong>
+    {{ ticket.opened_by_user.email if ticket.opened_by_user else '-' }}
   </div>
-</section>
 
-<section class="table-card" style="margin-top: 20px;">
-  <div class="table-wrap">
+  <div>
+    <strong>Cerrado:</strong>
+    {{ ticket.closed_at or '-' }}
+  </div>
 
-  <form id="mainForm" method="POST" action="{{ url_for('reservations.admin_ticket_update_all', ticket_id=ticket.id) }}">
+  <div>
+    <strong>Cerrado por:</strong>
+    {{ ticket.closed_by_user.email if ticket.closed_by_user else '-' }}
+  </div>
+      </div>
+    </div>
+  </section>
 
-    <table class="inventory-table">
-      <thead>
-        <tr>
-          <th>Material</th>
-          <th>Solicitado</th>
-          <th>Entregado</th>
-          <th>Devuelto</th>
-          <th>Estado</th>
-          <th>Notas</th>
-          <th>Operación</th>
-        </tr>
-      </thead>
+  <section class="table-card" style="margin-top: 20px;">
+    <div class="table-wrap">
 
-      <tbody>
-        {% for item in ticket.items %}
-        <tr class="fade-in">
-          <td>
-            {{ item.material.name if item.material else ('ID ' ~ item.material_id) }}
-            <input type="hidden" name="item_id[]" value="{{ item.id }}">
-          </td>
+    <form id="mainForm" method="POST" action="{{ url_for('reservations.admin_ticket_update_all', ticket_id=ticket.id) }}">
 
-          <td>{{ item.quantity_requested }}</td>
+      <table class="inventory-table">
+        <thead>
+          <tr>
+            <th>Material</th>
+            <th>Solicitado</th>
+            <th>Entregado</th>
+            <th>Devuelto</th>
+            <th>Estado</th>
+            <th>Notas</th>
+            <th>Operación</th>
+          </tr>
+        </thead>
 
-          <td>
-            <div class="input-mini">
-              <input type="number" name="quantity_delivered[]" value="{{ item.quantity_delivered }}" placeholder="0">
-            </div>
-          </td>
+        <tbody>
+          {% for item in ticket.items %}
+          <tr class="fade-in">
+            <td>
+              {{ item.material.name if item.material else ('ID ' ~ item.material_id) }}
+              <input type="hidden" name="item_id[]" value="{{ item.id }}">
+            </td>
 
-          <td>
-            <div class="input-mini">
-              <input type="number" name="quantity_returned[]" value="{{ item.quantity_returned }}" placeholder="0">
-            </div>
-          </td>
+            <td>{{ item.quantity_requested }}</td>
 
-          <td>
-            <span class="status-badge">{{ item.status|status_label }}</span>
-            <div class="missing-label" style="font-size:12px; color:#D32F2F; display:none;"></div>
-          </td>
+            <td>
+              <div class="input-mini">
+                <input type="number" name="quantity_delivered[]" value="{{ item.quantity_delivered }}" placeholder="0">
+              </div>
+            </td>
 
-          <td>
-            <input class="input-notes" name="notes[]" value="{{ item.notes or '' }}" placeholder="Notas del material">
-          </td>
+            <td>
+              <div class="input-mini">
+                <input type="number" name="quantity_returned[]" value="{{ item.quantity_returned }}" placeholder="0">
+              </div>
+            </td>
 
-          <td>
-            {% if ticket.status in ['OPEN', 'READY_FOR_PICKUP'] and item.quantity_requested > item.quantity_delivered %}
-              <button
-                type="submit"
-                formaction="{{ url_for('reservations.admin_ticket_item_mark_ready', item_id=item.id) }}"
-                formmethod="post"
-                class="btn btn-ghost"
-              >
-                Marcar listo
-              </button>
-            {% else %}
-              -
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            <td>
+              <span class="status-badge">{{ item.status|status_label }}</span>
+              <div class="missing-label" style="font-size:12px; color:#D32F2F; display:none;"></div>
+            </td>
 
-    <div style="padding:16px; display:flex; justify-content:space-between;">
-      <div id="debtWarning" style="display:none; padding:10px; background:#fff3cd; border-radius:8px;">
-        ⚠ Este ticket generará adeudos
+            <td>
+              <input class="input-notes" name="notes[]" value="{{ item.notes or '' }}" placeholder="Notas del material">
+            </td>
+
+            <td>
+              {% if ticket.status in ['OPEN', 'READY_FOR_PICKUP'] and item.quantity_requested > item.quantity_delivered %}
+                <button
+                  type="submit"
+                  formaction="{{ url_for('reservations.admin_ticket_item_mark_ready', item_id=item.id) }}"
+                  formmethod="post"
+                  class="btn btn-ghost"
+                >
+                  Marcar listo
+                </button>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div style="padding:16px; display:flex; justify-content:space-between;">
+        <div id="debtWarning" style="display:none; padding:10px; background:#fff3cd; border-radius:8px;">
+          ⚠ Este ticket generará adeudos
+        </div>
+
+        <button type="submit" class="btn btn-gold">Guardar todo</button>
       </div>
 
-      <button type="submit" class="btn btn-gold">Guardar todo</button>
-    </div>
+    </form>
 
-  </form>
-
-      <form id="closeTicketForm" method="post" action="{{ url_for('reservations.admin_ticket_close', ticket_id=ticket.id) }}" style="display:none;"></form>
-</div>
-</section>
-
-<section class="toolbar-card" style="margin-top: 20px;">
-  <div class="toolbar-actions">
-
-    {% if ticket.status in ['OPEN', 'READY_FOR_PICKUP', 'CLOSURE_REQUESTED'] %}
-    <button type="button" class="btn btn-gold" onclick="saveAndClose()">Guardar + Confirmar cierre</button>
-    {% endif %}
-
-    <a class="btn btn-ghost" href="{{ url_for('reservations.admin_approved') }}">Volver</a>
+        <form id="closeTicketForm" method="post" action="{{ url_for('reservations.admin_ticket_close', ticket_id=ticket.id) }}" style="display:none;"></form>
   </div>
-</section>
+  </section>
+
+  <section class="toolbar-card" style="margin-top: 20px;">
+    <div class="toolbar-actions">
+
+      {% if ticket.status in ['OPEN', 'READY_FOR_PICKUP', 'CLOSURE_REQUESTED'] %}
+      <button type="button" class="btn btn-gold" onclick="saveAndClose()">Guardar + Confirmar cierre</button>
+      {% endif %}
+
+      <a class="btn btn-ghost" href="{{ url_for('reservations.admin_approved') }}">Volver</a>
+    </div>
+  </section>
+</div>
 
 <script>
 function checkMissing() {

@@ -539,12 +539,18 @@
         "/debts/admin": "#debts-admin-list-container",
         "/debts/my": "#debts-my-list-container",
       };
+      const viewFragmentSelectorsByPrefix = [
+        ["/reservations/my/", "#ticket-my-container"],
+        ["/reservations/admin/tickets/", "#ticket-detail-container"],
+      ];
       let isRefreshingView = false;
       let refreshViewTimer = null;
 
       function currentViewFragmentSelector() {
         const pathname = (window.location && window.location.pathname) || "";
-        return viewFragmentSelectorsByPath[pathname] || null;
+        if (viewFragmentSelectorsByPath[pathname]) return viewFragmentSelectorsByPath[pathname];
+        const matchedPrefix = viewFragmentSelectorsByPrefix.find(([prefix]) => pathname.startsWith(prefix));
+        return matchedPrefix ? matchedPrefix[1] : null;
       }
 
       async function refreshCurrentViewFragment() {
