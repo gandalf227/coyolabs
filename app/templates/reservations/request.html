@@ -17,23 +17,7 @@
   margin-bottom: 12px;
 }
 
-#materialSearch {
-  width: 100%;
-  min-height: 54px;
-  padding: 0 16px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke);
-  background: rgba(255,255,255,0.48);
-  color: var(--text);
-  font-size: 0.96rem;
-}
-
-#materialSearch:focus {
-  outline: none;
-  border-color: rgba(199,159,51,0.35);
-  box-shadow: 0 0 0 4px rgba(199,159,51,0.08);
-  background: rgba(255,255,255,0.72);
-}
+#materialSearch { min-height: 54px; }
 
 .autocomplete-list {
   position: absolute;
@@ -247,7 +231,6 @@
       <div class="search-box">
         <i class="ph ph-user search-icon"></i>
         <input
-          class="form-control"
           type="text"
           value="{{ ((current_user.first_name or '') ~ ' ' ~ (current_user.last_name or ''))|trim or current_user.email }}"
           readonly
@@ -280,7 +263,7 @@
       {% else %}
         <div class="search-box">
           <i class="ph ph-book search-icon"></i>
-          <input class="form-control" type="text" name="subject" placeholder="Ejemplo: Programación Web" required>
+          <input type="text" name="subject" placeholder="Ejemplo: Programación Web" required>
         </div>
       {% endif %}
     </div>
@@ -289,7 +272,7 @@
       <label>Fecha de uso</label>
       <div class="search-box">
         <i class="ph ph-calendar search-icon"></i>
-        <input class="form-control" type="date" name="date" required>
+        <input type="date" name="date" required>
       </div>
     </div>
 
@@ -297,7 +280,7 @@
       <label>Hora de inicio</label>
       <div class="search-box">
         <i class="ph ph-clock search-icon"></i>
-        <input class="form-control" type="time" name="start_time" required>
+        <input type="time" name="start_time" required>
       </div>
     </div>
 
@@ -305,16 +288,13 @@
       <label>Hora de finalización</label>
       <div class="search-box">
         <i class="ph ph-clock-countdown search-icon"></i>
-        <input class="form-control" type="time" name="end_time" required>
+        <input type="time" name="end_time" required>
       </div>
     </div>
 
     <div class="toolbar-group" style="grid-column:1/-1;">
       <label>Motivo (opcional)</label>
-      <div class="search-box" style="height: auto; min-height: 110px; align-items:flex-start; padding-top: 14px;">
-        <i class="ph ph-note-pencil search-icon" style="margin-top:2px;"></i>
-        <textarea class="form-control" name="purpose" rows="3" placeholder="Objetivo de la práctica o actividad"></textarea>
-      </div>
+      <textarea class="form-control" name="purpose" rows="3" placeholder="Objetivo de la práctica o actividad"></textarea>
     </div>
 
     <div class="toolbar-group" style="grid-column:1/-1;">
@@ -328,7 +308,10 @@
       <h3 style="margin-top:10px;">Materiales</h3>
 
       <div class="material-search">
-        <input class="form-control" type="text" id="materialSearch" placeholder="Buscar material por nombre, código o ubicación">
+        <div class="search-box">
+          <i class="ph ph-magnifying-glass search-icon"></i>
+          <input type="text" id="materialSearch" placeholder="Buscar material por nombre, código o ubicación">
+        </div>
         <div id="autocompleteList" class="autocomplete-list"></div>
       </div>
 
