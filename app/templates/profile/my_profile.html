@@ -7,12 +7,14 @@
 <style>
 @media (max-width: 980px){
   .profile-phone-form,
+  .profile-admin-basic-form,
   .profile-filter-form,
   .profile-add-load-form{
     grid-template-columns: 1fr !important;
   }
 
   .profile-phone-form .toolbar-actions,
+  .profile-admin-basic-form .toolbar-actions,
   .profile-filter-form .toolbar-actions,
   .profile-add-load-form .toolbar-actions{
     width: 100%;
@@ -20,6 +22,7 @@
   }
 
   .profile-phone-form .toolbar-actions .btn,
+  .profile-admin-basic-form .toolbar-actions .btn,
   .profile-filter-form .toolbar-actions .btn,
   .profile-add-load-form .toolbar-actions .btn{
     width: 100%;
@@ -53,8 +56,28 @@
       <h3 style="margin-top:0;">Actualización de datos</h3>
       {% if is_admin_role(current_user.role) %}
         <p style="margin-top:0; color:var(--text-dim);">
-          Tu cuenta tiene privilegios administrativos ({{ current_user.role|role_label }}). No necesitas solicitar actualización de perfil.
+          Tu cuenta tiene privilegios administrativos ({{ current_user.role|role_label }}). Puedes actualizar directamente tu nombre y teléfono.
         </p>
+        <form method="post" action="{{ url_for('profile.update_basic_profile') }}" class="toolbar profile-admin-basic-form" style="grid-template-columns:1fr 1fr auto;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="toolbar-group">
+            <label>Nombre completo</label>
+            <div class="search-box">
+              <i class="ph ph-user search-icon"></i>
+              <input type="text" name="full_name" value="{{ current_user.full_name or '' }}" placeholder="Ej.: Nombre Apellido" required>
+            </div>
+          </div>
+          <div class="toolbar-group">
+            <label>Teléfono de contacto</label>
+            <div class="search-box">
+              <i class="ph ph-phone search-icon"></i>
+              <input type="text" name="phone" value="{{ current_user.phone or '' }}" placeholder="Ej.: 656-123-4567" required>
+            </div>
+          </div>
+          <div class="toolbar-actions" style="align-self:end;">
+            <button type="submit" class="btn btn-gold">Guardar datos</button>
+          </div>
+        </form>
       {% elif is_professor %}
         <p style="margin-top:0; color:var(--text-dim);">
           Como profesor, puedes actualizar directamente tu teléfono.
