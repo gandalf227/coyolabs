@@ -169,18 +169,88 @@ body.mode-register .shape.three{
   margin-bottom: 18px;
 }
 
-/* Flash */
-.flash{
+/* Auth notifications (alineadas al lenguaje visual global) */
+.auth-notification-stack{
   margin-top: 12px;
-  padding: 10px;
-  background: var(--danger-bg);
-  border-radius: 10px;
+  display: grid;
+  gap: 10px;
 }
-.flash ul{
-  list-style:none;
-  font-size:13px;
-  display:grid;
-  gap:6px;
+.notification{
+  pointer-events: auto;
+  position: relative;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(8, 18, 12, 0.78);
+  box-shadow: 0 14px 30px rgba(0,0,0,.25);
+  overflow: hidden;
+}
+.notification__progress{
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 3px;
+  width: 100%;
+}
+.notification__body{
+  display: grid;
+  grid-template-columns: 34px 1fr 22px;
+  gap: 10px;
+  align-items: start;
+  padding: 12px 12px 11px;
+}
+.notification__icon{
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
+}
+.notification__header{
+  font-size: .92rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.notification__text{
+  margin: 0;
+  font-size: .86rem;
+  line-height: 1.3;
+  color: rgba(255,255,255,0.85);
+}
+.notification__close{
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+.notification__close:hover{
+  background: rgba(255,255,255,.12);
+  color: #fff;
+}
+.notification--success .notification__icon,
+.notification--success .notification__progress{
+  background: #1f9d62;
+}
+.notification--error .notification__icon,
+.notification--error .notification__progress{
+  background: #cf4d4d;
+}
+.notification--warning .notification__icon,
+.notification--warning .notification__progress{
+  background: #d09a19;
+}
+.notification--info .notification__icon,
+.notification--info .notification__progress{
+  background: #3e7edc;
 }
 
 /* Forms */

@@ -3,6 +3,39 @@
 {% block title %}Administración de usuarios{% endblock %}
 
 {% block content %}
+<style>
+.users-admin-edit-form{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.users-admin-edit-form .search-box,
+.users-admin-edit-form .select-wrap,
+.users-admin-edit-form .btn{
+  min-height: 54px;
+}
+
+.users-admin-quick-actions{
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.users-admin-icon-btn{
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 12px;
+}
+
+.users-admin-icon-btn i{
+  font-size: 1.05rem;
+}
+</style>
+
 <header class="topbar">
   <div class="topbar-left">
     <p class="page-kicker">Administración</p>
@@ -49,7 +82,10 @@
     </div>
 
     <div class="toolbar-actions" style="align-self:end;">
-      <button type="submit" class="btn btn-ghost">Aplicar</button>
+      <button type="submit" class="btn btn-ghost" title="Aplicar filtros de búsqueda y rol">
+        <i class="ph ph-funnel-simple"></i>
+        <span>Aplicar</span>
+      </button>
     </div>
   </form>
 </section>
@@ -78,11 +114,11 @@
           <td>{{ user.full_name or '-' }}</td>
           <td>{{ user.matricula or '-' }}</td>
           <td>{{ user.phone or '-' }}</td>
-          <td><span class="status-badge {% if user.role in ['ADMIN','SUPERADMIN'] %}status-warn{% else %}status-ok{% endif %}">{{ user.role|role_label }}</span></td>
-          <td><span class="status-badge {% if user.is_active %}status-ok{% else %}status-bad{% endif %}">{{ 'Sí' if user.is_active else 'No' }}</span></td>
-          <td><span class="status-badge {% if user.is_banned %}status-bad{% else %}status-ok{% endif %}">{{ 'Sí' if user.is_banned else 'No' }}</span></td>
+          <td><span class="status-badge {% if user.role in ['ADMIN','SUPERADMIN'] %}status-warn{% else %}status-ok{% endif %}" title="Rol actual">{{ user.role|role_label }}</span></td>
+          <td><span class="status-badge {% if user.is_active %}status-ok{% else %}status-bad{% endif %}" title="Estado de activación">{{ 'Sí' if user.is_active else 'No' }}</span></td>
+          <td><span class="status-badge {% if user.is_banned %}status-bad{% else %}status-ok{% endif %}" title="Estado de bloqueo">{{ 'Sí' if user.is_banned else 'No' }}</span></td>
           <td>
-            <form method="post" action="{{ url_for('users.admin_update_user', user_id=user.id) }}" style="display:grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap:8px;">
+            <form method="post" action="{{ url_for('users.admin_update_user', user_id=user.id) }}" class="users-admin-edit-form">
               <div class="search-box">
                 <i class="ph ph-envelope search-icon"></i>
                 <input type="email" name="email" value="{{ user.email }}" required>
@@ -129,16 +165,19 @@
                 <i class="ph ph-caret-down select-arrow"></i>
               </div>
 
-              <button type="submit" class="btn btn-gold">Guardar cambios</button>
+              <button type="submit" class="btn btn-gold" title="Guardar edición de este usuario">
+                <i class="ph ph-floppy-disk"></i>
+                <span>Guardar</span>
+              </button>
             </form>
 
-            <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
-              <form method="post" action="{{ url_for('users.admin_enable_user', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Activar</button></form>
-              <form method="post" action="{{ url_for('users.admin_disable_user', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Desactivar</button></form>
-              <form method="post" action="{{ url_for('users.admin_unban_user', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Desbloquear</button></form>
-              <form method="post" action="{{ url_for('users.admin_ban_user', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Bloquear</button></form>
+            <div class="users-admin-quick-actions">
+              <form method="post" action="{{ url_for('users.admin_enable_user', user_id=user.id) }}"><button class="btn btn-ghost users-admin-icon-btn" type="submit" title="Activar usuario" aria-label="Activar usuario"><i class="ph ph-check-circle"></i></button></form>
+              <form method="post" action="{{ url_for('users.admin_disable_user', user_id=user.id) }}"><button class="btn btn-ghost users-admin-icon-btn" type="submit" title="Desactivar usuario" aria-label="Desactivar usuario"><i class="ph ph-x-circle"></i></button></form>
+              <form method="post" action="{{ url_for('users.admin_unban_user', user_id=user.id) }}"><button class="btn btn-ghost users-admin-icon-btn" type="submit" title="Desbloquear usuario" aria-label="Desbloquear usuario"><i class="ph ph-lock-open"></i></button></form>
+              <form method="post" action="{{ url_for('users.admin_ban_user', user_id=user.id) }}"><button class="btn btn-ghost users-admin-icon-btn" type="submit" title="Bloquear usuario" aria-label="Bloquear usuario"><i class="ph ph-prohibit"></i></button></form>
               {% if is_superadmin and user.id != current_user.id and user.role != 'SUPERADMIN' %}
-              <form method="post" action="{{ url_for('users.superadmin_soft_delete_admin', user_id=user.id) }}"><button class="btn btn-ghost" type="submit">Eliminar administrador</button></form>
+              <form method="post" action="{{ url_for('users.superadmin_soft_delete_admin', user_id=user.id) }}"><button class="btn btn-ghost users-admin-icon-btn" type="submit" title="Eliminar administrador" aria-label="Eliminar administrador"><i class="ph ph-trash"></i></button></form>
               {% endif %}
             </div>
           </td>

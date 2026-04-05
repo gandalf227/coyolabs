@@ -62,71 +62,73 @@
   </div>
 </section>
 
-{% if debts %}
-<section class="table-card">
-  <div class="table-wrap">
-    <table class="inventory-table" id="debtTable" style="min-width: 1100px;">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Usuario</th>
-          <th>Estado</th>
-          <th>Material</th>
-          <th>Razón</th>
-          <th>Fecha</th>
-          <th>Acción</th>
-        </tr>
-      </thead>
+<div id="debts-admin-list-container">
+  {% if debts %}
+  <section class="table-card">
+    <div class="table-wrap">
+      <table class="inventory-table" id="debtTable" style="min-width: 1100px;">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Usuario</th>
+            <th>Estado</th>
+            <th>Material</th>
+            <th>Razón</th>
+            <th>Fecha</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
 
-      <tbody>
-      {% for d in debts %}
-        <tr data-status="{{ d.status|status_label }}">
-          <td>{{ d.id }}</td>
+        <tbody>
+        {% for d in debts %}
+          <tr data-status="{{ d.status|status_label }}">
+            <td>{{ d.id }}</td>
 
-          <td>
-            <strong>{{ d.user.email }}</strong>
-          </td>
+            <td>
+              <strong>{{ d.user.email }}</strong>
+            </td>
 
-          <td>
-            <span class="status-badge {% if d.status == 'OPEN' %}status-bad{% else %}status-ok{% endif %}">
-              {{ d.status|status_label }}
-            </span>
-          </td>
+            <td>
+              <span class="status-badge {% if d.status == 'OPEN' %}status-bad{% else %}status-ok{% endif %}">
+                {{ d.status|status_label }}
+              </span>
+            </td>
 
-          <td>
-            {% if d.material %}
-              {{ d.material.name }} ({{ d.material.id }})
-            {% else %}
-              -
-            {% endif %}
-          </td>
+            <td>
+              {% if d.material %}
+                {{ d.material.name }} ({{ d.material.id }})
+              {% else %}
+                -
+              {% endif %}
+            </td>
 
-          <td>{{ d.reason or '-' }}</td>
+            <td>{{ d.reason or '-' }}</td>
 
-          <td>{{ d.created_at }}</td>
+            <td>{{ d.created_at }}</td>
 
-          <td>
-            {% if d.status == "OPEN" %}
-              <form method="post" action="{{ url_for('debts.admin_close', debt_id=d.id) }}">
-                <button type="submit" class="btn btn-gold">Marcar pagado</button>
-              </form>
-            {% else %}
-              <span class="status-badge status-neutral">Pagado</span>
-            {% endif %}
-          </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
-{% else %}
-<section class="empty-state">
-  <i class="ph ph-warning empty-icon"></i>
-  <h3>Sin adeudos</h3>
-  <p>No hay adeudos registrados.</p>
-</section>
-{% endif %}
+            <td>
+              {% if d.status == "OPEN" %}
+                <form method="post" action="{{ url_for('debts.admin_close', debt_id=d.id) }}">
+                  <button type="submit" class="btn btn-gold">Marcar pagado</button>
+                </form>
+              {% else %}
+                <span class="status-badge status-neutral">Pagado</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% else %}
+  <section class="empty-state">
+    <i class="ph ph-warning empty-icon"></i>
+    <h3>Sin adeudos</h3>
+    <p>No hay adeudos registrados.</p>
+  </section>
+  {% endif %}
+</div>
 
 <!-- 🔥 SCRIPT FILTRO -->
 <script>

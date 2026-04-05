@@ -217,7 +217,7 @@
           <section class="notification-center__panel">
             <header class="notification-center__header">
               <strong>Notificaciones</strong>
-              <a href="{{ url_for('notifications.list_notifications') }}" class="btn btn-ghost" style="height:30px; border-radius:8px;">Ver todo</a>
+              <a href="{{ url_for('notifications.list_notifications') }}" class="btn btn-ghost">Ver todo</a>
             </header>
             <div id="notificationPanelList" class="notification-center__list"></div>
           </section>
@@ -300,7 +300,7 @@
               <span>Objetos perdidos</span>
             </a>
             <form method="post" action="{{ url_for('auth.logout') }}" style="margin:0;">
-              <button type="submit" class="sidebar-logout" style="background:none;border:none;cursor:pointer;">
+              <button type="submit" class="btn btn-ghost sidebar-logout">
                 <i class="ph ph-sign-out"></i>
                 <span>Cerrar sesión</span>
               </button>
@@ -475,8 +475,8 @@
             <div class="notification-center-item__meta">
               <span>${n.created_at_label || ""}</span>
               <span style="display:flex; gap:6px;">
-                ${n.link ? `<a href="${n.link}" class="btn btn-ghost" style="height:28px;border-radius:8px;">Abrir</a>` : ""}
-                ${!n.is_read ? `<button type="button" class="btn btn-ghost notif-mark-read" data-id="${n.id}" style="height:28px;border-radius:8px;">Marcar leída</button>` : ""}
+                ${n.link ? `<a href="${n.link}" class="btn btn-ghost">Abrir</a>` : ""}
+                ${!n.is_read ? `<button type="button" class="btn btn-ghost notif-mark-read" data-id="${n.id}">Marcar leída</button>` : ""}
               </span>
             </div>
           `;
@@ -532,6 +532,61 @@
         return "info";
       }
 
+      const viewFragmentSelectorsByPath = {
+        "/reservations/admin": "#reservations-admin-queue-container",
+        "/reservations/admin/approved": "#reservations-admin-approved-container",
+        "/reservations/my": "#reservations-my-list-container",
+        "/debts/admin": "#debts-admin-list-container",
+        "/debts/my": "#debts-my-list-container",
+      };
+      let isRefreshingView = false;
+      let refreshViewTimer = null;
+
+      function currentViewFragmentSelector() {
+        const pathname = (window.location && window.location.pathname) || "";
+        return viewFragmentSelectorsByPath[pathname] || null;
+      }
+
+      async function refreshCurrentViewFragment() {
+        const selector = currentViewFragmentSelector();
+        if (!selector || isRefreshingView) return;
+
+        const currentFragment = document.querySelector(selector);
+        if (!currentFragment) return;
+
+        isRefreshingView = true;
+        try {
+          const resp = await fetch(window.location.href, {
+            credentials: "same-origin",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+          });
+          if (!resp.ok) {
+            console.warn("Partial refresh failed: response not OK", resp.status);
+            return;
+          }
+
+          const html = await resp.text();
+          const parser = new DOMParser();
+          const nextDoc = parser.parseFromString(html, "text/html");
+          const nextFragment = nextDoc.querySelector(selector);
+          if (!nextFragment) return;
+
+          currentFragment.replaceWith(nextFragment);
+        } catch (err) {
+          console.warn("Partial refresh failed", err);
+        } finally {
+          isRefreshingView = false;
+        }
+      }
+
+      function scheduleCurrentViewFragmentRefresh() {
+        if (!currentViewFragmentSelector()) return;
+        if (refreshViewTimer) clearTimeout(refreshViewTimer);
+        refreshViewTimer = setTimeout(() => {
+          refreshCurrentViewFragment();
+        }, 180);
+      }
+
       function connectSSE() {
         const source = new EventSource("{{ url_for('notifications.stream_notifications') }}");
         source.addEventListener("notification_created", (event) => {
@@ -544,6 +599,7 @@
             message: payload.message || "",
             type: inferNotificationType(payload),
           });
+          scheduleCurrentViewFragmentRefresh();
         });
         source.addEventListener("error", () => {
           source.close();

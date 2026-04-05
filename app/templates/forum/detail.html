@@ -31,13 +31,18 @@
       {% if post.is_anonymous %}<span class="status-badge status-warn">ANÓNIMO</span>{% endif %}
     </p>
   </div>
-  {% if is_admin %}
-  <form method="post" action="{{ url_for('forum.toggle_post_hidden', post_id=post.id) }}">
-    <button type="submit" class="btn {% if post.is_hidden %}btn-gold{% else %}btn-ghost{% endif %}">
-      {% if post.is_hidden %}Mostrar publicación{% else %}Ocultar publicación{% endif %}
-    </button>
-  </form>
-  {% endif %}
+  <div class="topbar-actions">
+    {% if can_edit_post %}
+      <a class="btn btn-ghost" href="{{ url_for('forum.edit_post', post_id=post.id) }}">Editar publicación</a>
+    {% endif %}
+    {% if is_admin %}
+    <form method="post" action="{{ url_for('forum.toggle_post_hidden', post_id=post.id) }}">
+      <button type="submit" class="btn {% if post.is_hidden %}btn-gold{% else %}btn-ghost{% endif %}">
+        {% if post.is_hidden %}Mostrar publicación{% else %}Ocultar publicación{% endif %}
+      </button>
+    </form>
+    {% endif %}
+  </div>
 </header>
 
 <section class="table-card" style="white-space:pre-wrap;">{{ post.content }}</section>
@@ -46,10 +51,6 @@
   <h3 style="margin-top:0;">Responder</h3>
   <form method="post" class="forum-comment-form">
     <textarea class="form-control" name="content" rows="4" required placeholder="Escribe tu comentario..."></textarea>
-    <label class="form-check">
-      <input type="checkbox" name="is_anonymous" value="1">
-      Comentar como anónimo
-    </label>
     <div class="forum-comment-actions">
       <button type="submit" class="btn btn-gold">Comentar</button>
     </div>
