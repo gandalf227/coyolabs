@@ -484,6 +484,48 @@ def update_phone():
     return redirect(url_for("profile.my_profile"))
 
 
+@profile_bp.route("/password/change", methods=["POST"])
+@login_required
+def change_password():
+    current_password = request.form.get("current_password") or ""
+    new_password = request.form.get("new_password") or ""
+    confirm_new_password = request.form.get("confirm_new_password") or ""
+
+    if not current_password or not new_password or not confirm_new_password:
+        flash("Completa todos los campos para cambiar tu contraseña.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    if not current_user.check_password(current_password):
+        flash("La contraseña actual es incorrecta.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    if new_password != confirm_new_password:
+        flash("La nueva contraseña y su confirmación no coinciden.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    if current_password == new_password:
+        flash("La nueva contraseña debe ser distinta a la actual.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    if len(new_password) < 6:
+        flash("La nueva contraseña debe tener al menos 6 caracteres.", "error")
+        return redirect(url_for("profile.my_profile"))
+
+    current_user.set_password(new_password)
+    db.session.commit()
+    log_event(
+        module="PROFILE",
+        action="PASSWORD_CHANGED",
+        user_id=current_user.id,
+        entity_label=f"User #{current_user.id}",
+        description="Cambio de contraseña realizado por el usuario",
+        metadata={"self_service": True},
+    )
+    db.session.commit()
+    flash("Contraseña actualizada correctamente.", "success")
+    return redirect(url_for("profile.my_profile"))
+
+
 @profile_bp.route("/update-basic", methods=["POST"])
 @login_required
 def update_basic_profile():

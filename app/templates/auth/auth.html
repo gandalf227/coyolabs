@@ -73,6 +73,24 @@
             </div>
           </div>
 
+          <div class="switch" style="justify-content:flex-end; margin-top:-4px;">
+            <button type="button" class="link" id="toggleForgotPassword">¿Olvidaste tu contraseña?</button>
+          </div>
+
+          <div class="change-email-panel" id="forgotPasswordPanel" hidden>
+            <label for="forgot_email_input">Correo institucional</label>
+            <div class="field">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
+              </svg>
+              <input id="forgot_email_input" type="email" name="email" form="forgotPasswordForm" placeholder="tu.correo@utpn.edu.mx" required>
+            </div>
+            <form id="forgotPasswordForm" method="post" action="{{ url_for('auth.forgot_password') }}" style="margin-top:8px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-secondary">Enviar enlace de recuperación</button>
+            </form>
+          </div>
+
           <button type="submit" class="btn">Entrar</button>
 
           <div class="switch">

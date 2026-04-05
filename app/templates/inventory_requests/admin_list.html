@@ -3,6 +3,13 @@
 {% block title %}Pedidos diarios (Administración){% endblock %}
 
 {% block content %}
+<style>
+@media (max-width: 768px){
+  .inventory-admin-list-actions .btn{
+    width: 100%;
+  }
+}
+</style>
 <header class="topbar">
   <div class="topbar-left">
     <p class="page-kicker">Inventario</p>
@@ -10,6 +17,12 @@
     <p class="page-subtitle">Pedidos consolidados por usuario y fecha.</p>
   </div>
 </header>
+
+<section class="toolbar-card">
+  <div class="toolbar-actions inventory-admin-list-actions">
+    <a href="{{ url_for('inventory_requests.my_daily_request') }}" class="btn btn-ghost">Volver</a>
+  </div>
+</section>
 
 {% if tickets|length == 0 %}
 <section class="empty-state">

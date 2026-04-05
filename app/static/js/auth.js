@@ -15,6 +15,8 @@
   const pwHint = document.getElementById("pwHint");
   const registerForm = document.getElementById("registerForm");
   const verifyEmailBox = document.getElementById("verifyEmailBox");
+  const toggleForgotPassword = document.getElementById("toggleForgotPassword");
+  const forgotPasswordPanel = document.getElementById("forgotPasswordPanel");
   const toggleChangeEmail = document.getElementById("toggleChangeEmail");
   const changeEmailPanel = document.getElementById("changeEmailPanel");
   const changeEmailInput = document.getElementById("change_email_input");
@@ -127,6 +129,17 @@
       changeEmailInput?.focus();
     } else {
       changeEmailPanel.setAttribute("hidden", "");
+    }
+  });
+
+  toggleForgotPassword?.addEventListener("click", () => {
+    if (!forgotPasswordPanel) return;
+    const isHidden = forgotPasswordPanel.hasAttribute("hidden");
+    if (isHidden) {
+      forgotPasswordPanel.removeAttribute("hidden");
+      forgotPasswordPanel.querySelector("input")?.focus();
+    } else {
+      forgotPasswordPanel.setAttribute("hidden", "");
     }
   });
 
