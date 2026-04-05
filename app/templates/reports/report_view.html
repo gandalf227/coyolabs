@@ -21,6 +21,37 @@
     flex-wrap: wrap;
     gap: 10px;
   }
+  .report-view-filters{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin-top: 4px;
+  }
+  .report-view-filters .toolbar-group{
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .report-columns-card{
+    margin-top: 12px;
+    border: 1px dashed var(--stroke-strong);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.2);
+    padding: 12px;
+  }
+  .report-columns-list{
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+  }
+  .report-columns-list label{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .9rem;
+    color: var(--text-soft);
+  }
 
   .report-view-meta{
     display: flex;
@@ -153,6 +184,45 @@
       </a>
     </div>
   </header>
+
+  <section class="toolbar-card">
+    <form method="get" action="{{ request.path }}">
+      {% if filter_fields %}
+      <div class="report-view-filters">
+        {% for field in filter_fields %}
+          <div class="toolbar-group">
+            <label for="filter_{{ field.name }}">{{ field.label }}</label>
+            <input
+              class="form-control"
+              id="filter_{{ field.name }}"
+              type="{{ field.type or 'text' }}"
+              name="{{ field.name }}"
+              value="{{ field.value or '' }}"
+              {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}
+            >
+          </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <details class="report-columns-card" open>
+        <summary><strong>Columnas visibles y exportables</strong></summary>
+        <div class="report-columns-list">
+          {% for col in all_columns %}
+            <label>
+              <input type="checkbox" name="cols" value="{{ col }}" {% if col in selected_columns %}checked{% endif %}>
+              <span>{{ col }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </details>
+
+      <div class="toolbar-actions" style="margin-top:12px;">
+        <button type="submit" class="btn btn-gold">Aplicar filtros</button>
+        <a class="btn btn-ghost" href="{{ request.path }}">Limpiar</a>
+      </div>
+    </form>
+  </section>
 
   <div class="report-view-meta">
     <span>{{ rows|length }} registros</span>
