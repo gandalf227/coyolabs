@@ -6,8 +6,13 @@ from flask_login import current_user, login_required, login_user, logout_user
 
 from app.extensions import db
 from app.models.user import User
-from app.services.email_service import send_verification_email
-from app.services.token_service import confirm_verify_token, generate_verify_token
+from app.services.email_service import send_password_reset_email, send_verification_email
+from app.services.token_service import (
+    confirm_password_reset_token,
+    confirm_verify_token,
+    generate_password_reset_token,
+    generate_verify_token,
+)
 from app.utils.landing import resolve_landing_endpoint
 from app.utils.roles import ROLE_PENDING, infer_role_from_email
 
@@ -280,6 +285,76 @@ def change_email():
 def logout():
     logout_user()
     return redirect(url_for("auth.auth_page", mode="login"))
+
+
+@auth_bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for(resolve_landing_endpoint(current_user.role)))
+
+    email = (request.form.get("email") or "").strip().lower()
+    generic_message = "Si el correo está registrado, enviaremos un enlace de recuperación."
+
+    user = User.query.filter_by(email=email).first() if email else None
+    if user and user.is_active and not user.is_banned:
+        token = generate_password_reset_token(user.email, user.password_hash)
+        base_url = current_app.config.get("APP_BASE_URL", "http://127.0.0.1:5000")
+        reset_link = f"{base_url}/auth/reset-password/{token}"
+        try:
+            send_password_reset_email(user.email, reset_link)
+        except Exception as e:
+            print("=== ERROR ENVIANDO EMAIL RESET PASSWORD ===")
+            print(e)
+            print("=== FIN ERROR EMAIL RESET PASSWORD ===")
+
+    flash(generic_message)
+    return redirect(url_for("auth.auth_page", mode="login"))
+
+
+@auth_bp.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token: str):
+    token_data = confirm_password_reset_token(token, max_age_seconds=3600)
+    if not token_data:
+        flash("El enlace de recuperación es inválido o expiró.")
+        return redirect(url_for("auth.auth_page", mode="login"))
+
+    email = str(token_data.get("email") or "").strip().lower()
+    password_fingerprint = str(token_data.get("password_fingerprint") or "")
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.is_active or user.is_banned:
+        flash("El enlace de recuperación es inválido o expiró.")
+        return redirect(url_for("auth.auth_page", mode="login"))
+
+    if password_fingerprint != user.password_hash:
+        flash("El enlace de recuperación es inválido o expiró.")
+        return redirect(url_for("auth.auth_page", mode="login"))
+
+    if request.method == "POST":
+        password = request.form.get("password") or ""
+        confirm_password = request.form.get("confirm_password") or ""
+
+        if not password or not confirm_password:
+            flash("Debes completar ambos campos.")
+            return redirect(url_for("auth.reset_password", token=token))
+
+        if password != confirm_password:
+            flash("Las contraseñas no coinciden.")
+            return redirect(url_for("auth.reset_password", token=token))
+
+        if len(password) < 6:
+            flash("La contraseña debe tener al menos 6 caracteres.")
+            return redirect(url_for("auth.reset_password", token=token))
+
+        if user.check_password(password):
+            flash("La nueva contraseña debe ser distinta a la actual.")
+            return redirect(url_for("auth.reset_password", token=token))
+
+        user.set_password(password)
+        db.session.commit()
+        flash("Tu contraseña se actualizó correctamente. Ya puedes iniciar sesión.")
+        return redirect(url_for("auth.auth_page", mode="login"))
+
+    return render_template("auth/reset_password.html", token=token)
 
 
 @auth_bp.route("/me", methods=["GET"])

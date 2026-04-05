@@ -26,3 +26,31 @@ def confirm_verify_token(token: str, max_age_seconds: int = 3600) -> dict[str, s
         }
     except (SignatureExpired, BadSignature):
         return None
+
+
+def generate_password_reset_token(email: str, password_fingerprint: str) -> str:
+    s = _serializer()
+    return s.dumps(
+        {
+            "email": email,
+            "password_fingerprint": password_fingerprint,
+            "purpose": "password_reset",
+        }
+    )
+
+
+def confirm_password_reset_token(token: str, max_age_seconds: int = 3600) -> dict[str, str] | None:
+    s = _serializer()
+    try:
+        data = s.loads(token, max_age=max_age_seconds)
+        email = str(data.get("email") or "").strip().lower()
+        password_fingerprint = str(data.get("password_fingerprint") or "")
+        purpose = str(data.get("purpose") or "")
+        if not email or not password_fingerprint or purpose != "password_reset":
+            return None
+        return {
+            "email": email,
+            "password_fingerprint": password_fingerprint,
+        }
+    except (SignatureExpired, BadSignature):
+        return None
