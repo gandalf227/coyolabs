@@ -3,6 +3,12 @@
 {% block title %}Notificaciones{% endblock %}
 
 {% block content %}
+<style>
+  .notifications-row-btn {
+    width: 100%;
+    text-align: left;
+  }
+</style>
 <header class="topbar">
   <div class="topbar-left">
     <p class="page-kicker">Sistema</p>
@@ -19,7 +25,7 @@
       action="{{ url_for('notifications.mark_read', notif_id=n.id) }}"
       class="toolbar-card"
       style = "margin-bottom:0; {% if not n.is_read %}border:1px solid rgba(199,159,51,0.35);{% endif %}">
-      <button type="submit" style="all:unset; display:block; width:100%; cursor:pointer;">
+      <button type="submit" class="btn btn-ghost notifications-row-btn">
       <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;">
         <div>
           <div style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">

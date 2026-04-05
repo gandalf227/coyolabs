@@ -2,6 +2,27 @@
 {% set crumbs = [("Inicio", url_for('root_home')), ("Reservas admin", url_for('reservations.admin_queue'))] %}
 {% block title %}Reservas pendientes (Administración){% endblock %}
 {% block content %}
+<style>
+.reservation-admin-action-form {
+  display: flex;
+  gap: 8px;
+}
+
+.reservation-admin-action-form + .reservation-admin-action-form {
+  margin-top: 8px;
+}
+
+.reservation-admin-action-form .form-control {
+  min-height: 54px;
+  border-radius: 16px;
+}
+
+.reservation-admin-action-form .btn {
+  min-height: 54px;
+  border-radius: 16px;
+}
+</style>
+
 <header class="topbar">
   <div class="topbar-left">
     <p class="page-kicker">Reservaciones</p>
@@ -74,14 +95,14 @@
           </td>
 
           <td>
-            <form method="post" action="{{ url_for('reservations.admin_approve', res_id=r.id) }}" style="display:flex; gap:8px; margin-bottom:8px;">
-              <input type="text" name="admin_note" placeholder="Nota administrativa (opcional)" class="form-control" style="min-height:38px; border-radius:10px;">
-              <button type="submit" class="btn btn-gold" style="height:38px; border-radius:10px;">Aprobar</button>
+            <form method="post" action="{{ url_for('reservations.admin_approve', res_id=r.id) }}" class="reservation-admin-action-form">
+              <input type="text" name="admin_note" placeholder="Nota administrativa (opcional)" class="form-control">
+              <button type="submit" class="btn btn-gold">Aprobar</button>
             </form>
 
-            <form method="post" action="{{ url_for('reservations.admin_reject', res_id=r.id) }}" style="display:flex; gap:8px;">
-              <input type="text" name="admin_note" placeholder="Motivo del rechazo (opcional)" class="form-control" style="min-height:38px; border-radius:10px;">
-              <button type="submit" class="btn btn-ghost" style="height:38px; border-radius:10px;">Rechazar</button>
+            <form method="post" action="{{ url_for('reservations.admin_reject', res_id=r.id) }}" class="reservation-admin-action-form">
+              <input type="text" name="admin_note" placeholder="Motivo del rechazo (opcional)" class="form-control">
+              <button type="submit" class="btn btn-ghost">Rechazar</button>
             </form>
           </td>
         </tr>

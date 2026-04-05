@@ -529,6 +529,11 @@ def change_password():
 @profile_bp.route("/update-basic", methods=["POST"])
 @login_required
 def update_basic_profile():
+    normalized_role = normalize_role(current_user.role)
+    if normalized_role not in {"ADMIN", "SUPERADMIN"}:
+        flash("Solo cuentas ADMIN/SUPERADMIN pueden editar estos datos directamente.", "error")
+        return redirect(url_for("profile.my_profile"))
+
     full_name = _normalize_full_name(request.form.get("full_name"))
     phone, phone_error = normalize_and_validate_phone(request.form.get("phone"))
 

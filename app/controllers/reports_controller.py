@@ -1,7 +1,11 @@
 import csv
 from io import StringIO, BytesIO
-from flask import Blueprint, Response, render_template, request
+from urllib.parse import urlencode
+from flask import Blueprint, Response, render_template, request, url_for
 from sqlalchemy import func
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment
+from openpyxl.utils import get_column_letter
 from app.models.lab import Lab
 from app.models.material import Material
 from app.models.debt import Debt
@@ -36,10 +40,95 @@ def csv_response(filename: str, headers: list[str], rows: list[list]):
     )
 
 
-def build_inventory_rows(lab_id=None):
+def excel_response(filename: str, headers: list[str], rows: list[list]):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Reporte"
+
+    ws.append(headers)
+    for row in rows:
+        ws.append(row)
+
+    header_font = Font(bold=True)
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    body_alignment = Alignment(vertical="top", wrap_text=True)
+
+    for col_idx, _ in enumerate(headers, start=1):
+        header_cell = ws.cell(row=1, column=col_idx)
+        header_cell.font = header_font
+        header_cell.alignment = header_alignment
+
+    max_widths = [len(str(h)) if h is not None else 0 for h in headers]
+    for row_idx, row in enumerate(rows, start=2):
+        for col_idx, value in enumerate(row, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.alignment = body_alignment
+            text_value = "" if value is None else str(value)
+            if len(text_value) > max_widths[col_idx - 1]:
+                max_widths[col_idx - 1] = len(text_value)
+
+    for col_idx, width in enumerate(max_widths, start=1):
+        adjusted = max(12, min(width + 2, 60))
+        ws.column_dimensions[get_column_letter(col_idx)].width = adjusted
+
+    bio = BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+
+    return Response(
+        bio.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def parse_selected_columns(headers: list[str]) -> list[str]:
+    selected = request.args.getlist("cols")
+    if not selected:
+        raw = (request.args.get("cols") or "").strip()
+        if raw:
+            selected = [part.strip() for part in raw.split(",") if part.strip()]
+    if not selected:
+        return headers
+    allowed = set(headers)
+    normalized = [col for col in selected if col in allowed]
+    return normalized or headers
+
+
+def project_rows(headers: list[str], rows: list[list], selected_columns: list[str]) -> tuple[list[str], list[list]]:
+    index_by_name = {name: idx for idx, name in enumerate(headers)}
+    projected_headers = [name for name in selected_columns if name in index_by_name]
+    if not projected_headers:
+        return headers, rows
+
+    projected_rows = []
+    for row in rows:
+        projected_rows.append([row[index_by_name[name]] for name in projected_headers])
+    return projected_headers, projected_rows
+
+
+def build_download_url(endpoint: str) -> str:
+    base = request.url_root.rstrip("/") + url_for(endpoint)
+    pairs = []
+    for key in request.args.keys():
+        for value in request.args.getlist(key):
+            pairs.append((key, value))
+    query = urlencode(pairs, doseq=True)
+    return f"{base}?{query}" if query else base
+
+
+def build_inventory_rows(lab_id=None, status=None, search=None):
     q = Material.query
     if lab_id:
         q = q.filter(Material.lab_id == lab_id)
+    if status:
+        q = q.filter(Material.status == status)
+    if search:
+        q = q.filter(
+            (Material.name.ilike(f"%{search}%"))
+            | (Material.code.ilike(f"%{search}%"))
+            | (Material.location.ilike(f"%{search}%"))
+        )
 
     items = q.order_by(Material.lab_id, Material.location, Material.name).all()
 
@@ -63,8 +152,13 @@ def build_inventory_rows(lab_id=None):
     return headers, rows
 
 
-def build_debts_rows():
-    items = Debt.query.order_by(Debt.created_at.desc()).all()
+def build_debts_rows(status=None, user_id=None):
+    q = Debt.query
+    if status:
+        q = q.filter(Debt.status == status)
+    if user_id:
+        q = q.filter(Debt.user_id == user_id)
+    items = q.order_by(Debt.created_at.desc()).all()
     headers = ["id", "user_id", "material_id", "status", "reason", "amount", "created_at", "closed_at"]
     rows = []
     for d in items:
@@ -74,8 +168,24 @@ def build_debts_rows():
     return headers, rows
 
 
-def build_logbook_rows():
-    items = LogbookEvent.query.order_by(LogbookEvent.created_at.desc()).all()
+def build_logbook_rows(action=None, module=None, user_id=None, material_id=None, description=None, date_from=None, date_to=None):
+    q = LogbookEvent.query
+    if action:
+        q = q.filter(LogbookEvent.action.ilike(f"%{action}%"))
+    if module:
+        q = q.filter(LogbookEvent.module.ilike(f"%{module}%"))
+    if user_id:
+        q = q.filter(LogbookEvent.user_id == user_id)
+    if material_id:
+        q = q.filter(LogbookEvent.material_id == material_id)
+    if description:
+        q = q.filter(LogbookEvent.description.ilike(f"%{description}%"))
+    if date_from:
+        q = q.filter(func.date(LogbookEvent.created_at) >= date_from)
+    if date_to:
+        q = q.filter(func.date(LogbookEvent.created_at) <= date_to)
+
+    items = q.order_by(LogbookEvent.created_at.desc()).all()
     headers = ["id", "user_id", "material_id", "module", "entity_label", "action", "description", "metadata_json", "created_at"]
     rows = []
     for e in items:
@@ -85,8 +195,20 @@ def build_logbook_rows():
     return headers, rows
 
 
-def build_reservations_rows():
-    items = Reservation.query.order_by(Reservation.created_at.desc()).all()
+def build_reservations_rows(status=None, room=None, user_id=None, date_from=None, date_to=None):
+    q = Reservation.query
+    if status:
+        q = q.filter(Reservation.status == status)
+    if room:
+        q = q.filter(Reservation.room.ilike(f"%{room}%"))
+    if user_id:
+        q = q.filter(Reservation.user_id == user_id)
+    if date_from:
+        q = q.filter(Reservation.date >= date_from)
+    if date_to:
+        q = q.filter(Reservation.date <= date_to)
+
+    items = q.order_by(Reservation.created_at.desc()).all()
     headers = [
         "id", "user_id", "room", "date", "start_time", "end_time", "status",
         "group_name", "teacher_name", "subject", "signed",
@@ -134,15 +256,30 @@ def build_software_rows():
     return headers, rows
 
 
-def render_report_view(report_title, headers, rows, download_url, report_description=None, extra_meta=None):
+def render_report_view(
+    report_title,
+    headers,
+    rows,
+    download_url,
+    report_description=None,
+    extra_meta=None,
+    filter_fields=None,
+    selected_columns=None,
+    all_columns=None,
+    download_excel_url=None,
+):
     return render_template(
         "reports/report_view.html",
         report_title=report_title,
         columns=headers,
         rows=rows,
+        all_columns=all_columns or headers,
+        selected_columns=selected_columns or headers,
         download_url=download_url,
+        download_excel_url=download_excel_url,
         report_description=report_description,
         extra_meta=extra_meta,
+        filter_fields=filter_fields or [],
         active_page="reports",
     )
 
@@ -228,16 +365,38 @@ def reports_home():
 @min_role_required("ADMIN")
 def report_inventory():
     lab_id = request.args.get("lab_id", type=int)
-    headers, rows = build_inventory_rows(lab_id=lab_id)
+    status = (request.args.get("status") or "").strip()
+    search = (request.args.get("search") or "").strip()
+    headers, rows = build_inventory_rows(lab_id=lab_id, status=status or None, search=search or None)
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
     fname = "inventory.csv" if not lab_id else f"inventory_lab_{lab_id}.csv"
     return csv_response(fname, headers, rows)
+
+
+@reports_bp.route("/inventory.xlsx", methods=["GET"])
+@min_role_required("ADMIN")
+def report_inventory_excel():
+    lab_id = request.args.get("lab_id", type=int)
+    status = (request.args.get("status") or "").strip()
+    search = (request.args.get("search") or "").strip()
+    headers, rows = build_inventory_rows(lab_id=lab_id, status=status or None, search=search or None)
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
+    fname = "inventory.xlsx" if not lab_id else f"inventory_lab_{lab_id}.xlsx"
+    return excel_response(fname, headers, rows)
 
 
 @reports_bp.route("/view/inventory", methods=["GET"])
 @min_role_required("ADMIN")
 def report_inventory_view():
     lab_id = request.args.get("lab_id", type=int)
-    headers, rows = build_inventory_rows(lab_id=lab_id)
+    status = (request.args.get("status") or "").strip()
+    search = (request.args.get("search") or "").strip()
+    headers, rows = build_inventory_rows(lab_id=lab_id, status=status or None, search=search or None)
+    all_headers = headers[:]
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
 
     report_title = "Inventario general"
     extra_meta = None
@@ -250,69 +409,238 @@ def report_inventory_view():
         report_title=report_title,
         headers=headers,
         rows=rows,
-        download_url=request.url_root.rstrip("/") + request.path.replace("/view/inventory", "/inventory.csv") + (f"?lab_id={lab_id}" if lab_id else ""),
+        download_url=build_download_url("reports.report_inventory"),
         report_description="Vista completa del inventario.",
         extra_meta=extra_meta,
+        filter_fields=[
+            {"name": "lab_id", "label": "Lab ID", "type": "number", "value": lab_id or "", "placeholder": "Ejemplo: 1"},
+            {"name": "status", "label": "Estado", "type": "text", "value": status, "placeholder": "Ejemplo: DISPONIBLE"},
+            {"name": "search", "label": "Buscar", "type": "text", "value": search, "placeholder": "Nombre, código o ubicación"},
+        ],
+        selected_columns=selected_columns,
+        all_columns=all_headers,
+        download_excel_url=build_download_url("reports.report_inventory_excel"),
     )
 
 
 @reports_bp.route("/debts.csv", methods=["GET"])
 @min_role_required("ADMIN")
 def report_debts():
-    headers, rows = build_debts_rows()
+    status = (request.args.get("status") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    headers, rows = build_debts_rows(status=status or None, user_id=user_id)
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
     return csv_response("debts.csv", headers, rows)
+
+
+@reports_bp.route("/debts.xlsx", methods=["GET"])
+@min_role_required("ADMIN")
+def report_debts_excel():
+    status = (request.args.get("status") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    headers, rows = build_debts_rows(status=status or None, user_id=user_id)
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
+    return excel_response("debts.xlsx", headers, rows)
 
 
 @reports_bp.route("/view/debts", methods=["GET"])
 @min_role_required("ADMIN")
 def report_debts_view():
-    headers, rows = build_debts_rows()
+    status = (request.args.get("status") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    headers, rows = build_debts_rows(status=status or None, user_id=user_id)
+    all_headers = headers[:]
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
     return render_report_view(
         report_title="Adeudos",
         headers=headers,
         rows=rows,
-        download_url=request.url_root.rstrip("/") + "/reports/debts.csv",
+        download_url=build_download_url("reports.report_debts"),
         report_description="Vista completa de los adeudos registrados.",
+        filter_fields=[
+            {"name": "status", "label": "Estado", "type": "text", "value": status, "placeholder": "Ejemplo: OPEN"},
+            {"name": "user_id", "label": "User ID", "type": "number", "value": user_id or "", "placeholder": "Ejemplo: 42"},
+        ],
+        selected_columns=selected_columns,
+        all_columns=all_headers,
+        download_excel_url=build_download_url("reports.report_debts_excel"),
     )
 
 
 @reports_bp.route("/logbook.csv", methods=["GET"])
 @min_role_required("ADMIN")
 def report_logbook():
-    headers, rows = build_logbook_rows()
+    action = (request.args.get("action") or "").strip()
+    module = (request.args.get("module") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    material_id = request.args.get("material_id", type=int)
+    description = (request.args.get("description") or "").strip()
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+
+    headers, rows = build_logbook_rows(
+        action=action or None,
+        module=module or None,
+        user_id=user_id,
+        material_id=material_id,
+        description=description or None,
+        date_from=date_from or None,
+        date_to=date_to or None,
+    )
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
     return csv_response("logbook.csv", headers, rows)
+
+
+@reports_bp.route("/logbook.xlsx", methods=["GET"])
+@min_role_required("ADMIN")
+def report_logbook_excel():
+    action = (request.args.get("action") or "").strip()
+    module = (request.args.get("module") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    material_id = request.args.get("material_id", type=int)
+    description = (request.args.get("description") or "").strip()
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+
+    headers, rows = build_logbook_rows(
+        action=action or None,
+        module=module or None,
+        user_id=user_id,
+        material_id=material_id,
+        description=description or None,
+        date_from=date_from or None,
+        date_to=date_to or None,
+    )
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
+    return excel_response("logbook.xlsx", headers, rows)
 
 
 @reports_bp.route("/view/logbook", methods=["GET"])
 @min_role_required("ADMIN")
 def report_logbook_view():
-    headers, rows = build_logbook_rows()
+    action = (request.args.get("action") or "").strip()
+    module = (request.args.get("module") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    material_id = request.args.get("material_id", type=int)
+    description = (request.args.get("description") or "").strip()
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+
+    headers, rows = build_logbook_rows(
+        action=action or None,
+        module=module or None,
+        user_id=user_id,
+        material_id=material_id,
+        description=description or None,
+        date_from=date_from or None,
+        date_to=date_to or None,
+    )
+    all_headers = headers[:]
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
     return render_report_view(
         report_title="Bitácora",
         headers=headers,
         rows=rows,
-        download_url=request.url_root.rstrip("/") + "/reports/logbook.csv",
+        download_url=build_download_url("reports.report_logbook"),
         report_description="Vista completa de la bitácora.",
+        filter_fields=[
+            {"name": "action", "label": "Acción contiene", "type": "text", "value": action, "placeholder": "Ejemplo: LOGIN"},
+            {"name": "module", "label": "Módulo", "type": "text", "value": module, "placeholder": "Ejemplo: USERS"},
+            {"name": "user_id", "label": "User ID", "type": "number", "value": user_id or "", "placeholder": "Ejemplo: 42"},
+            {"name": "material_id", "label": "Material ID", "type": "number", "value": material_id or "", "placeholder": "Ejemplo: 128"},
+            {"name": "description", "label": "Descripción contiene", "type": "text", "value": description, "placeholder": "Texto libre"},
+            {"name": "date_from", "label": "Desde", "type": "date", "value": date_from},
+            {"name": "date_to", "label": "Hasta", "type": "date", "value": date_to},
+        ],
+        selected_columns=selected_columns,
+        all_columns=all_headers,
+        download_excel_url=build_download_url("reports.report_logbook_excel"),
     )
 
 
 @reports_bp.route("/reservations.csv", methods=["GET"])
 @min_role_required("ADMIN")
 def report_reservations():
-    headers, rows = build_reservations_rows()
+    status = (request.args.get("status") or "").strip()
+    room = (request.args.get("room") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+
+    headers, rows = build_reservations_rows(
+        status=status or None,
+        room=room or None,
+        user_id=user_id,
+        date_from=date_from or None,
+        date_to=date_to or None,
+    )
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
     return csv_response("reservations.csv", headers, rows)
+
+
+@reports_bp.route("/reservations.xlsx", methods=["GET"])
+@min_role_required("ADMIN")
+def report_reservations_excel():
+    status = (request.args.get("status") or "").strip()
+    room = (request.args.get("room") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+
+    headers, rows = build_reservations_rows(
+        status=status or None,
+        room=room or None,
+        user_id=user_id,
+        date_from=date_from or None,
+        date_to=date_to or None,
+    )
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
+    return excel_response("reservations.xlsx", headers, rows)
 
 
 @reports_bp.route("/view/reservations", methods=["GET"])
 @min_role_required("ADMIN")
 def report_reservations_view():
-    headers, rows = build_reservations_rows()
+    status = (request.args.get("status") or "").strip()
+    room = (request.args.get("room") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+
+    headers, rows = build_reservations_rows(
+        status=status or None,
+        room=room or None,
+        user_id=user_id,
+        date_from=date_from or None,
+        date_to=date_to or None,
+    )
+    all_headers = headers[:]
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
     return render_report_view(
         report_title="Reservaciones",
         headers=headers,
         rows=rows,
-        download_url=request.url_root.rstrip("/") + "/reports/reservations.csv",
+        download_url=build_download_url("reports.report_reservations"),
         report_description="Vista completa de reservaciones.",
+        filter_fields=[
+            {"name": "status", "label": "Estado", "type": "text", "value": status, "placeholder": "Ejemplo: APPROVED"},
+            {"name": "room", "label": "Salón/Lab", "type": "text", "value": room, "placeholder": "Ejemplo: LAB A"},
+            {"name": "user_id", "label": "User ID", "type": "number", "value": user_id or "", "placeholder": "Ejemplo: 42"},
+            {"name": "date_from", "label": "Desde", "type": "date", "value": date_from},
+            {"name": "date_to", "label": "Hasta", "type": "date", "value": date_to},
+        ],
+        selected_columns=selected_columns,
+        all_columns=all_headers,
+        download_excel_url=build_download_url("reports.report_reservations_excel"),
     )
 
 
@@ -363,27 +691,39 @@ def logbook_admin_view():
     module = (request.args.get("module") or "").strip()
     user_id = request.args.get("user_id", type=int)
     material_id = request.args.get("material_id", type=int)
+    description = (request.args.get("description") or "").strip()
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
 
-    q = LogbookEvent.query
-
-    if action:
-        q = q.filter(LogbookEvent.action.ilike(f"%{action}%"))
-    if module:
-        q = q.filter(LogbookEvent.module.ilike(f"%{module}%"))
-    if user_id:
-        q = q.filter(LogbookEvent.user_id == user_id)
-    if material_id:
-        q = q.filter(LogbookEvent.material_id == material_id)
-
-    events = q.order_by(LogbookEvent.created_at.desc()).limit(500).all()
+    headers, rows = build_logbook_rows(
+        action=action or None,
+        module=module or None,
+        user_id=user_id,
+        material_id=material_id,
+        description=description or None,
+        date_from=date_from or None,
+        date_to=date_to or None,
+    )
+    selected_columns = parse_selected_columns(headers)
+    visible_columns, visible_rows = project_rows(headers, rows, selected_columns)
+    export_url = build_download_url("reports.report_logbook")
+    export_excel_url = build_download_url("reports.report_logbook_excel")
 
     return render_template(
         "reports/logbook_admin.html",
-        events=events,
+        columns=visible_columns,
+        rows=visible_rows[:500],
+        all_columns=headers,
+        selected_columns=selected_columns,
+        export_url=export_url,
+        export_excel_url=export_excel_url,
         action=action,
         module=module,
         user_id=user_id,
         material_id=material_id,
+        description=description,
+        date_from=date_from,
+        date_to=date_to,
         active_page="reports",
     )
 
