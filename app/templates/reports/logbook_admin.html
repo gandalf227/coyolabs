@@ -12,6 +12,14 @@
 </header>
 
 <section class="toolbar-card">
+  <div class="toolbar-actions">
+    <a href="{{ url_for('reports.reports_home') }}" class="btn btn-ghost">
+      <i class="ph ph-arrow-left"></i><span>Volver</span>
+    </a>
+  </div>
+</section>
+
+<section class="toolbar-card">
   <form method="get" action="{{ url_for('reports.logbook_admin_view') }}" class="toolbar" style="grid-template-columns: repeat(4, minmax(190px, 1fr)) auto;">
     <div class="toolbar-group">
       <label for="action">Acción contiene</label>
@@ -23,11 +31,11 @@
     </div>
     <div class="toolbar-group">
       <label for="user_id">ID de usuario</label>
-      <div class="search-box"><i class="ph ph-user search-icon"></i><input type="number" id="user_id" name="user_id" value="{{ user_id or '' }}"></div>
+      <div class="search-box"><i class="ph ph-user search-icon"></i><input type="number" id="user_id" name="user_id" value="{{ user_id or '' }}" placeholder="Ejemplo: 42"></div>
     </div>
     <div class="toolbar-group">
       <label for="material_id">ID de material</label>
-      <div class="search-box"><i class="ph ph-hash search-icon"></i><input type="number" id="material_id" name="material_id" value="{{ material_id or '' }}"></div>
+      <div class="search-box"><i class="ph ph-hash search-icon"></i><input type="number" id="material_id" name="material_id" value="{{ material_id or '' }}" placeholder="Ejemplo: 128"></div>
     </div>
     <div class="toolbar-actions">
       <button type="submit" class="btn btn-gold"><i class="ph ph-funnel"></i><span>Filtrar</span></button>
