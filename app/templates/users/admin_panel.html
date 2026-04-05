@@ -82,30 +82,54 @@
           <td><span class="status-badge {% if user.is_active %}status-ok{% else %}status-bad{% endif %}">{{ 'Sí' if user.is_active else 'No' }}</span></td>
           <td><span class="status-badge {% if user.is_banned %}status-bad{% else %}status-ok{% endif %}">{{ 'Sí' if user.is_banned else 'No' }}</span></td>
           <td>
-            <form method="post" action="{{ url_for('users.admin_update_user', user_id=user.id) }}" style="display:grid; grid-template-columns: repeat(3, minmax(110px, 1fr)); gap:8px;">
-              <input type="email" name="email" value="{{ user.email }}" required>
-              <input type="text" name="full_name" value="{{ user.full_name or '' }}" placeholder="Nombre">
-              <input type="text" name="matricula" value="{{ user.matricula or '' }}" placeholder="Matrícula">
-              <input type="text" name="phone" value="{{ user.phone or '' }}" placeholder="Teléfono">
+            <form method="post" action="{{ url_for('users.admin_update_user', user_id=user.id) }}" style="display:grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap:8px;">
+              <div class="search-box">
+                <i class="ph ph-envelope search-icon"></i>
+                <input type="email" name="email" value="{{ user.email }}" required>
+              </div>
 
-              <select name="role">
-                <option value="{{ user.role }}">{{ user.role|role_label }} (actual)</option>
-                {% for role_name in assignable_roles %}
-                <option value="{{ role_name }}">{{ role_name|role_label }}</option>
-                {% endfor %}
-              </select>
+              <div class="search-box">
+                <i class="ph ph-user search-icon"></i>
+                <input type="text" name="full_name" value="{{ user.full_name or '' }}" placeholder="Nombre">
+              </div>
 
-              <select name="is_active">
-                <option value="1" {% if user.is_active %}selected{% endif %}>Activo</option>
-                <option value="0" {% if not user.is_active %}selected{% endif %}>Inactivo</option>
-              </select>
+              <div class="search-box">
+                <i class="ph ph-identification-card search-icon"></i>
+                <input type="text" name="matricula" value="{{ user.matricula or '' }}" placeholder="Matrícula">
+              </div>
 
-              <select name="is_banned">
-                <option value="0" {% if not user.is_banned %}selected{% endif %}>No bloqueado</option>
-                <option value="1" {% if user.is_banned %}selected{% endif %}>Bloqueado</option>
-              </select>
+              <div class="search-box">
+                <i class="ph ph-phone search-icon"></i>
+                <input type="text" name="phone" value="{{ user.phone or '' }}" placeholder="Teléfono">
+              </div>
 
-              <button type="submit" class="btn btn-gold">Guardar</button>
+              <div class="select-wrap">
+                <select name="role">
+                  <option value="{{ user.role }}">{{ user.role|role_label }} (actual)</option>
+                  {% for role_name in assignable_roles %}
+                  <option value="{{ role_name }}">{{ role_name|role_label }}</option>
+                  {% endfor %}
+                </select>
+                <i class="ph ph-caret-down select-arrow"></i>
+              </div>
+
+              <div class="select-wrap">
+                <select name="is_active">
+                  <option value="1" {% if user.is_active %}selected{% endif %}>Activo</option>
+                  <option value="0" {% if not user.is_active %}selected{% endif %}>Inactivo</option>
+                </select>
+                <i class="ph ph-caret-down select-arrow"></i>
+              </div>
+
+              <div class="select-wrap">
+                <select name="is_banned">
+                  <option value="0" {% if not user.is_banned %}selected{% endif %}>No bloqueado</option>
+                  <option value="1" {% if user.is_banned %}selected{% endif %}>Bloqueado</option>
+                </select>
+                <i class="ph ph-caret-down select-arrow"></i>
+              </div>
+
+              <button type="submit" class="btn btn-gold">Guardar cambios</button>
             </form>
 
             <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
