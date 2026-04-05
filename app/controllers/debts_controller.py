@@ -1,3 +1,5 @@
+import logging
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
 from sqlalchemy.orm import joinedload
@@ -8,6 +10,7 @@ from app.utils.permission_required import permission_required
 
 from app.extensions import db
 from app.models.debt import Debt
+from app.models.notification import Notification
 from app.models.user import User
 from app.models.material import Material
 from app.services.debt_service import resolve_debt
@@ -17,6 +20,7 @@ from app.utils.statuses import DebtStatus
 
 
 debts_bp = Blueprint("debts", __name__, url_prefix="/debts")
+logger = logging.getLogger(__name__)
 
 
 def _log_debt_event(action: str, debt: Debt, description: str, metadata: dict | None = None) -> None:
@@ -105,6 +109,7 @@ def admin_list():
 @permission_required("debts.create")
 def admin_create():
     if request.method == "POST":
+        pending_notifications: list[Notification] = []
         email = (request.form.get("email") or "").strip().lower()
         material_id = request.form.get("material_id", type=int)
         reason = (request.form.get("reason") or "").strip()
@@ -137,7 +142,19 @@ def admin_create():
             description=f"Adeudo creado para {user.email}",
             metadata={"reason": debt.reason},
         )
+        pending_notifications.extend(
+            notif for notif in db.session.new
+            if isinstance(notif, Notification)
+        )
         db.session.commit()
+        for notification in pending_notifications:
+            try:
+                publish_notification_created(notification)
+            except Exception:
+                logger.warning(
+                    "SSE publish failed after debt creation",
+                    extra={"debt_id": debt.id, "notification_id": notification.id, "target_user_id": notification.user_id},
+                )
 
         flash("Adeudo creado.", "success")
         return redirect(url_for("debts.admin_list"))

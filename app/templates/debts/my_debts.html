@@ -13,11 +13,11 @@
 
   {% if current_user.is_authenticated and is_staff_role(current_user.role) %}
     <div class="topbar-actions">
-    <a href="{{ url_for('debts.admin_list') }}" class="btn btn-secondary">
+    <a href="{{ url_for('debts.admin_list') }}" class="btn btn-ghost">
       <i class="ph ph-list-bullets"></i>
       <span>Administrar adeudos</span>
     </a>
-    <a href="{{ url_for('debts.admin_create') }}" class="btn btn-primary">
+    <a href="{{ url_for('debts.admin_create') }}" class="btn btn-gold">
       <i class="ph ph-plus-circle"></i>
       <span>Crear adeudo</span>
     </a>

@@ -30,12 +30,20 @@
 
       {% with messages = get_flashed_messages() %}
         {% if messages %}
-          <div class="flash" role="alert" aria-live="polite">
-            <ul>
-              {% for message in messages %}
-                <li>{{ message }}</li>
-              {% endfor %}
-            </ul>
+          <div id="notification-container" class="auth-notification-stack" aria-live="polite" aria-atomic="true">
+            {% for message in messages %}
+              <article class="notification notification--info" role="alert">
+                <div class="notification__progress"></div>
+                <div class="notification__body">
+                  <span class="notification__icon" aria-hidden="true">!</span>
+                  <div>
+                    <div class="notification__header">Sistema</div>
+                    <p class="notification__text">{{ message }}</p>
+                  </div>
+                  <button type="button" class="notification__close" aria-label="Cerrar alerta">×</button>
+                </div>
+              </article>
+            {% endfor %}
           </div>
         {% endif %}
       {% endwith %}
@@ -87,11 +95,11 @@
             </div>
             <form id="forgotPasswordForm" method="post" action="{{ url_for('auth.forgot_password') }}" style="margin-top:8px;">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <button type="submit" class="btn btn-secondary">Enviar enlace de recuperación</button>
+              <button type="submit" class="btn btn-ghost">Enviar enlace de recuperación</button>
             </form>
           </div>
 
-          <button type="submit" class="btn">Entrar</button>
+          <button type="submit" class="btn btn-gold">Entrar</button>
 
           <div class="switch">
             <span>¿No tienes cuenta?</span>
@@ -125,7 +133,7 @@
                   pattern="^(\\d{8}|[a-z]+(?:\\.[a-z]+)*)@utpn\\.edu\\.mx$"
                 />
               </div>
-              <button type="button" class="btn btn-secondary" id="saveAndResendBtn">Guardar y reenviar código</button>
+              <button type="button" class="btn btn-ghost" id="saveAndResendBtn">Guardar y reenviar código</button>
             </div>
 
             <p class="hint" id="changeEmailStatus" aria-live="polite"></p>
@@ -210,7 +218,7 @@
     </span>
   </label>
 </div>
-  <button type="submit" class="btn">Registrarme</button>
+  <button type="submit" class="btn btn-gold">Registrarme</button>
 
   <div class="switch">
     <span>¿Ya tienes cuenta?</span>

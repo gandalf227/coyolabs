@@ -55,11 +55,6 @@
       <textarea id="post_content" class="form-control" name="content" rows="7" required></textarea>
     </div>
 
-    <label class="form-check">
-      <input type="checkbox" name="is_anonymous" value="1">
-      Publicar como anónimo (solo Administrador puede ver la identidad real)
-    </label>
-
     <div class="forum-new-actions">
       <button class="btn btn-gold" type="submit">Publicar</button>
       <a class="btn btn-ghost" href="{{ url_for('forum.forum_home') }}">Cancelar</a>
