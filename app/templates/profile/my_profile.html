@@ -97,6 +97,45 @@
           </button>
         </form>
       {% endif %}
+
+      <hr style="margin:16px 0; border:none; border-top:1px solid var(--stroke);">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <button type="button" id="togglePasswordPanel" class="btn btn-ghost" style="align-self:flex-start;">
+          Cambiar contraseña
+        </button>
+
+        <form id="passwordChangeForm" method="post" action="{{ url_for('profile.change_password') }}" class="toolbar" style="grid-template-columns:1fr;" hidden>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+          <div class="toolbar-group">
+            <label>Contraseña actual</label>
+            <div class="search-box">
+              <i class="ph ph-lock search-icon"></i>
+              <input type="password" name="current_password" required>
+            </div>
+          </div>
+
+          <div class="toolbar-group">
+            <label>Nueva contraseña</label>
+            <div class="search-box">
+              <i class="ph ph-key search-icon"></i>
+              <input type="password" name="new_password" minlength="6" required>
+            </div>
+          </div>
+
+          <div class="toolbar-group">
+            <label>Confirmar nueva contraseña</label>
+            <div class="search-box">
+              <i class="ph ph-key search-icon"></i>
+              <input type="password" name="confirm_new_password" minlength="6" required>
+            </div>
+          </div>
+
+          <div class="toolbar-actions">
+            <button type="submit" class="btn btn-gold">Guardar contraseña</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </section>
@@ -341,4 +380,16 @@
   </div>
   {% endif %}
 </section>
+
+<script>
+(() => {
+  const toggleBtn = document.getElementById("togglePasswordPanel");
+  const panel = document.getElementById("passwordChangeForm");
+  if (!toggleBtn || !panel) return;
+
+  toggleBtn.addEventListener("click", () => {
+    panel.hidden = !panel.hidden;
+  });
+})();
+</script>
 {% endblock %}
