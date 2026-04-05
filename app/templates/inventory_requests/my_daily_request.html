@@ -22,23 +22,7 @@
   margin-bottom: 12px;
 }
 
-#materialSearch {
-  width: 100%;
-  min-height: 54px;
-  padding: 0 16px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke);
-  background: rgba(255,255,255,0.48);
-  color: var(--text);
-  font-size: 0.96rem;
-}
-
-#materialSearch:focus {
-  outline: none;
-  border-color: rgba(199,159,51,0.35);
-  box-shadow: 0 0 0 4px rgba(199,159,51,0.08);
-  background: rgba(255,255,255,0.72);
-}
+#materialSearch { min-height: 54px; }
 
 .autocomplete-list {
   position: absolute;
@@ -196,7 +180,10 @@
   <h3 style="margin:0 0 12px 0;">Agregar materiales al pedido de hoy</h3>
   <form method="post" action="{{ url_for('inventory_requests.add_to_daily_request') }}">
     <div class="material-search">
-      <input type="text" id="materialSearch" placeholder="Buscar material por nombre, código o ubicación">
+      <div class="search-box">
+        <i class="ph ph-magnifying-glass search-icon"></i>
+        <input type="text" id="materialSearch" placeholder="Buscar material por nombre, código o ubicación">
+      </div>
       <div id="autocompleteList" class="autocomplete-list"></div>
     </div>
 
