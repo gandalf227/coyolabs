@@ -3,6 +3,25 @@
 {% block title %}{{ post.title }}{% endblock %}
 
 {% block content %}
+<style>
+.forum-comment-form{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.forum-comment-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+@media (max-width: 768px){
+  .forum-comment-actions .btn{
+    width: 100%;
+  }
+}
+</style>
 <header class="topbar">
   <div class="topbar-left">
     <p class="page-kicker">Foro</p>
@@ -14,7 +33,7 @@
   </div>
   {% if is_admin %}
   <form method="post" action="{{ url_for('forum.toggle_post_hidden', post_id=post.id) }}">
-    <button type="submit" class="btn {% if post.is_hidden %}btn-primary{% else %}btn-outline{% endif %}">
+    <button type="submit" class="btn {% if post.is_hidden %}btn-gold{% else %}btn-ghost{% endif %}">
       {% if post.is_hidden %}Mostrar publicación{% else %}Ocultar publicación{% endif %}
     </button>
   </form>
@@ -25,14 +44,14 @@
 
 <section class="table-card">
   <h3 style="margin-top:0;">Responder</h3>
-  <form method="post" style="display:flex; flex-direction:column; gap:10px;">
-    <textarea name="content" rows="4" required placeholder="Escribe tu comentario..."></textarea>
-    <label style="display:flex; align-items:center; gap:8px;">
+  <form method="post" class="forum-comment-form">
+    <textarea class="form-control" name="content" rows="4" required placeholder="Escribe tu comentario..."></textarea>
+    <label class="form-check">
       <input type="checkbox" name="is_anonymous" value="1">
       Comentar como anónimo
     </label>
-    <div>
-      <button type="submit" class="btn btn-primary">Comentar</button>
+    <div class="forum-comment-actions">
+      <button type="submit" class="btn btn-gold">Comentar</button>
     </div>
   </form>
 </section>
@@ -49,7 +68,7 @@
       <p style="margin:8px 0 0 0; white-space:pre-wrap;">{{ c.content }}</p>
       {% if is_admin %}
         <form method="post" action="{{ url_for('forum.toggle_comment_hidden', comment_id=c.id) }}" style="margin-top:8px;">
-          <button type="submit" class="btn btn-outline">{% if c.is_hidden %}Mostrar{% else %}Ocultar{% endif %} comentario</button>
+          <button type="submit" class="btn btn-ghost">{% if c.is_hidden %}Mostrar{% else %}Ocultar{% endif %} comentario</button>
         </form>
       {% endif %}
     </article>

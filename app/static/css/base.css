@@ -647,8 +647,12 @@ textarea.form-control{
 }
 
 .form-check input[type="checkbox"]{
-  width: auto;
+  width: 18px;
+  height: 18px;
   min-height: auto;
+  accent-color: var(--gold);
+  border-radius: 6px;
+  flex-shrink: 0;
 }
 
 /* Search */
