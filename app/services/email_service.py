@@ -84,3 +84,43 @@ def send_password_reset_email(to_email: str, reset_url: str):
     }
 
     return resend.Emails.send(params)
+
+
+def send_print3d_ready_email(to_email: str, *, job_id: int, job_title: str, jobs_url: str):
+    from_email = (os.getenv("MAIL_DEFAULT_SENDER") or "").strip()
+
+    if not resend.api_key:
+        raise RuntimeError("RESEND_API_KEY no está configurada.")
+
+    if not from_email:
+        raise RuntimeError("MAIL_DEFAULT_SENDER no está configurado.")
+
+    safe_title = (job_title or "").strip() or f"Trabajo #{job_id}"
+
+    params: resend.Emails.SendParams = {
+        "from": f"CoyoLabs <{from_email}>",
+        "to": [to_email],
+        "subject": "Tu impresión 3D está lista",
+        "html": f"""
+        <div style="font-family: Arial, sans-serif; color: #111; line-height: 1.6;">
+            <h2 style="margin-bottom: 8px;">CoyoLabs</h2>
+            <p>¡Tu trabajo de impresión 3D ya está listo para entrega!</p>
+            <p><strong>Solicitud:</strong> #{job_id} - {safe_title}</p>
+            <p>
+                <a href="{jobs_url}"
+                   style="display:inline-block;padding:12px 20px;background:#03A9F4;color:#fff;text-decoration:none;border-radius:8px;">
+                   Ver mis impresiones 3D
+                </a>
+            </p>
+            <p>También puedes revisar el estado directamente en:</p>
+            <p><a href="{jobs_url}">{jobs_url}</a></p>
+        </div>
+        """,
+        "text": (
+            "Tu trabajo de impresión 3D ya está listo para entrega.\n\n"
+            f"Solicitud: #{job_id} - {safe_title}\n\n"
+            f"Consulta el detalle en: {jobs_url}\n"
+        ),
+    }
+
+    return resend.Emails.send(params)

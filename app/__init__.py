@@ -88,6 +88,8 @@ def create_app():
 
     from app.controllers.software_controller import software_bp
     app.register_blueprint(software_bp)
+    from app.controllers.print3d_controller import print3d_bp
+    app.register_blueprint(print3d_bp)
 
     from app.controllers.reports_controller import reports_bp
     app.register_blueprint(reports_bp)
@@ -100,6 +102,9 @@ def create_app():
 
     from app.controllers.forum_controller import forum_bp
     app.register_blueprint(forum_bp)
+
+    from app.controllers.admin_extra_requests_controller import admin_extra_requests_bp
+    app.register_blueprint(admin_extra_requests_bp)
 
     from app.controllers.legal_controller import legal_bp
     app.register_blueprint(legal_bp)

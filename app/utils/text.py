@@ -3,6 +3,7 @@ from app.utils.statuses import (
     DebtStatus,
     InventoryRequestStatus,
     LabTicketStatus,
+    Print3DJobStatus,
     ReservationStatus,
     TicketItemStatus,
 )
@@ -34,6 +35,12 @@ STATUS_LABELS = {
     DebtStatus.PAID: "Pagado",
     "CANCELLED": "Cancelado",
     DebtStatus.CANCELED: "Cancelado",
+    Print3DJobStatus.REQUESTED: "Solicitado",
+    Print3DJobStatus.QUOTED: "Cotizado",
+    Print3DJobStatus.IN_PROGRESS: "En proceso",
+    Print3DJobStatus.READY: "Listo",
+    Print3DJobStatus.DELIVERED: "Entregado",
+    Print3DJobStatus.CANCELED: "Cancelado",
 }
 
 FLASH_CATEGORY_LABELS = {
