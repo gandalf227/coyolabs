@@ -1314,6 +1314,7 @@ textarea.form-control{
 
 .time-picker-input-wrap input[type="time"]{
   padding-right: 52px;
+  cursor: pointer;
 }
 
 .time-picker-open-btn{
@@ -1338,32 +1339,148 @@ textarea.form-control{
   background: rgba(255,255,255,0.88);
 }
 
-.time-quick-grid{
-  margin-top: 10px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-  gap: 8px;
-  max-height: 144px;
-  overflow-y: auto;
-  padding-right: 4px;
+.clock-picker-modal{
+  position: fixed;
+  inset: 0;
+  display: none;
+  z-index: 70;
 }
 
-.time-chip{
+.clock-picker-modal.is-open{
+  display: block;
+}
+
+.clock-picker-backdrop{
+  position: absolute;
+  inset: 0;
+  background: rgba(16,18,22,.45);
+  backdrop-filter: blur(2px);
+}
+
+.clock-picker-dialog{
+  position: relative;
+  width: min(420px, calc(100vw - 24px));
+  margin: 40px auto;
+  background: var(--panel);
   border: 1px solid var(--stroke);
-  background: rgba(255,255,255,0.58);
+  border-radius: 22px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.28);
+  padding: 20px;
+}
+
+.clock-picker-header h3{
+  margin: 2px 0 8px;
+}
+
+.clock-picker-current{
+  font-size: 1.9rem;
+  font-weight: 900;
+  letter-spacing: .5px;
   color: var(--text);
-  border-radius: 12px;
-  min-height: 36px;
-  font-weight: 700;
+}
+
+.clock-picker-face-wrap{
+  display: flex;
+  justify-content: center;
+  margin: 18px 0;
+}
+
+.clock-picker-face{
+  position: relative;
+  width: 290px;
+  height: 290px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.88) 0%, rgba(247,243,231,.86) 68%, rgba(225,214,186,.65) 100%);
+  border: 1px solid rgba(199,159,51,.25);
+}
+
+.clock-marker{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: rotate(var(--angle)) translateY(-128px);
+  transform-origin: center center;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-weight: 800;
+  width: 34px;
+  height: 34px;
+  margin-left: -17px;
+  margin-top: -17px;
+  border-radius: 50%;
   cursor: pointer;
-  transition: all .2s ease;
 }
 
-.time-chip:hover{
-  background: rgba(255,255,255,0.82);
+.clock-marker.is-half{
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
+  margin-top: -11px;
 }
 
-.time-chip.is-active{
-  border-color: rgba(199,159,51,.55);
+.clock-marker .half-dot{
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(56,57,60,.48);
+  display: inline-block;
+}
+
+.clock-picker-hand{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 102px;
+  border-radius: 999px;
+  transform-origin: 50% 100%;
+  transform: translate(-50%, -100%) rotate(-90deg);
+  background: linear-gradient(180deg, rgba(199,159,51,.2), rgba(199,159,51,.9));
+  transition: transform .12s ease;
+}
+
+.clock-picker-center-dot{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: rgba(199,159,51,.95);
+}
+
+.clock-picker-period{
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 12px 0 8px;
+}
+
+.clock-period-btn{
+  min-width: 92px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.6);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.clock-period-btn.is-active{
+  border-color: rgba(199,159,51,.6);
   background: rgba(199,159,51,.16);
+}
+
+.clock-picker-actions{
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.clock-picker-actions .btn{
+  min-width: 112px;
 }

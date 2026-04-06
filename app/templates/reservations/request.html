@@ -298,24 +298,22 @@
         <label>Hora de inicio</label>
         <div class="search-box time-picker-input-wrap">
           <i class="ph ph-clock search-icon"></i>
-          <input type="time" id="startTimeInput" name="start_time" required min="08:00" max="21:00" step="900" aria-describedby="reservationTimeHelp">
-          <button type="button" class="time-picker-open-btn" data-target="startTimeInput" aria-label="Abrir selector de hora de inicio">
+          <input type="time" id="startTimeInput" name="start_time" required min="08:00" max="21:00" step="1800" aria-describedby="reservationTimeHelp" class="clock-time-input">
+          <button type="button" class="time-picker-open-btn" data-target="startTimeInput" aria-label="Abrir selector radial de hora de inicio">
             <i class="ph ph-clock-afternoon"></i>
           </button>
         </div>
-        <div class="time-quick-grid" id="startTimeQuickGrid" data-target="startTimeInput" aria-label="Selector rápido hora inicio"></div>
       </div>
 
       <div>
         <label>Hora de finalización</label>
         <div class="search-box time-picker-input-wrap">
           <i class="ph ph-clock-countdown search-icon"></i>
-          <input type="time" id="endTimeInput" name="end_time" required min="08:00" max="21:00" step="900" aria-describedby="reservationTimeHelp">
-          <button type="button" class="time-picker-open-btn" data-target="endTimeInput" aria-label="Abrir selector de hora de finalización">
+          <input type="time" id="endTimeInput" name="end_time" required min="08:00" max="21:00" step="1800" aria-describedby="reservationTimeHelp" class="clock-time-input">
+          <button type="button" class="time-picker-open-btn" data-target="endTimeInput" aria-label="Abrir selector radial de hora de finalización">
             <i class="ph ph-clock-afternoon"></i>
           </button>
         </div>
-        <div class="time-quick-grid" id="endTimeQuickGrid" data-target="endTimeInput" aria-label="Selector rápido hora fin"></div>
       </div>
       <small id="reservationTimeHelp" class="datetime-helper">Rango sugerido: 08:00 a 21:00 (formato 24 horas).</small>
     </div>
@@ -455,6 +453,32 @@
 
 <div id="toast" class="toast">Material agregado</div>
 
+<div id="clockPickerModal" class="clock-picker-modal" aria-hidden="true">
+  <div class="clock-picker-backdrop" data-clock-close="1"></div>
+  <div class="clock-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="clockPickerTitle">
+    <div class="clock-picker-header">
+      <p class="page-kicker">Selector de hora</p>
+      <h3 id="clockPickerTitle">Selecciona una hora</h3>
+      <div class="clock-picker-current" id="clockPickerCurrent">12:00 AM</div>
+    </div>
+    <div class="clock-picker-face-wrap">
+      <div class="clock-picker-face" id="clockPickerFace">
+        <div class="clock-picker-hand" id="clockPickerHand"></div>
+        <div class="clock-picker-center-dot"></div>
+      </div>
+    </div>
+    <div class="clock-picker-period">
+      <button type="button" class="clock-period-btn is-active" id="clockPeriodAM" data-period="AM">AM</button>
+      <button type="button" class="clock-period-btn" id="clockPeriodPM" data-period="PM">PM</button>
+    </div>
+    <small class="datetime-helper" id="clockPickerHelp">Rango permitido del campo: 08:00 a 21:00.</small>
+    <div class="clock-picker-actions">
+      <button type="button" class="btn btn-ghost" id="clockCancelBtn">Cancelar</button>
+      <button type="button" class="btn btn-gold" id="clockConfirmBtn">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const materials = {{ materials_json | safe }};
 const professorGroupsBySubject = {{ professor_groups_by_subject | tojson if is_professor else "{}" }};
@@ -475,55 +499,122 @@ const reservationDateInput = document.getElementById("reservationDateInput");
 const startTimeInput = document.getElementById("startTimeInput");
 const endTimeInput = document.getElementById("endTimeInput");
 
-function buildTimeSlots(startHour = 8, endHour = 21, stepMinutes = 30) {
-  const slots = [];
-  for (let hour = startHour; hour <= endHour; hour++) {
-    for (let minute = 0; minute < 60; minute += stepMinutes) {
-      if (hour === endHour && minute > 0) break;
-      const hh = String(hour).padStart(2, "0");
-      const mm = String(minute).padStart(2, "0");
-      slots.push(`${hh}:${mm}`);
-    }
-  }
-  return slots;
+const clockPickerModal = document.getElementById("clockPickerModal");
+const clockPickerFace = document.getElementById("clockPickerFace");
+const clockPickerHand = document.getElementById("clockPickerHand");
+const clockPickerCurrent = document.getElementById("clockPickerCurrent");
+const clockPickerHelp = document.getElementById("clockPickerHelp");
+const clockConfirmBtn = document.getElementById("clockConfirmBtn");
+const clockCancelBtn = document.getElementById("clockCancelBtn");
+const clockPeriodButtons = document.querySelectorAll(".clock-period-btn");
+let clockPickerTargetInput = null;
+let clockPickerStepIndex = 0; // 0..23 (cada paso = 30 minutos)
+let clockPickerPeriod = "AM";
+let clockPointerActive = false;
+
+function toClockStep(hour24, minute) {
+  const normalizedMinute = minute >= 30 ? 30 : 0;
+  const hour12 = (hour24 % 12) || 12;
+  let step = hour12 === 12 ? 0 : hour12 * 2;
+  if (normalizedMinute === 30) step += 1;
+  return step;
 }
 
-function formatTimeLabel(value) {
-  if (!value || !value.includes(":")) return value || "";
+function stepToHourMinute(step) {
+  const safeStep = ((step % 24) + 24) % 24;
+  const baseHour = Math.floor(safeStep / 2);
+  const hour12 = baseHour === 0 ? 12 : baseHour;
+  const minute = safeStep % 2 === 0 ? 0 : 30;
+  return { hour12, minute };
+}
+
+function to24Hour(hour12, period) {
+  if (period === "AM") return hour12 === 12 ? 0 : hour12;
+  return hour12 === 12 ? 12 : hour12 + 12;
+}
+
+function hhmmFromClock(step, period) {
+  const { hour12, minute } = stepToHourMinute(step);
+  const hour24 = to24Hour(hour12, period);
+  return `${String(hour24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function labelFromClock(step, period) {
+  const { hour12, minute } = stepToHourMinute(step);
+  return `${String(hour12).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${period}`;
+}
+
+function updateClockPeriodButtons() {
+  clockPeriodButtons.forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.period === clockPickerPeriod);
+  });
+}
+
+function updateClockSelectionUI() {
+  const angle = (clockPickerStepIndex * 15) - 90;
+  clockPickerHand.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
+  clockPickerCurrent.textContent = labelFromClock(clockPickerStepIndex, clockPickerPeriod);
+
+  if (!clockPickerTargetInput) return;
+  const candidate = hhmmFromClock(clockPickerStepIndex, clockPickerPeriod);
+  const minValue = clockPickerTargetInput.min || "00:00";
+  const maxValue = clockPickerTargetInput.max || "23:59";
+  const valid = candidate >= minValue && candidate <= maxValue;
+  clockConfirmBtn.disabled = !valid;
+  clockPickerHelp.textContent = valid
+    ? `Seleccionado: ${candidate} (24h).`
+    : `Fuera de rango para este campo (${minValue} a ${maxValue}).`;
+}
+
+function extractClockFromInputValue(value) {
+  if (!value || !value.includes(":")) return { step: 16, period: "AM" }; // 08:00 por defecto
   const [hRaw, mRaw] = value.split(":");
-  const h = Number(hRaw);
-  const m = Number(mRaw);
-  if (Number.isNaN(h) || Number.isNaN(m)) return value;
-  const suffix = h >= 12 ? "PM" : "AM";
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${String(hour12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${suffix}`;
+  const hour24 = Number(hRaw);
+  const minuteRaw = Number(mRaw);
+  if (Number.isNaN(hour24) || Number.isNaN(minuteRaw)) return { step: 16, period: "AM" };
+  const minute = minuteRaw >= 30 ? 30 : 0;
+  return {
+    step: toClockStep(hour24, minute),
+    period: hour24 >= 12 ? "PM" : "AM",
+  };
 }
 
-function renderQuickTimeGrid(gridEl, inputEl, slots) {
-  if (!gridEl || !inputEl) return;
-  gridEl.innerHTML = "";
-  slots.forEach((slot) => {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "time-chip";
-    chip.dataset.value = slot;
-    chip.textContent = formatTimeLabel(slot);
-    chip.addEventListener("click", () => {
-      inputEl.value = slot;
-      inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-      inputEl.dispatchEvent(new Event("change", { bubbles: true }));
-      highlightTimeChip(gridEl, inputEl.value);
-    });
-    gridEl.appendChild(chip);
-  });
-  highlightTimeChip(gridEl, inputEl.value);
+function openClockPickerForInput(inputEl) {
+  if (!inputEl || !clockPickerModal) return;
+  clockPickerTargetInput = inputEl;
+  const initial = extractClockFromInputValue(inputEl.value);
+  clockPickerStepIndex = initial.step;
+  clockPickerPeriod = initial.period;
+  updateClockPeriodButtons();
+  updateClockSelectionUI();
+  clockPickerModal.classList.add("is-open");
+  clockPickerModal.setAttribute("aria-hidden", "false");
 }
 
-function highlightTimeChip(gridEl, value) {
-  if (!gridEl) return;
-  gridEl.querySelectorAll(".time-chip").forEach((chip) => {
-    chip.classList.toggle("is-active", chip.dataset.value === value);
-  });
+function closeClockPicker() {
+  if (!clockPickerModal) return;
+  clockPickerModal.classList.remove("is-open");
+  clockPickerModal.setAttribute("aria-hidden", "true");
+  clockPointerActive = false;
+}
+
+function clockStepFromPointer(clientX, clientY) {
+  const rect = clockPickerFace.getBoundingClientRect();
+  const cx = rect.left + (rect.width / 2);
+  const cy = rect.top + (rect.height / 2);
+  const dx = clientX - cx;
+  const dy = clientY - cy;
+  const angle = Math.atan2(dy, dx);
+  const degrees = (angle * 180 / Math.PI + 450) % 360; // 0° arriba
+  return Math.round(degrees / 15) % 24;
+}
+
+function onClockPointerMove(event) {
+  if (!clockPointerActive) return;
+  event.preventDefault();
+  const point = event.touches?.[0] || event;
+  clockPickerStepIndex = clockStepFromPointer(point.clientX, point.clientY);
+  updateClockSelectionUI();
 }
 
 function syncTimeRangeHints() {
@@ -541,36 +632,100 @@ function syncTimeRangeHints() {
   const hh = String(Math.floor(suggested / 60)).padStart(2, "0");
   const mm = String(suggested % 60).padStart(2, "0");
   endTimeInput.value = `${hh}:${mm}`;
-  highlightTimeChip(document.getElementById("endTimeQuickGrid"), endTimeInput.value);
 }
 
 if (startTimeInput && endTimeInput) {
   startTimeInput.addEventListener("input", syncTimeRangeHints);
   endTimeInput.addEventListener("focus", syncTimeRangeHints);
-  endTimeInput.addEventListener("input", () => {
-    highlightTimeChip(document.getElementById("endTimeQuickGrid"), endTimeInput.value);
+  startTimeInput.addEventListener("click", (event) => {
+    event.preventDefault();
+    openClockPickerForInput(startTimeInput);
   });
-  startTimeInput.addEventListener("input", () => {
-    highlightTimeChip(document.getElementById("startTimeQuickGrid"), startTimeInput.value);
+  endTimeInput.addEventListener("click", (event) => {
+    event.preventDefault();
+    openClockPickerForInput(endTimeInput);
   });
-
-  const timeSlots = buildTimeSlots(8, 21, 30);
-  renderQuickTimeGrid(document.getElementById("startTimeQuickGrid"), startTimeInput, timeSlots);
-  renderQuickTimeGrid(document.getElementById("endTimeQuickGrid"), endTimeInput, timeSlots);
-
+  startTimeInput.addEventListener("focus", () => openClockPickerForInput(startTimeInput));
+  endTimeInput.addEventListener("focus", () => openClockPickerForInput(endTimeInput));
   document.querySelectorAll(".time-picker-open-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const targetId = btn.getAttribute("data-target");
       const input = document.getElementById(targetId);
       if (!input) return;
-      try {
-        if (typeof input.showPicker === "function") input.showPicker();
-        else input.focus();
-      } catch (_) {
-        input.focus();
-      }
+      openClockPickerForInput(input);
     });
   });
+
+  if (clockPickerFace) {
+    for (let step = 0; step < 24; step++) {
+      const marker = document.createElement("button");
+      marker.type = "button";
+      marker.className = `clock-marker ${step % 2 === 0 ? "is-hour" : "is-half"}`;
+      marker.dataset.step = String(step);
+      const angle = (step * 15) - 90;
+      marker.style.setProperty("--angle", `${angle}deg`);
+
+      if (step % 2 === 0) {
+        const { hour12 } = stepToHourMinute(step);
+        marker.textContent = String(hour12);
+      } else {
+        marker.innerHTML = '<span class="half-dot"></span>';
+      }
+
+      marker.addEventListener("click", () => {
+        clockPickerStepIndex = step;
+        updateClockSelectionUI();
+      });
+      clockPickerFace.appendChild(marker);
+    }
+
+    clockPickerFace.addEventListener("mousedown", (event) => {
+      clockPointerActive = true;
+      clockPickerStepIndex = clockStepFromPointer(event.clientX, event.clientY);
+      updateClockSelectionUI();
+      event.preventDefault();
+    });
+    clockPickerFace.addEventListener("touchstart", (event) => {
+      clockPointerActive = true;
+      const point = event.touches?.[0];
+      if (point) {
+        clockPickerStepIndex = clockStepFromPointer(point.clientX, point.clientY);
+        updateClockSelectionUI();
+      }
+    }, { passive: true });
+    window.addEventListener("mousemove", onClockPointerMove);
+    window.addEventListener("touchmove", onClockPointerMove, { passive: false });
+    window.addEventListener("mouseup", () => { clockPointerActive = false; });
+    window.addEventListener("touchend", () => { clockPointerActive = false; });
+  }
+
+  clockPeriodButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      clockPickerPeriod = btn.dataset.period || "AM";
+      updateClockPeriodButtons();
+      updateClockSelectionUI();
+    });
+  });
+
+  if (clockCancelBtn) {
+    clockCancelBtn.addEventListener("click", closeClockPicker);
+  }
+  if (clockConfirmBtn) {
+    clockConfirmBtn.addEventListener("click", () => {
+      if (!clockPickerTargetInput) return closeClockPicker();
+      const nextValue = hhmmFromClock(clockPickerStepIndex, clockPickerPeriod);
+      clockPickerTargetInput.value = nextValue;
+      clockPickerTargetInput.dispatchEvent(new Event("input", { bubbles: true }));
+      clockPickerTargetInput.dispatchEvent(new Event("change", { bubbles: true }));
+      closeClockPicker();
+    });
+  }
+  if (clockPickerModal) {
+    clockPickerModal.addEventListener("click", (event) => {
+      if (event.target?.dataset?.clockClose === "1") closeClockPicker();
+    });
+  }
+
   syncTimeRangeHints();
 }
 
