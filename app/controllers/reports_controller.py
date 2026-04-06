@@ -1,7 +1,9 @@
 import csv
+import os
+from datetime import datetime
 from io import StringIO, BytesIO
 from urllib.parse import urlencode
-from flask import Blueprint, Response, render_template, request, url_for
+from flask import Blueprint, Response, current_app, render_template, request, url_for
 from sqlalchemy import func
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
@@ -19,7 +21,10 @@ from app.utils.authz import min_role_required
 from app.extensions import db
 
 from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
 reports_bp = Blueprint("reports", __name__, url_prefix="/reports")
@@ -212,7 +217,7 @@ def build_reservations_rows(status=None, room=None, user_id=None, date_from=None
     headers = [
         "id", "user_id", "room", "date", "start_time", "end_time", "status",
         "group_name", "teacher_name", "subject", "signed",
-        "admin_note", "purpose", "exit_time", "teacher_comments", "created_at",
+        "signature_ref", "admin_note", "purpose", "exit_time", "teacher_comments", "created_at",
     ]
     rows = []
     for r in items:
@@ -220,6 +225,7 @@ def build_reservations_rows(status=None, room=None, user_id=None, date_from=None
             r.id, r.user_id, r.room, r.date, r.start_time, r.end_time, r.status,
             getattr(r, "group_name", None), getattr(r, "teacher_name", None), getattr(r, "subject", None),
             getattr(r, "signed", None),
+            getattr(r, "signature_ref", None),
             r.admin_note, r.purpose, getattr(r, "exit_time", None), getattr(r, "teacher_comments", None),
             r.created_at,
         ])
@@ -267,6 +273,7 @@ def render_report_view(
     selected_columns=None,
     all_columns=None,
     download_excel_url=None,
+    download_pdf_url=None,
 ):
     return render_template(
         "reports/report_view.html",
@@ -277,10 +284,84 @@ def render_report_view(
         selected_columns=selected_columns or headers,
         download_url=download_url,
         download_excel_url=download_excel_url,
+        download_pdf_url=download_pdf_url,
         report_description=report_description,
         extra_meta=extra_meta,
         filter_fields=filter_fields or [],
         active_page="reports",
+    )
+
+
+def _sanitize_pdf_cell(value) -> str:
+    text = "" if value is None else str(value)
+    text = " ".join(text.split())
+    if len(text) > 120:
+        return text[:117] + "..."
+    return text or "-"
+
+
+def pdf_response(
+    *,
+    filename: str,
+    report_title: str,
+    headers: list[str],
+    rows: list[list],
+    subtitle: str | None = None,
+    download: bool = False,
+):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=36,
+        rightMargin=36,
+        topMargin=36,
+        bottomMargin=36,
+    )
+
+    styles = getSampleStyleSheet()
+    story = []
+
+    logo_path = os.path.join(current_app.root_path, "static", "img", "coyolabs.png")
+    if os.path.exists(logo_path):
+        story.append(Image(logo_path, width=0.8 * inch, height=0.8 * inch))
+        story.append(Spacer(1, 6))
+
+    story.append(Paragraph(report_title, styles["Title"]))
+    if subtitle:
+        story.append(Paragraph(subtitle, styles["Normal"]))
+    story.append(Paragraph(f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles["Normal"]))
+    story.append(Spacer(1, 8))
+
+    table_data = [headers] + [[_sanitize_pdf_cell(v) for v in row] for row in rows]
+    available_width = doc.width
+    col_count = max(1, len(headers))
+    col_width = available_width / col_count
+    table = Table(table_data, repeatRows=1, colWidths=[col_width] * col_count)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F0E4C5")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#5B4410")),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#D3C5A6")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
+    story.append(table)
+    doc.build(story)
+    buffer.seek(0)
+
+    disposition = "attachment" if download else "inline"
+    return Response(
+        buffer.getvalue(),
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
     )
 
 
@@ -420,6 +501,7 @@ def report_inventory_view():
         selected_columns=selected_columns,
         all_columns=all_headers,
         download_excel_url=build_download_url("reports.report_inventory_excel"),
+        download_pdf_url=build_download_url("reports.report_inventory_pdf"),
     )
 
 
@@ -467,6 +549,7 @@ def report_debts_view():
         selected_columns=selected_columns,
         all_columns=all_headers,
         download_excel_url=build_download_url("reports.report_debts_excel"),
+        download_pdf_url=build_download_url("reports.report_debts_pdf"),
     )
 
 
@@ -561,6 +644,7 @@ def report_logbook_view():
         selected_columns=selected_columns,
         all_columns=all_headers,
         download_excel_url=build_download_url("reports.report_logbook_excel"),
+        download_pdf_url=build_download_url("reports.report_logbook_pdf"),
     )
 
 
@@ -641,6 +725,7 @@ def report_reservations_view():
         selected_columns=selected_columns,
         all_columns=all_headers,
         download_excel_url=build_download_url("reports.report_reservations_excel"),
+        download_pdf_url=build_download_url("reports.report_reservations_pdf"),
     )
 
 
@@ -708,6 +793,7 @@ def logbook_admin_view():
     visible_columns, visible_rows = project_rows(headers, rows, selected_columns)
     export_url = build_download_url("reports.report_logbook")
     export_excel_url = build_download_url("reports.report_logbook_excel")
+    export_pdf_url = build_download_url("reports.report_logbook_pdf")
 
     return render_template(
         "reports/logbook_admin.html",
@@ -717,6 +803,7 @@ def logbook_admin_view():
         selected_columns=selected_columns,
         export_url=export_url,
         export_excel_url=export_excel_url,
+        export_pdf_url=export_pdf_url,
         action=action,
         module=module,
         user_id=user_id,
@@ -732,50 +819,100 @@ def logbook_admin_view():
 @min_role_required("ADMIN")
 def report_inventory_pdf():
     lab_id = request.args.get("lab_id", type=int)
-    download = request.args.get("download", default=0, type=int)
-
-    q = Material.query
-    if lab_id:
-        q = q.filter(Material.lab_id == lab_id)
-
-    items = q.order_by(Material.lab_id, Material.location, Material.name).all()
-
-    bio = BytesIO()
-    c = canvas.Canvas(bio, pagesize=letter)
-    width, height = letter
-
-    y = height - 50
-    c.setFont("Helvetica-Bold", 14)
-    title = "Reporte de Inventario"
-    if lab_id:
-        title += f" (Lab ID: {lab_id})"
-    c.drawString(40, y, title)
-
-    y -= 25
-    c.setFont("Helvetica", 9)
-    c.drawString(40, y, "ID | Lab | Ubicación | Código | Nombre | Estado")
-    y -= 15
-
-    for m in items:
-        line = f"{m.id} | {m.lab_id} | {m.location or ''} | {m.code or ''} | {m.name or ''} | {m.status or ''}"
-        if len(line) > 140:
-            line = line[:140] + "..."
-        c.drawString(40, y, line)
-        y -= 12
-
-        if y < 60:
-            c.showPage()
-            y = height - 50
-            c.setFont("Helvetica", 9)
-
-    c.save()
-    bio.seek(0)
-
+    status = (request.args.get("status") or "").strip()
+    search = (request.args.get("search") or "").strip()
+    download = request.args.get("download", default=0, type=int) == 1
+    headers, rows = build_inventory_rows(lab_id=lab_id, status=status or None, search=search or None)
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
     filename = "inventory.pdf" if not lab_id else f"inventory_lab_{lab_id}.pdf"
-    disposition = "attachment" if download == 1 else "inline"
+    title = "Reporte de Inventario" if not lab_id else f"Reporte de Inventario - Lab {lab_id}"
+    return pdf_response(
+        filename=filename,
+        report_title=title,
+        headers=headers,
+        rows=rows,
+        subtitle="Inventario institucional",
+        download=download,
+    )
 
-    return Response(
-        bio.getvalue(),
-        mimetype="application/pdf",
-        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
+
+@reports_bp.route("/debts.pdf", methods=["GET"])
+@min_role_required("ADMIN")
+def report_debts_pdf():
+    status = (request.args.get("status") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    download = request.args.get("download", default=0, type=int) == 1
+    headers, rows = build_debts_rows(status=status or None, user_id=user_id)
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
+    return pdf_response(
+        filename="debts.pdf",
+        report_title="Reporte de Adeudos",
+        headers=headers,
+        rows=rows,
+        subtitle="Adeudos institucionales",
+        download=download,
+    )
+
+
+@reports_bp.route("/logbook.pdf", methods=["GET"])
+@min_role_required("ADMIN")
+def report_logbook_pdf():
+    action = (request.args.get("action") or "").strip()
+    module = (request.args.get("module") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    material_id = request.args.get("material_id", type=int)
+    description = (request.args.get("description") or "").strip()
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+    download = request.args.get("download", default=0, type=int) == 1
+
+    headers, rows = build_logbook_rows(
+        action=action or None,
+        module=module or None,
+        user_id=user_id,
+        material_id=material_id,
+        description=description or None,
+        date_from=date_from or None,
+        date_to=date_to or None,
+    )
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
+    return pdf_response(
+        filename="logbook.pdf",
+        report_title="Reporte de Bitácora",
+        headers=headers,
+        rows=rows,
+        subtitle="Eventos administrativos y de operación",
+        download=download,
+    )
+
+
+@reports_bp.route("/reservations.pdf", methods=["GET"])
+@min_role_required("ADMIN")
+def report_reservations_pdf():
+    status = (request.args.get("status") or "").strip()
+    room = (request.args.get("room") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+    download = request.args.get("download", default=0, type=int) == 1
+
+    headers, rows = build_reservations_rows(
+        status=status or None,
+        room=room or None,
+        user_id=user_id,
+        date_from=date_from or None,
+        date_to=date_to or None,
+    )
+    selected_columns = parse_selected_columns(headers)
+    headers, rows = project_rows(headers, rows, selected_columns)
+    return pdf_response(
+        filename="reservations.pdf",
+        report_title="Reporte de Reservaciones",
+        headers=headers,
+        rows=rows,
+        subtitle="Reservaciones institucionales",
+        download=download,
     )

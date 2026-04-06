@@ -302,8 +302,13 @@ def admin_edit_material(material_id: int):
 def admin_toggle_material_active(material_id: int):
     material = Material.query.get_or_404(material_id)
     reason = normalize_spaces(request.form.get("reason") or "")
+    is_reactivating = _is_inactive_status(material.status)
 
-    if _is_inactive_status(material.status):
+    if not is_reactivating and not reason:
+        flash("Debes indicar un motivo para dar de baja este material.", "error")
+        return redirect(url_for("inventory.material_detail", material_id=material.id))
+
+    if is_reactivating:
         previous_status = material.status
         material.status = "Disponible"
         action = "MATERIAL_REACTIVATED"

@@ -275,6 +275,11 @@
               <span>Software</span>
             </a>
 
+            <a href="{{ url_for('print3d.my_jobs') }}" class="nav-subitem {% if active_page == 'prints3d' %}active{% endif %}">
+              <i class="ph ph-cube nav-subicon"></i>
+              <span>Impresiones 3D</span>
+            </a>
+
             <a href="{{ url_for('reservations.reservations_home') }}" class="nav-subitem {% if active_page == 'reservations' %}active{% endif %}">
               <i class="ph ph-calendar-check nav-subicon"></i>
               <span>Reservaciones</span>
@@ -535,6 +540,8 @@
       const viewFragmentSelectorsByPath = {
         "/reservations/admin": "#reservations-admin-queue-container",
         "/reservations/admin/approved": "#reservations-admin-approved-container",
+        "/reservations/admin/tickets/closure-requests": "#reservations-admin-closure-requests-container",
+        "/reservations/admin/approved/history": "#reservations-admin-approved-history-container",
         "/reservations/my": "#reservations-my-list-container",
         "/debts/admin": "#debts-admin-list-container",
         "/debts/my": "#debts-my-list-container",
@@ -600,6 +607,7 @@
           upsertNotification(payload);
           updateBadge(payload.unread_count || 0);
           renderNotificationPanel();
+          window.dispatchEvent(new CustomEvent("coyolabs:notification_created", { detail: payload }));
           createNotification({
             title: payload.title || "Nueva notificación",
             message: payload.message || "",
