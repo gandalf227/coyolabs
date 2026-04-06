@@ -532,6 +532,67 @@
         return "info";
       }
 
+      const viewFragmentSelectorsByPath = {
+        "/reservations/admin": "#reservations-admin-queue-container",
+        "/reservations/admin/approved": "#reservations-admin-approved-container",
+        "/reservations/my": "#reservations-my-list-container",
+        "/debts/admin": "#debts-admin-list-container",
+        "/debts/my": "#debts-my-list-container",
+      };
+      const viewFragmentSelectorsByPrefix = [
+        ["/reservations/my/", "#ticket-my-container"],
+        ["/reservations/admin/tickets/", "#ticket-detail-container"],
+      ];
+      let isRefreshingView = false;
+      let refreshViewTimer = null;
+
+      function currentViewFragmentSelector() {
+        const pathname = (window.location && window.location.pathname) || "";
+        if (viewFragmentSelectorsByPath[pathname]) return viewFragmentSelectorsByPath[pathname];
+        const matchedPrefix = viewFragmentSelectorsByPrefix.find(([prefix]) => pathname.startsWith(prefix));
+        return matchedPrefix ? matchedPrefix[1] : null;
+      }
+
+      async function refreshCurrentViewFragment() {
+        const selector = currentViewFragmentSelector();
+        if (!selector || isRefreshingView) return;
+
+        const currentFragment = document.querySelector(selector);
+        if (!currentFragment) return;
+
+        isRefreshingView = true;
+        try {
+          const resp = await fetch(window.location.href, {
+            credentials: "same-origin",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+          });
+          if (!resp.ok) {
+            console.warn("Partial refresh failed: response not OK", resp.status);
+            return;
+          }
+
+          const html = await resp.text();
+          const parser = new DOMParser();
+          const nextDoc = parser.parseFromString(html, "text/html");
+          const nextFragment = nextDoc.querySelector(selector);
+          if (!nextFragment) return;
+
+          currentFragment.replaceWith(nextFragment);
+        } catch (err) {
+          console.warn("Partial refresh failed", err);
+        } finally {
+          isRefreshingView = false;
+        }
+      }
+
+      function scheduleCurrentViewFragmentRefresh() {
+        if (!currentViewFragmentSelector()) return;
+        if (refreshViewTimer) clearTimeout(refreshViewTimer);
+        refreshViewTimer = setTimeout(() => {
+          refreshCurrentViewFragment();
+        }, 180);
+      }
+
       function connectSSE() {
         const source = new EventSource("{{ url_for('notifications.stream_notifications') }}");
         source.addEventListener("notification_created", (event) => {
@@ -544,6 +605,7 @@
             message: payload.message || "",
             type: inferNotificationType(payload),
           });
+          scheduleCurrentViewFragmentRefresh();
         });
         source.addEventListener("error", () => {
           source.close();
