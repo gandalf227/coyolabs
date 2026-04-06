@@ -109,6 +109,7 @@ def admin_list():
 @permission_required("debts.create")
 def admin_create():
     if request.method == "POST":
+        pending_notifications: list[Notification] = []
         email = (request.form.get("email") or "").strip().lower()
         material_id = request.form.get("material_id", type=int)
         reason = (request.form.get("reason") or "").strip()
