@@ -35,6 +35,10 @@ class InventoryRequestStatus:
     CLOSED = "CLOSED"
 
 
+class Print3DJobStatus:
+    REQUESTED = "REQUESTED"
+
+
 ACTIVE_LAB_TICKET_STATUSES = {
     LabTicketStatus.OPEN,
     LabTicketStatus.READY_FOR_PICKUP,

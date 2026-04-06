@@ -177,6 +177,21 @@
   gap: 12px;
 }
 
+.signature-pad {
+  border: 1px dashed var(--stroke-strong, rgba(0,0,0,0.2));
+  border-radius: 12px;
+  background: rgba(255,255,255,0.7);
+  width: 100%;
+  min-height: 180px;
+  touch-action: none;
+}
+
+.signature-hint {
+  margin-top: 6px;
+  font-size: .82rem;
+  color: var(--text-dim, #728078);
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
@@ -357,8 +372,18 @@
       <div id="cartHiddenInputs"></div>
     </div>
 
+    <div class="toolbar-group" style="grid-column:1/-1;">
+      <label>Firma digital del solicitante</label>
+      <canvas id="signaturePad" class="signature-pad" width="900" height="200"></canvas>
+      <input type="hidden" id="signatureDataInput" name="signature_data">
+      <div class="toolbar-actions" style="margin-top:8px;">
+        <button type="button" id="clearSignatureBtn" class="btn btn-ghost">Limpiar firma</button>
+      </div>
+      <small class="signature-hint">La reservación requiere firma digital. Dibuja tu firma antes de enviar.</small>
+    </div>
+
     <div class="toolbar-actions" style="grid-column:1/-1;">
-      <button type="submit" class="btn btn-gold" {% if is_professor and not professor_subjects %}disabled title="No tienes materias asignadas"{% endif %}>Enviar solicitud</button>
+      <button type="submit" id="submitReservationBtn" class="btn btn-gold" {% if is_professor and not professor_subjects %}disabled title="No tienes materias asignadas"{% endif %}>Enviar solicitud</button>
       <a href="{{ url_for('reservations.my_reservations') }}" class="btn btn-ghost">Cancelar</a>
     </div>
   </form>
@@ -498,6 +523,11 @@ const groupSelect = document.getElementById("groupSelect");
 const reservationDateInput = document.getElementById("reservationDateInput");
 const startTimeInput = document.getElementById("startTimeInput");
 const endTimeInput = document.getElementById("endTimeInput");
+const reservationForm = document.querySelector(".reservation-request-form");
+const signaturePad = document.getElementById("signaturePad");
+const signatureDataInput = document.getElementById("signatureDataInput");
+const clearSignatureBtn = document.getElementById("clearSignatureBtn");
+const submitReservationBtn = document.getElementById("submitReservationBtn");
 
 const clockPickerModal = document.getElementById("clockPickerModal");
 const clockPickerFace = document.getElementById("clockPickerFace");
@@ -512,6 +542,67 @@ let clockPickerStepIndex = 0; // 0..23 (cada paso = 30 minutos)
 let clockPickerPeriod = "AM";
 let clockPointerActive = false;
 let lastSnappedStep = 0;
+let signatureDrawing = false;
+let signatureHasStroke = false;
+
+function signaturePosition(evt) {
+  const rect = signaturePad.getBoundingClientRect();
+  const source = evt.touches ? evt.touches[0] : evt;
+  return {
+    x: source.clientX - rect.left,
+    y: source.clientY - rect.top,
+  };
+}
+
+function initSignaturePad() {
+  if (!signaturePad) return;
+  const ctx = signaturePad.getContext("2d");
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#2c2c2c";
+
+  function startDraw(evt) {
+    evt.preventDefault();
+    signatureDrawing = true;
+    const pos = signaturePosition(evt);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  }
+
+  function moveDraw(evt) {
+    if (!signatureDrawing) return;
+    evt.preventDefault();
+    const pos = signaturePosition(evt);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    signatureHasStroke = true;
+  }
+
+  function endDraw() {
+    signatureDrawing = false;
+  }
+
+  signaturePad.addEventListener("mousedown", startDraw);
+  signaturePad.addEventListener("mousemove", moveDraw);
+  window.addEventListener("mouseup", endDraw);
+  signaturePad.addEventListener("touchstart", startDraw, { passive: false });
+  signaturePad.addEventListener("touchmove", moveDraw, { passive: false });
+  window.addEventListener("touchend", endDraw, { passive: true });
+
+  clearSignatureBtn?.addEventListener("click", () => {
+    ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
+    signatureHasStroke = false;
+    signatureDataInput.value = "";
+  });
+}
+
+function validateAndSerializeSignature() {
+  if (!signaturePad || !signatureDataInput) return true;
+  if (!signatureHasStroke) return false;
+  signatureDataInput.value = signaturePad.toDataURL("image/png");
+  return true;
+}
 
 function toClockStep(hour24, minute) {
   const normalizedMinute = minute >= 30 ? 30 : 0;
@@ -759,6 +850,17 @@ if (startTimeInput && endTimeInput) {
 if (reservationDateInput) {
   reservationDateInput.title = "Selecciona la fecha de la reserva";
 }
+
+initSignaturePad();
+
+reservationForm?.addEventListener("submit", (event) => {
+  if (!validateAndSerializeSignature()) {
+    event.preventDefault();
+    if (submitReservationBtn) submitReservationBtn.disabled = false;
+    alert("Debes capturar tu firma digital para enviar la reservación.");
+    return;
+  }
+});
 
 function renderGroupOptionsForSelectedSubject() {
   if (!subjectSelect || !groupSelect) return;
