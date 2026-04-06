@@ -41,6 +41,7 @@
             <th>Materia</th>
             <th>Grupo</th>
             <th>Solicitante</th>
+            <th>Firma</th>
             <th>Materiales</th>
             <th>Ticket</th>
             <th>Acciones ticket</th>
@@ -60,6 +61,15 @@
             <td>{{ r.subject }}</td>
             <td>{{ r.group_name }}</td>
             <td>{{ ((r.user.first_name or '') ~ ' ' ~ (r.user.last_name or ''))|trim or r.user.email }}</td>
+            <td>
+              {% if r.signature_ref %}
+                <a href="{{ url_for('static', filename=r.signature_ref) }}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost">Ver firma</a>
+              {% elif r.signed %}
+                <span class="status-badge status-ok">Registrada (legacy)</span>
+              {% else %}
+                <span class="status-badge status-bad">Sin firma</span>
+              {% endif %}
+            </td>
 
             <td>
               {% if r.items %}
