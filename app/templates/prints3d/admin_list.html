@@ -7,7 +7,7 @@
   <div class="topbar-left">
     <p class="page-kicker">Impresiones 3D</p>
     <h1>Solicitudes (Administración)</h1>
-    <p class="page-subtitle">Listado general de solicitudes de impresión 3D.</p>
+    <p class="page-subtitle">Listado general de solicitudes para gestión administrativa.</p>
   </div>
 </header>
 
@@ -36,6 +36,7 @@
           <th>Tamaño</th>
           <th>Estado</th>
           <th>Total estimado</th>
+          <th>Notificado READY</th>
           <th>Creado</th>
           <th>Acciones</th>
         </tr>
@@ -48,11 +49,23 @@
           <td>{{ job.title }}</td>
           <td>{{ job.original_filename }}</td>
           <td>{{ (job.file_size_bytes / 1024)|round(1) }} KB</td>
-          <td><span class="status-badge status-warn">{{ job.status|status_label }}</span></td>
+          <td><span class="status-badge {{ status_badge_class(job.status) }}">{{ job.status|status_label }}</span></td>
           <td>{{ ('$' ~ ('%.2f'|format(job.total_estimated))) if job.total_estimated is not none else '-' }}</td>
+          <td>{{ job.ready_notified_at if job.ready_notified_at else '-' }}</td>
           <td>{{ job.created_at }}</td>
           <td>
-            <a href="{{ url_for('print3d.download_file', job_id=job.id) }}" class="btn btn-ghost">Descargar</a>
+            <div class="toolbar" style="grid-template-columns: 1fr; gap:8px;">
+              <a href="{{ url_for('print3d.download_file', job_id=job.id) }}" class="btn btn-ghost">Descargar</a>
+              <form method="post" action="{{ url_for('print3d.admin_set_status', job_id=job.id) }}" class="toolbar" style="grid-template-columns: minmax(180px, 1fr) auto; gap:8px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <select class="form-control" name="status" required>
+                  {% for status in print3d_statuses %}
+                    <option value="{{ status }}" {% if job.status == status %}selected{% endif %}>{{ status|status_label }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-gold">Estado</button>
+              </form>
+            </div>
           </td>
         </tr>
       {% endfor %}
