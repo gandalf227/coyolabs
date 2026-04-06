@@ -17,23 +17,7 @@
   margin-bottom: 12px;
 }
 
-#materialSearch {
-  width: 100%;
-  min-height: 54px;
-  padding: 0 16px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke);
-  background: rgba(255,255,255,0.48);
-  color: var(--text);
-  font-size: 0.96rem;
-}
-
-#materialSearch:focus {
-  outline: none;
-  border-color: rgba(199,159,51,0.35);
-  box-shadow: 0 0 0 4px rgba(199,159,51,0.08);
-  background: rgba(255,255,255,0.72);
-}
+#materialSearch { min-height: 54px; }
 
 .autocomplete-list {
   position: absolute;
@@ -121,19 +105,18 @@
 }
 
 .qty-btn {
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 6px;
-  background: #e0b12c;
-  color: white;
+  width: 32px;
+  min-height: 32px;
+  height: 32px;
+  border-radius: 10px;
+  padding: 0;
   cursor: pointer;
-  font-weight: 700;
-  transition: transform .12s ease, opacity .12s ease;
+  font-weight: 800;
+  transition: transform .12s ease;
 }
 
 .qty-btn:hover {
-  opacity: .92;
+  transform: translateY(-1px);
 }
 
 .qty-btn:active {
@@ -181,6 +164,19 @@
   transform: translateY(0);
 }
 
+.datetime-helper {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: var(--text-dim, #728078);
+}
+
+.time-range-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
@@ -199,6 +195,10 @@
   .reservation-calendar-filter .toolbar-group,
   .reservation-calendar-filter .btn {
     width: 100%;
+  }
+
+  .time-range-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>
@@ -247,7 +247,6 @@
       <div class="search-box">
         <i class="ph ph-user search-icon"></i>
         <input
-          class="form-control"
           type="text"
           value="{{ ((current_user.first_name or '') ~ ' ' ~ (current_user.last_name or ''))|trim or current_user.email }}"
           readonly
@@ -280,7 +279,7 @@
       {% else %}
         <div class="search-box">
           <i class="ph ph-book search-icon"></i>
-          <input class="form-control" type="text" name="subject" placeholder="Ejemplo: Programación Web" required>
+          <input type="text" name="subject" placeholder="Ejemplo: Programación Web" required>
         </div>
       {% endif %}
     </div>
@@ -289,32 +288,39 @@
       <label>Fecha de uso</label>
       <div class="search-box">
         <i class="ph ph-calendar search-icon"></i>
-        <input class="form-control" type="date" name="date" required>
+        <input type="date" id="reservationDateInput" name="date" required aria-describedby="reservationDateHelp">
       </div>
+      <small id="reservationDateHelp" class="datetime-helper">Selecciona la fecha en formato local del navegador.</small>
     </div>
 
-    <div class="toolbar-group">
-      <label>Hora de inicio</label>
-      <div class="search-box">
-        <i class="ph ph-clock search-icon"></i>
-        <input class="form-control" type="time" name="start_time" required>
+    <div class="toolbar-group time-range-row">
+      <div>
+        <label>Hora de inicio</label>
+        <div class="search-box time-picker-input-wrap">
+          <i class="ph ph-clock search-icon"></i>
+          <input type="time" id="startTimeInput" name="start_time" required min="08:00" max="21:00" step="1800" aria-describedby="reservationTimeHelp" class="clock-time-input">
+          <button type="button" class="time-picker-open-btn" data-target="startTimeInput" aria-label="Abrir selector radial de hora de inicio">
+            <i class="ph ph-clock-afternoon"></i>
+          </button>
+        </div>
       </div>
-    </div>
 
-    <div class="toolbar-group">
-      <label>Hora de finalización</label>
-      <div class="search-box">
-        <i class="ph ph-clock-countdown search-icon"></i>
-        <input class="form-control" type="time" name="end_time" required>
+      <div>
+        <label>Hora de finalización</label>
+        <div class="search-box time-picker-input-wrap">
+          <i class="ph ph-clock-countdown search-icon"></i>
+          <input type="time" id="endTimeInput" name="end_time" required min="08:00" max="21:00" step="1800" aria-describedby="reservationTimeHelp" class="clock-time-input">
+          <button type="button" class="time-picker-open-btn" data-target="endTimeInput" aria-label="Abrir selector radial de hora de finalización">
+            <i class="ph ph-clock-afternoon"></i>
+          </button>
+        </div>
       </div>
+      <small id="reservationTimeHelp" class="datetime-helper">Rango sugerido: 08:00 a 21:00 (formato 24 horas).</small>
     </div>
 
     <div class="toolbar-group" style="grid-column:1/-1;">
       <label>Motivo (opcional)</label>
-      <div class="search-box" style="height: auto; min-height: 110px; align-items:flex-start; padding-top: 14px;">
-        <i class="ph ph-note-pencil search-icon" style="margin-top:2px;"></i>
-        <textarea class="form-control" name="purpose" rows="3" placeholder="Objetivo de la práctica o actividad"></textarea>
-      </div>
+      <textarea class="form-control" name="purpose" rows="3" placeholder="Objetivo de la práctica o actividad"></textarea>
     </div>
 
     <div class="toolbar-group" style="grid-column:1/-1;">
@@ -328,7 +334,10 @@
       <h3 style="margin-top:10px;">Materiales</h3>
 
       <div class="material-search">
-        <input class="form-control" type="text" id="materialSearch" placeholder="Buscar material por nombre, código o ubicación">
+        <div class="search-box">
+          <i class="ph ph-magnifying-glass search-icon"></i>
+          <input type="text" id="materialSearch" placeholder="Buscar material por nombre, código o ubicación">
+        </div>
         <div id="autocompleteList" class="autocomplete-list"></div>
       </div>
 
@@ -444,6 +453,32 @@
 
 <div id="toast" class="toast">Material agregado</div>
 
+<div id="clockPickerModal" class="clock-picker-modal" aria-hidden="true">
+  <div class="clock-picker-backdrop" data-clock-close="1"></div>
+  <div class="clock-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="clockPickerTitle">
+    <div class="clock-picker-header">
+      <p class="page-kicker">Selector de hora</p>
+      <h3 id="clockPickerTitle">Selecciona una hora</h3>
+      <div class="clock-picker-current" id="clockPickerCurrent">12:00 AM</div>
+    </div>
+    <div class="clock-picker-face-wrap">
+      <div class="clock-picker-face" id="clockPickerFace">
+        <div class="clock-picker-hand" id="clockPickerHand"></div>
+        <div class="clock-picker-center-dot"></div>
+      </div>
+    </div>
+    <div class="clock-picker-period">
+      <button type="button" class="clock-period-btn is-active" id="clockPeriodAM" data-period="AM">AM</button>
+      <button type="button" class="clock-period-btn" id="clockPeriodPM" data-period="PM">PM</button>
+    </div>
+    <small class="datetime-helper" id="clockPickerHelp">Rango permitido del campo: 08:00 a 21:00.</small>
+    <div class="clock-picker-actions">
+      <button type="button" class="btn btn-ghost" id="clockCancelBtn">Cancelar</button>
+      <button type="button" class="btn btn-gold" id="clockConfirmBtn">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const materials = {{ materials_json | safe }};
 const professorGroupsBySubject = {{ professor_groups_by_subject | tojson if is_professor else "{}" }};
@@ -460,6 +495,270 @@ const cartKinds = document.getElementById("cartKinds");
 const clearCartBtn = document.getElementById("clearCartBtn");
 const subjectSelect = document.getElementById("subjectSelect");
 const groupSelect = document.getElementById("groupSelect");
+const reservationDateInput = document.getElementById("reservationDateInput");
+const startTimeInput = document.getElementById("startTimeInput");
+const endTimeInput = document.getElementById("endTimeInput");
+
+const clockPickerModal = document.getElementById("clockPickerModal");
+const clockPickerFace = document.getElementById("clockPickerFace");
+const clockPickerHand = document.getElementById("clockPickerHand");
+const clockPickerCurrent = document.getElementById("clockPickerCurrent");
+const clockPickerHelp = document.getElementById("clockPickerHelp");
+const clockConfirmBtn = document.getElementById("clockConfirmBtn");
+const clockCancelBtn = document.getElementById("clockCancelBtn");
+const clockPeriodButtons = document.querySelectorAll(".clock-period-btn");
+let clockPickerTargetInput = null;
+let clockPickerStepIndex = 0; // 0..23 (cada paso = 30 minutos)
+let clockPickerPeriod = "AM";
+let clockPointerActive = false;
+let lastSnappedStep = 0;
+
+function toClockStep(hour24, minute) {
+  const normalizedMinute = minute >= 30 ? 30 : 0;
+  const hour12 = (hour24 % 12) || 12;
+  let step = hour12 === 12 ? 0 : hour12 * 2;
+  if (normalizedMinute === 30) step += 1;
+  return step;
+}
+
+function stepToHourMinute(step) {
+  const safeStep = ((step % 24) + 24) % 24;
+  const baseHour = Math.floor(safeStep / 2);
+  const hour12 = baseHour === 0 ? 12 : baseHour;
+  const minute = safeStep % 2 === 0 ? 0 : 30;
+  return { hour12, minute };
+}
+
+function to24Hour(hour12, period) {
+  if (period === "AM") return hour12 === 12 ? 0 : hour12;
+  return hour12 === 12 ? 12 : hour12 + 12;
+}
+
+function hhmmFromClock(step, period) {
+  const { hour12, minute } = stepToHourMinute(step);
+  const hour24 = to24Hour(hour12, period);
+  return `${String(hour24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function labelFromClock(step, period) {
+  const { hour12, minute } = stepToHourMinute(step);
+  return `${String(hour12).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${period}`;
+}
+
+function updateClockPeriodButtons() {
+  clockPeriodButtons.forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.period === clockPickerPeriod);
+  });
+}
+
+function updateClockSelectionUI() {
+  const angle = (clockPickerStepIndex * 15) - 90;
+  clockPickerHand.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
+  clockPickerCurrent.textContent = labelFromClock(clockPickerStepIndex, clockPickerPeriod);
+
+  if (!clockPickerTargetInput) return;
+  const candidate = hhmmFromClock(clockPickerStepIndex, clockPickerPeriod);
+  const minValue = clockPickerTargetInput.min || "00:00";
+  const maxValue = clockPickerTargetInput.max || "23:59";
+  const valid = candidate >= minValue && candidate <= maxValue;
+  clockConfirmBtn.disabled = !valid;
+  clockPickerHelp.textContent = valid
+    ? `Seleccionado: ${candidate} (24h).`
+    : `Fuera de rango para este campo (${minValue} a ${maxValue}).`;
+}
+
+function extractClockFromInputValue(value) {
+  if (!value || !value.includes(":")) return { step: 16, period: "AM" }; // 08:00 por defecto
+  const [hRaw, mRaw] = value.split(":");
+  const hour24 = Number(hRaw);
+  const minuteRaw = Number(mRaw);
+  if (Number.isNaN(hour24) || Number.isNaN(minuteRaw)) return { step: 16, period: "AM" };
+  const minute = minuteRaw >= 30 ? 30 : 0;
+  return {
+    step: toClockStep(hour24, minute),
+    period: hour24 >= 12 ? "PM" : "AM",
+  };
+}
+
+function openClockPickerForInput(inputEl) {
+  if (!inputEl || !clockPickerModal) return;
+  clockPickerTargetInput = inputEl;
+  const initial = extractClockFromInputValue(inputEl.value);
+  clockPickerStepIndex = initial.step;
+  lastSnappedStep = initial.step;
+  clockPickerPeriod = initial.period;
+  updateClockPeriodButtons();
+  updateClockSelectionUI();
+  clockPickerModal.classList.add("is-open");
+  clockPickerModal.setAttribute("aria-hidden", "false");
+}
+
+function closeClockPicker() {
+  if (!clockPickerModal) return;
+  clockPickerModal.classList.remove("is-open");
+  clockPickerModal.setAttribute("aria-hidden", "true");
+  clockPointerActive = false;
+}
+
+function clockStepFromPointer(clientX, clientY) {
+  const rect = clockPickerFace.getBoundingClientRect();
+  const cx = rect.left + (rect.width / 2);
+  const cy = rect.top + (rect.height / 2);
+  const dx = clientX - cx;
+  const dy = clientY - cy;
+  const angle = Math.atan2(dy, dx);
+  return (angle * 180 / Math.PI + 450) % 360; // 0° arriba
+}
+
+function angularDistance(a, b) {
+  const diff = Math.abs(a - b) % 360;
+  return diff > 180 ? 360 - diff : diff;
+}
+
+function snapStepFromDegrees(degrees, previousStep = null, forceNearest = false) {
+  const nearest = Math.round(degrees / 15) % 24;
+  if (forceNearest || previousStep === null || previousStep === undefined) return nearest;
+
+  const previousCenter = (previousStep % 24) * 15;
+  const distToPrevious = angularDistance(degrees, previousCenter);
+  // Pequeña histéresis para evitar rebotes al borde entre dos pasos.
+  if (distToPrevious <= 6) return previousStep % 24;
+  return nearest;
+}
+
+function onClockPointerMove(event) {
+  if (!clockPointerActive) return;
+  event.preventDefault();
+  const point = event.touches?.[0] || event;
+  const degrees = clockStepFromPointer(point.clientX, point.clientY);
+  const snapped = snapStepFromDegrees(degrees, lastSnappedStep, false);
+  clockPickerStepIndex = snapped;
+  lastSnappedStep = snapped;
+  updateClockSelectionUI();
+}
+
+function syncTimeRangeHints() {
+  if (!startTimeInput || !endTimeInput) return;
+
+  const start = startTimeInput.value || "";
+  endTimeInput.min = start || "08:00";
+
+  if (!start || !endTimeInput.value) return;
+  if (endTimeInput.value > start) return;
+
+  const [h, m] = start.split(":").map(Number);
+  const startMinutes = (h * 60) + m;
+  const suggested = Math.min(startMinutes + 60, 21 * 60);
+  const hh = String(Math.floor(suggested / 60)).padStart(2, "0");
+  const mm = String(suggested % 60).padStart(2, "0");
+  endTimeInput.value = `${hh}:${mm}`;
+}
+
+if (startTimeInput && endTimeInput) {
+  startTimeInput.addEventListener("input", syncTimeRangeHints);
+  endTimeInput.addEventListener("focus", syncTimeRangeHints);
+  startTimeInput.addEventListener("click", (event) => {
+    event.preventDefault();
+    openClockPickerForInput(startTimeInput);
+  });
+  endTimeInput.addEventListener("click", (event) => {
+    event.preventDefault();
+    openClockPickerForInput(endTimeInput);
+  });
+  startTimeInput.addEventListener("focus", () => openClockPickerForInput(startTimeInput));
+  endTimeInput.addEventListener("focus", () => openClockPickerForInput(endTimeInput));
+  document.querySelectorAll(".time-picker-open-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetId = btn.getAttribute("data-target");
+      const input = document.getElementById(targetId);
+      if (!input) return;
+      openClockPickerForInput(input);
+    });
+  });
+
+  if (clockPickerFace) {
+    for (let step = 0; step < 24; step++) {
+      const marker = document.createElement("button");
+      marker.type = "button";
+      marker.className = `clock-marker ${step % 2 === 0 ? "is-hour" : "is-half"}`;
+      marker.dataset.step = String(step);
+      const angle = (step * 15) - 90;
+      marker.style.setProperty("--angle", `${angle}deg`);
+
+      if (step % 2 === 0) {
+        const { hour12 } = stepToHourMinute(step);
+        marker.textContent = String(hour12);
+      } else {
+        marker.innerHTML = '<span class="half-dot"></span>';
+      }
+
+      marker.addEventListener("click", () => {
+        clockPickerStepIndex = step;
+        lastSnappedStep = step;
+        updateClockSelectionUI();
+      });
+      marker.addEventListener("pointerdown", (event) => {
+        event.stopPropagation();
+      });
+      clockPickerFace.appendChild(marker);
+    }
+
+    clockPickerFace.addEventListener("pointerdown", (event) => {
+      clockPointerActive = true;
+      const degrees = clockStepFromPointer(event.clientX, event.clientY);
+      const snapped = snapStepFromDegrees(degrees, lastSnappedStep, true);
+      clockPickerStepIndex = snapped;
+      lastSnappedStep = snapped;
+      updateClockSelectionUI();
+      if (typeof clockPickerFace.setPointerCapture === "function") {
+        try { clockPickerFace.setPointerCapture(event.pointerId); } catch (_) {}
+      }
+      event.preventDefault();
+    });
+    clockPickerFace.addEventListener("pointermove", onClockPointerMove);
+    const releasePointer = (event) => {
+      clockPointerActive = false;
+      if (typeof clockPickerFace.releasePointerCapture === "function") {
+        try { clockPickerFace.releasePointerCapture(event.pointerId); } catch (_) {}
+      }
+    };
+    clockPickerFace.addEventListener("pointerup", releasePointer);
+    clockPickerFace.addEventListener("pointercancel", releasePointer);
+  }
+
+  clockPeriodButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      clockPickerPeriod = btn.dataset.period || "AM";
+      updateClockPeriodButtons();
+      updateClockSelectionUI();
+    });
+  });
+
+  if (clockCancelBtn) {
+    clockCancelBtn.addEventListener("click", closeClockPicker);
+  }
+  if (clockConfirmBtn) {
+    clockConfirmBtn.addEventListener("click", () => {
+      if (!clockPickerTargetInput) return closeClockPicker();
+      const nextValue = hhmmFromClock(clockPickerStepIndex, clockPickerPeriod);
+      clockPickerTargetInput.value = nextValue;
+      clockPickerTargetInput.dispatchEvent(new Event("input", { bubbles: true }));
+      clockPickerTargetInput.dispatchEvent(new Event("change", { bubbles: true }));
+      closeClockPicker();
+    });
+  }
+  if (clockPickerModal) {
+    clockPickerModal.addEventListener("click", (event) => {
+      if (event.target?.dataset?.clockClose === "1") closeClockPicker();
+    });
+  }
+
+  syncTimeRangeHints();
+}
+
+if (reservationDateInput) {
+  reservationDateInput.title = "Selecciona la fecha de la reserva";
+}
 
 function renderGroupOptionsForSelectedSubject() {
   if (!subjectSelect || !groupSelect) return;
@@ -635,9 +934,9 @@ function renderCart() {
       </div>
 
       <div class="cart-controls">
-        <button type="button" class="qty-btn" onclick="updateQty(${item.id}, -1)">-</button>
+        <button type="button" class="btn btn-ghost qty-btn" onclick="updateQty(${item.id}, -1)">-</button>
         <span class="qty-value">${item.qty}</span>
-        <button type="button" class="qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
+        <button type="button" class="btn btn-ghost qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
       </div>
     `;
     cartContainer.appendChild(row);

@@ -106,7 +106,7 @@
       {% else %}
       <div class="empty">
         <p>No tienes reservas próximas.</p>
-        <a class="btn-ghost" href="{{ url_for('reservations.request_reservation') }}"><i class="ph ph-calendar-plus"></i>Crear reservación</a>
+        <a class="btn btn-ghost" href="{{ url_for('reservations.request_reservation') }}"><i class="ph ph-calendar-plus"></i>Crear reservación</a>
       </div>
       {% endif %}
     </article>
@@ -211,7 +211,7 @@
       {% if not is_profile_complete %}
       <div class="empty" style="text-align:left;">
         <p>Completa tu perfil para evitar bloqueos en procesos académicos.</p>
-        <a class="btn-ghost" href="{{ url_for('profile.complete_profile') }}"><i class="ph ph-pencil-simple-line"></i>Completar perfil</a>
+        <a class="btn btn-ghost" href="{{ url_for('profile.complete_profile') }}"><i class="ph ph-pencil-simple-line"></i>Completar perfil</a>
       </div>
       {% endif %}
     </article>
@@ -237,7 +237,7 @@
       {% else %}
       <div class="empty">
         <p>No hay solicitudes recientes.</p>
-        <a class="btn-ghost" href="{{ url_for('inventory_requests.my_daily_request') }}"><i class="ph ph-clipboard-text"></i>Crear solicitud</a>
+        <a class="btn btn-ghost" href="{{ url_for('inventory_requests.my_daily_request') }}"><i class="ph ph-clipboard-text"></i>Crear solicitud</a>
       </div>
       {% endif %}
     </article>
