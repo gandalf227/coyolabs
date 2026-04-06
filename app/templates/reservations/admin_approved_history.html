@@ -22,6 +22,7 @@
   </div>
 </section>
 
+<div id="reservations-admin-approved-history-container">
 {% if reservations|length == 0 %}
   <section class="empty-state">
     <i class="ph ph-calendar-check empty-icon"></i>
@@ -29,9 +30,9 @@
     <p>No hay reservas en curso anteriores.</p>
   </section>
 {% else %}
-<section class="table-card">
-  <div class="table-wrap">
-    <table class="inventory-table" style="min-width: 1550px;">
+  <section class="table-card">
+    <div class="table-wrap">
+      <table class="inventory-table" style="min-width: 1550px;">
       <thead>
         <tr>
           <th>ID</th>
@@ -92,8 +93,9 @@
         </tr>
         {% endfor %}
       </tbody>
-    </table>
-  </div>
-</section>
+      </table>
+    </div>
+  </section>
 {% endif %}
+</div>
 {% endblock %}
