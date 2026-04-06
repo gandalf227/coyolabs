@@ -494,7 +494,7 @@
       cursor: pointer;
     }
 
-    .btn-primary{
+    .btn-gold{
       background: linear-gradient(180deg, #63f3ff, #2fd0dd);
       color: #071116;
     }
@@ -643,7 +643,7 @@
       <div class="top-bar">
         <div class="top-left">
           <div class="back-pill">
-            <button id="backBtn" type="button" data-href="{{ url_for('inventory.inventory_list') }}">⟵ Salir al inventario</button>
+            <button id="backBtn" class="btn btn-ghost" type="button" data-href="{{ url_for('inventory.inventory_list') }}">⟵ Salir al inventario</button>
           </div>
 
           <div class="status-pill">
@@ -654,7 +654,7 @@
 
         <div class="top-right">
           <div class="action-pill">
-            <button id="toggleConfigBtn" type="button">Config</button>
+            <button id="toggleConfigBtn" class="btn btn-ghost" type="button">Config</button>
           </div>
         </div>
       </div>
@@ -739,8 +739,8 @@
       </div>
 
       <div class="config-actions">
-        <button class="btn-primary" id="startBtn" type="button">Iniciar</button>
-        <button class="btn-ghost" id="stopBtn" type="button">Detener</button>
+        <button class="btn btn-gold" id="startBtn" type="button">Iniciar</button>
+        <button class="btn btn-ghost" id="stopBtn" type="button">Detener</button>
       </div>
     </aside>
 

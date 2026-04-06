@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 import json
 
@@ -44,6 +45,7 @@ from app.utils.validators import normalize_and_validate_group_code
 from app.constants import ROOMS
 
 reservations_bp = Blueprint("reservations", __name__, url_prefix="/reservations")
+logger = logging.getLogger(__name__)
 
 
 def _is_professor_role(role: str | None) -> bool:
@@ -472,6 +474,7 @@ def request_reservation():
             db.session.add(item)
 
         admins = User.query.filter(User.role.in_(["ADMIN", "SUPERADMIN"])).all()
+        admin_notifications: list[Notification] = []
 
         for admin in admins:
             notif = Notification(
@@ -481,6 +484,7 @@ def request_reservation():
                 link="/reservations/admin"
             )
             db.session.add(notif)
+            admin_notifications.append(notif)
 
         log_event(
             module="RESERVATIONS",
@@ -492,6 +496,14 @@ def request_reservation():
         )
 
         db.session.commit()
+        for notification in admin_notifications:
+            try:
+                publish_notification_created(notification)
+            except Exception:
+                logger.warning(
+                    "SSE publish failed after reservation request",
+                    extra={"reservation_id": r.id, "notification_id": notification.id, "target_user_id": notification.user_id},
+                )
 
         flash("Solicitud enviada. Queda pendiente de aprobación.", "success")
         return redirect(url_for("reservations.my_reservations"))
