@@ -17,16 +17,17 @@
   </div>
 </section>
 
+<div id="reservations-admin-closure-requests-container">
 {% if tickets|length == 0 %}
-<section class="empty-state">
-  <i class="ph ph-check-circle empty-icon"></i>
-  <h3>Sin solicitudes pendientes</h3>
-  <p>No hay tickets con cierre solicitado en este momento.</p>
-</section>
+  <section class="empty-state">
+    <i class="ph ph-check-circle empty-icon"></i>
+    <h3>Sin solicitudes pendientes</h3>
+    <p>No hay tickets con cierre solicitado en este momento.</p>
+  </section>
 {% else %}
-<section class="table-card">
-  <div class="table-wrap">
-    <table class="inventory-table" style="min-width:1300px;">
+  <section class="table-card">
+    <div class="table-wrap">
+      <table class="inventory-table" style="min-width:1300px;">
       <thead>
         <tr>
           <th>Ticket</th>
@@ -70,8 +71,9 @@
         </tr>
         {% endfor %}
       </tbody>
-    </table>
-  </div>
-</section>
+      </table>
+    </div>
+  </section>
 {% endif %}
+</div>
 {% endblock %}

@@ -809,14 +809,9 @@ async function refreshOpsSnapshot() {
 
 renderOpsSnapshot(initialOpsSnapshot);
 
-if (window.EventSource) {
-  const opsSource = new EventSource("{{ url_for('notifications.stream_notifications') }}");
-  opsSource.addEventListener("notification_created", () => refreshOpsSnapshot());
-  opsSource.addEventListener("error", () => {
-    opsSource.close();
-    setTimeout(refreshOpsSnapshot, 3000);
-  });
-}
+window.addEventListener("coyolabs:notification_created", () => {
+  refreshOpsSnapshot();
+});
 
 setInterval(refreshOpsSnapshot, 15000);
 </script>
