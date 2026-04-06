@@ -511,6 +511,7 @@ let clockPickerTargetInput = null;
 let clockPickerStepIndex = 0; // 0..23 (cada paso = 30 minutos)
 let clockPickerPeriod = "AM";
 let clockPointerActive = false;
+let lastSnappedStep = 0;
 
 function toClockStep(hour24, minute) {
   const normalizedMinute = minute >= 30 ? 30 : 0;
@@ -584,6 +585,7 @@ function openClockPickerForInput(inputEl) {
   clockPickerTargetInput = inputEl;
   const initial = extractClockFromInputValue(inputEl.value);
   clockPickerStepIndex = initial.step;
+  lastSnappedStep = initial.step;
   clockPickerPeriod = initial.period;
   updateClockPeriodButtons();
   updateClockSelectionUI();
@@ -605,15 +607,33 @@ function clockStepFromPointer(clientX, clientY) {
   const dx = clientX - cx;
   const dy = clientY - cy;
   const angle = Math.atan2(dy, dx);
-  const degrees = (angle * 180 / Math.PI + 450) % 360; // 0° arriba
-  return Math.round(degrees / 15) % 24;
+  return (angle * 180 / Math.PI + 450) % 360; // 0° arriba
+}
+
+function angularDistance(a, b) {
+  const diff = Math.abs(a - b) % 360;
+  return diff > 180 ? 360 - diff : diff;
+}
+
+function snapStepFromDegrees(degrees, previousStep = null, forceNearest = false) {
+  const nearest = Math.round(degrees / 15) % 24;
+  if (forceNearest || previousStep === null || previousStep === undefined) return nearest;
+
+  const previousCenter = (previousStep % 24) * 15;
+  const distToPrevious = angularDistance(degrees, previousCenter);
+  // Pequeña histéresis para evitar rebotes al borde entre dos pasos.
+  if (distToPrevious <= 6) return previousStep % 24;
+  return nearest;
 }
 
 function onClockPointerMove(event) {
   if (!clockPointerActive) return;
   event.preventDefault();
   const point = event.touches?.[0] || event;
-  clockPickerStepIndex = clockStepFromPointer(point.clientX, point.clientY);
+  const degrees = clockStepFromPointer(point.clientX, point.clientY);
+  const snapped = snapStepFromDegrees(degrees, lastSnappedStep, false);
+  clockPickerStepIndex = snapped;
+  lastSnappedStep = snapped;
   updateClockSelectionUI();
 }
 
@@ -674,29 +694,36 @@ if (startTimeInput && endTimeInput) {
 
       marker.addEventListener("click", () => {
         clockPickerStepIndex = step;
+        lastSnappedStep = step;
         updateClockSelectionUI();
+      });
+      marker.addEventListener("pointerdown", (event) => {
+        event.stopPropagation();
       });
       clockPickerFace.appendChild(marker);
     }
 
-    clockPickerFace.addEventListener("mousedown", (event) => {
+    clockPickerFace.addEventListener("pointerdown", (event) => {
       clockPointerActive = true;
-      clockPickerStepIndex = clockStepFromPointer(event.clientX, event.clientY);
+      const degrees = clockStepFromPointer(event.clientX, event.clientY);
+      const snapped = snapStepFromDegrees(degrees, lastSnappedStep, true);
+      clockPickerStepIndex = snapped;
+      lastSnappedStep = snapped;
       updateClockSelectionUI();
+      if (typeof clockPickerFace.setPointerCapture === "function") {
+        try { clockPickerFace.setPointerCapture(event.pointerId); } catch (_) {}
+      }
       event.preventDefault();
     });
-    clockPickerFace.addEventListener("touchstart", (event) => {
-      clockPointerActive = true;
-      const point = event.touches?.[0];
-      if (point) {
-        clockPickerStepIndex = clockStepFromPointer(point.clientX, point.clientY);
-        updateClockSelectionUI();
+    clockPickerFace.addEventListener("pointermove", onClockPointerMove);
+    const releasePointer = (event) => {
+      clockPointerActive = false;
+      if (typeof clockPickerFace.releasePointerCapture === "function") {
+        try { clockPickerFace.releasePointerCapture(event.pointerId); } catch (_) {}
       }
-    }, { passive: true });
-    window.addEventListener("mousemove", onClockPointerMove);
-    window.addEventListener("touchmove", onClockPointerMove, { passive: false });
-    window.addEventListener("mouseup", () => { clockPointerActive = false; });
-    window.addEventListener("touchend", () => { clockPointerActive = false; });
+    };
+    clockPickerFace.addEventListener("pointerup", releasePointer);
+    clockPickerFace.addEventListener("pointercancel", releasePointer);
   }
 
   clockPeriodButtons.forEach((btn) => {
