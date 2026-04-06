@@ -535,6 +535,8 @@
       const viewFragmentSelectorsByPath = {
         "/reservations/admin": "#reservations-admin-queue-container",
         "/reservations/admin/approved": "#reservations-admin-approved-container",
+        "/reservations/admin/tickets/closure-requests": "#reservations-admin-closure-requests-container",
+        "/reservations/admin/approved/history": "#reservations-admin-approved-history-container",
         "/reservations/my": "#reservations-my-list-container",
         "/debts/admin": "#debts-admin-list-container",
         "/debts/my": "#debts-my-list-container",
@@ -600,6 +602,7 @@
           upsertNotification(payload);
           updateBadge(payload.unread_count || 0);
           renderNotificationPanel();
+          window.dispatchEvent(new CustomEvent("coyolabs:notification_created", { detail: payload }));
           createNotification({
             title: payload.title || "Nueva notificación",
             message: payload.message || "",
