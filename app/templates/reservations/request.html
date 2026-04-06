@@ -378,6 +378,41 @@
   opacity: .82;
 }
 
+
+.time-slot {
+  font-size: 11px;
+  padding: 4px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  text-align: center;
+  transition: 0.2s;
+  border: 1px solid transparent;
+}
+
+.time-slot.available {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4CAF50;
+}
+
+.time-slot.occupied {
+  background: rgba(244, 67, 54, 0.15);
+  color: #F44336;
+}
+
+.time-slot.pending {
+  background: rgba(255, 193, 7, 0.2);
+  color: #B8860B;
+}
+
+.time-slot.in_progress {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196F3;
+}
+
+.time-slot:hover {
+  transform: scale(1.03);
+}
+
 @media (max-width: 900px) {
   .reservation-request-form {
     grid-template-columns: 1fr !important;
@@ -636,50 +671,25 @@
 
           {% for day in week_days %}
           <td class="res-cell">
-            {% set items = week_schedule[room][day] %}
-            {% set cell = namespace(state='available') %}
-            {% if items %}
-              {% for item in items %}
-                {% set item_state = (item.status or 'APPROVED')|upper %}
-                {% if item_state == 'PENDING' %}
-                  {% set cell.state = 'pending' %}
-                {% elif item_state == 'IN_PROGRESS' and cell.state != 'pending' %}
-                  {% set cell.state = 'progress' %}
-                {% elif cell.state == 'available' %}
-                  {% set cell.state = 'occupied' %}
-                {% endif %}
+            {% set cell = week_schedule[room][day] %}
+            {% set cell_state = 'available' %}
+            {% if cell.slots %}
+              {% set slot_states = cell.slots | map(attribute='state') | list %}
+              {% if 'pending' in slot_states %}
+                {% set cell_state = 'pending' %}
+              {% elif 'in_progress' in slot_states %}
+                {% set cell_state = 'progress' %}
+              {% elif 'occupied' in slot_states %}
+                {% set cell_state = 'occupied' %}
+              {% endif %}
+            {% endif %}
+
+            <div class="res-cell-shell is-{{ cell_state }}">
+              {% for slot in cell.slots %}
+                <div class="time-slot {{ slot.state }}" title="{{ slot.start }} - {{ slot.end }}">
+                  <span class="time">{{ slot.start }} - {{ slot.end }}</span>
+                </div>
               {% endfor %}
-            {% endif %}
-
-            <div class="res-cell-shell is-{{ cell.state }}">
-            {% if items %}
-              <div class="res-booking-stack">
-                {% for item in items %}
-                  {% set item_state = (item.status or 'APPROVED')|upper %}
-                  {% set chip_class = 'res-chip-occupied' %}
-                  {% set chip_label = 'Ocupado' %}
-                  {% if item_state == 'PENDING' %}
-                    {% set chip_class = 'res-chip-pending' %}
-                    {% set chip_label = 'Pendiente' %}
-                  {% elif item_state == 'IN_PROGRESS' %}
-                    {% set chip_class = 'res-chip-progress' %}
-                    {% set chip_label = 'En progreso' %}
-                  {% endif %}
-                  {% set owner_name = ((item.user.first_name or '') ~ ' ' ~ (item.user.last_name or ''))|trim or item.user.email if item.user else item.teacher_name %}
-
-                  <div class="res-booking-item" title="{{ chip_label }} · {{ item.start_time.strftime('%H:%M') }}-{{ item.end_time.strftime('%H:%M') }} · {{ item.subject }} · {{ owner_name }}">
-                    <div class="res-booking-item-top">
-                      <span class="res-booking-hour">{{ item.start_time.strftime('%H:%M') }} - {{ item.end_time.strftime('%H:%M') }}</span>
-                      <span class="res-chip {{ chip_class }}">{{ chip_label }}</span>
-                    </div>
-                    <div class="res-booking-subject">{{ item.subject }}</div>
-                    <div class="res-booking-meta">{{ item.group_name }} · {{ owner_name }}</div>
-                  </div>
-                {% endfor %}
-              </div>
-            {% else %}
-              <span class="res-empty"><i class="ph ph-check-circle"></i>Disponible</span>
-            {% endif %}
             </div>
           </td>
           {% endfor %}

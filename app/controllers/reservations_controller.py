@@ -153,6 +153,23 @@ def get_week_start(date_value):
 def build_week_days(week_start):
     return [week_start + timedelta(days=i) for i in range(7)]
 
+
+
+TIME_SLOT_RANGES = [
+    ("08:00", "10:00"),
+    ("10:00", "12:00"),
+    ("12:00", "14:00"),
+    ("14:00", "16:00"),
+    ("16:00", "18:00"),
+]
+
+
+def _build_time_slots() -> list[tuple[str, str, object, object]]:
+    slots = []
+    for start_s, end_s in TIME_SLOT_RANGES:
+        slots.append((start_s, end_s, parse_time(start_s), parse_time(end_s)))
+    return slots
+
 def apply_stock_delta(material: Material, old_delivered: int, old_returned: int, new_delivered: int, new_returned: int):
     old_outstanding = old_delivered - old_returned
     new_outstanding = new_delivered - new_returned
@@ -172,7 +189,7 @@ def build_week_schedule(week_days, selected_room=None):
 
     q = (
         Reservation.query
-        .filter(Reservation.status == ReservationStatus.APPROVED)
+        .filter(Reservation.status.in_([ReservationStatus.APPROVED, ReservationStatus.PENDING]))
         .filter(Reservation.date >= week_start)
         .filter(Reservation.date <= week_end)
     )
@@ -192,13 +209,52 @@ def build_week_schedule(week_days, selected_room=None):
     ).all()
 
     schedule = {
-        room: {day: [] for day in week_days}
+        room: {
+            day: {"items": [], "slots": []}
+            for day in week_days
+        }
         for room in room_list
     }
 
     for r in reservations:
         if r.room in schedule and r.date in schedule[r.room]:
-            schedule[r.room][r.date].append(r)
+            schedule[r.room][r.date]["items"].append(r)
+
+    now = datetime.now()
+    today = now.date()
+    now_time = now.time()
+    base_slots = _build_time_slots()
+
+    for room in room_list:
+        for day in week_days:
+            cell = schedule[room][day]
+            items = cell["items"]
+            slot_rows = []
+            for start_label, end_label, slot_start, slot_end in base_slots:
+                overlapping = [
+                    item for item in items
+                    if item.start_time < slot_end and item.end_time > slot_start
+                ]
+
+                if not overlapping:
+                    state = "available"
+                elif any((item.status or "").upper() == ReservationStatus.PENDING for item in overlapping):
+                    state = "pending"
+                elif day == today and any(
+                    (item.status or "").upper() == ReservationStatus.APPROVED and item.start_time <= now_time < item.end_time
+                    for item in overlapping
+                ):
+                    state = "in_progress"
+                else:
+                    state = "occupied"
+
+                slot_rows.append({
+                    "start": start_label,
+                    "end": end_label,
+                    "state": state,
+                })
+
+            cell["slots"] = slot_rows
 
     return schedule, room_list
 
