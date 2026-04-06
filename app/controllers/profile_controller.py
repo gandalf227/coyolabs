@@ -534,7 +534,7 @@ def update_basic_profile():
         flash("Solo cuentas ADMIN/SUPERADMIN pueden editar estos datos directamente.", "error")
         return redirect(url_for("profile.my_profile"))
 
-    full_name = _normalize_full_name(request.form.get("full_name"))
+    full_name = (request.form.get("full_name")or"").strip()
     phone, phone_error = normalize_and_validate_phone(request.form.get("phone"))
 
     if not full_name:
