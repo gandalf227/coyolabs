@@ -78,6 +78,16 @@
     <strong>Cerrado por:</strong>
     {{ ticket.closed_by_user.email if ticket.closed_by_user else '-' }}
   </div>
+  <div>
+    <strong>Firma de reservación:</strong>
+    {% if ticket.reservation and ticket.reservation.signature_ref %}
+      <a href="{{ url_for('static', filename=ticket.reservation.signature_ref) }}" target="_blank" rel="noopener noreferrer" class="item-link">Ver evidencia</a>
+    {% elif ticket.reservation and ticket.reservation.signed %}
+      Registrada (legacy)
+    {% else %}
+      Sin firma
+    {% endif %}
+  </div>
       </div>
     </div>
   </section>
