@@ -103,6 +103,9 @@ def create_app():
     from app.controllers.forum_controller import forum_bp
     app.register_blueprint(forum_bp)
 
+    from app.controllers.admin_extra_requests_controller import admin_extra_requests_bp
+    app.register_blueprint(admin_extra_requests_bp)
+
     from app.controllers.legal_controller import legal_bp
     app.register_blueprint(legal_bp)
     @app.get("/")

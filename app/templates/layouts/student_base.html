@@ -295,6 +295,13 @@
               <span>Pedidos diarios</span>
             </a>
 
+            {% if current_user.is_authenticated and is_admin_role(current_user.role) %}
+            <a href="{{ url_for('admin_extra_requests.admin_extra_requests_inbox') }}" class="nav-subitem {% if active_page == 'extra_requests' %}active{% endif %}">
+              <i class="ph ph-inbox nav-subicon"></i>
+              <span>Solicitudes extra</span>
+            </a>
+            {% endif %}
+
             <a href="{{ url_for('forum.forum_home') }}" class="nav-subitem {% if active_page == 'forum' %}active{% endif %}">
               <i class="ph ph-chats-circle nav-subicon"></i>
               <span>Foro</span>
