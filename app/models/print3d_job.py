@@ -20,6 +20,11 @@ class Print3DJob(db.Model):
     price_per_gram = db.Column(db.Numeric(10, 2), nullable=True)
     total_estimated = db.Column(db.Numeric(10, 2), nullable=True)
 
+    admin_note = db.Column(db.Text, nullable=True)
+    quoted_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    quoted_by_user = db.relationship("User", foreign_keys=[quoted_by_user_id])
+    ready_notified_at = db.Column(db.DateTime, nullable=True)
+
     status = db.Column(db.String(30), nullable=False, default="REQUESTED", index=True)
 
     created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)

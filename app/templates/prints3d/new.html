@@ -13,6 +13,7 @@
 
 <section class="toolbar-card">
   <form method="post" enctype="multipart/form-data" class="toolbar" style="grid-template-columns: 1fr;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="toolbar-group">
       <label for="title">Título de la solicitud</label>
       <div class="search-box">

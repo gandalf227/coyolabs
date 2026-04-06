@@ -37,31 +37,6 @@ class InventoryRequestStatus:
 
 class Print3DJobStatus:
     REQUESTED = "REQUESTED"
-    QUOTED = "QUOTED"
-    IN_PROGRESS = "IN_PROGRESS"
-    READY = "READY"
-    DELIVERED = "DELIVERED"
-    CANCELED = "CANCELED"
-
-
-PRINT3D_ALLOWED_STATUSES = {
-    Print3DJobStatus.REQUESTED,
-    Print3DJobStatus.QUOTED,
-    Print3DJobStatus.IN_PROGRESS,
-    Print3DJobStatus.READY,
-    Print3DJobStatus.DELIVERED,
-    Print3DJobStatus.CANCELED,
-}
-
-
-PRINT3D_ALLOWED_TRANSITIONS = {
-    Print3DJobStatus.REQUESTED: {Print3DJobStatus.QUOTED, Print3DJobStatus.CANCELED},
-    Print3DJobStatus.QUOTED: {Print3DJobStatus.IN_PROGRESS, Print3DJobStatus.CANCELED},
-    Print3DJobStatus.IN_PROGRESS: {Print3DJobStatus.READY, Print3DJobStatus.CANCELED},
-    Print3DJobStatus.READY: {Print3DJobStatus.DELIVERED, Print3DJobStatus.CANCELED},
-    Print3DJobStatus.DELIVERED: set(),
-    Print3DJobStatus.CANCELED: set(),
-}
 
 
 ACTIVE_LAB_TICKET_STATUSES = {
