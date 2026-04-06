@@ -275,6 +275,11 @@
               <span>Software</span>
             </a>
 
+            <a href="{{ url_for('print3d.my_jobs') }}" class="nav-subitem {% if active_page == 'prints3d' %}active{% endif %}">
+              <i class="ph ph-cube nav-subicon"></i>
+              <span>Impresiones 3D</span>
+            </a>
+
             <a href="{{ url_for('reservations.reservations_home') }}" class="nav-subitem {% if active_page == 'reservations' %}active{% endif %}">
               <i class="ph ph-calendar-check nav-subicon"></i>
               <span>Reservaciones</span>
@@ -289,6 +294,13 @@
               <i class="ph ph-clipboard-text nav-subicon"></i>
               <span>Pedidos diarios</span>
             </a>
+
+            {% if current_user.is_authenticated and is_admin_role(current_user.role) %}
+            <a href="{{ url_for('admin_extra_requests.admin_extra_requests_inbox') }}" class="nav-subitem {% if active_page == 'extra_requests' %}active{% endif %}">
+              <i class="ph ph-inbox nav-subicon"></i>
+              <span>Solicitudes extra</span>
+            </a>
+            {% endif %}
 
             <a href="{{ url_for('forum.forum_home') }}" class="nav-subitem {% if active_page == 'forum' %}active{% endif %}">
               <i class="ph ph-chats-circle nav-subicon"></i>
@@ -535,6 +547,8 @@
       const viewFragmentSelectorsByPath = {
         "/reservations/admin": "#reservations-admin-queue-container",
         "/reservations/admin/approved": "#reservations-admin-approved-container",
+        "/reservations/admin/tickets/closure-requests": "#reservations-admin-closure-requests-container",
+        "/reservations/admin/approved/history": "#reservations-admin-approved-history-container",
         "/reservations/my": "#reservations-my-list-container",
         "/debts/admin": "#debts-admin-list-container",
         "/debts/my": "#debts-my-list-container",
@@ -600,6 +614,7 @@
           upsertNotification(payload);
           updateBadge(payload.unread_count || 0);
           renderNotificationPanel();
+          window.dispatchEvent(new CustomEvent("coyolabs:notification_created", { detail: payload }));
           createNotification({
             title: payload.title || "Nueva notificación",
             message: payload.message || "",
