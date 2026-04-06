@@ -17,23 +17,7 @@
   margin-bottom: 12px;
 }
 
-#materialSearch {
-  width: 100%;
-  min-height: 54px;
-  padding: 0 16px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke);
-  background: rgba(255,255,255,0.48);
-  color: var(--text);
-  font-size: 0.96rem;
-}
-
-#materialSearch:focus {
-  outline: none;
-  border-color: rgba(199,159,51,0.35);
-  box-shadow: 0 0 0 4px rgba(199,159,51,0.08);
-  background: rgba(255,255,255,0.72);
-}
+#materialSearch { min-height: 54px; }
 
 .autocomplete-list {
   position: absolute;
@@ -121,19 +105,18 @@
 }
 
 .qty-btn {
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 6px;
-  background: #e0b12c;
-  color: white;
+  width: 32px;
+  min-height: 32px;
+  height: 32px;
+  border-radius: 10px;
+  padding: 0;
   cursor: pointer;
-  font-weight: 700;
-  transition: transform .12s ease, opacity .12s ease;
+  font-weight: 800;
+  transition: transform .12s ease;
 }
 
 .qty-btn:hover {
-  opacity: .92;
+  transform: translateY(-1px);
 }
 
 .qty-btn:active {
@@ -181,6 +164,19 @@
   transform: translateY(0);
 }
 
+.datetime-helper {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: var(--text-dim, #728078);
+}
+
+.time-range-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
@@ -199,6 +195,10 @@
   .reservation-calendar-filter .toolbar-group,
   .reservation-calendar-filter .btn {
     width: 100%;
+  }
+
+  .time-range-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>
@@ -247,7 +247,6 @@
       <div class="search-box">
         <i class="ph ph-user search-icon"></i>
         <input
-          class="form-control"
           type="text"
           value="{{ ((current_user.first_name or '') ~ ' ' ~ (current_user.last_name or ''))|trim or current_user.email }}"
           readonly
@@ -280,7 +279,7 @@
       {% else %}
         <div class="search-box">
           <i class="ph ph-book search-icon"></i>
-          <input class="form-control" type="text" name="subject" placeholder="Ejemplo: Programación Web" required>
+          <input type="text" name="subject" placeholder="Ejemplo: Programación Web" required>
         </div>
       {% endif %}
     </div>
@@ -289,32 +288,41 @@
       <label>Fecha de uso</label>
       <div class="search-box">
         <i class="ph ph-calendar search-icon"></i>
-        <input class="form-control" type="date" name="date" required>
+        <input type="date" id="reservationDateInput" name="date" required aria-describedby="reservationDateHelp">
       </div>
+      <small id="reservationDateHelp" class="datetime-helper">Selecciona la fecha en formato local del navegador.</small>
     </div>
 
-    <div class="toolbar-group">
-      <label>Hora de inicio</label>
-      <div class="search-box">
-        <i class="ph ph-clock search-icon"></i>
-        <input class="form-control" type="time" name="start_time" required>
+    <div class="toolbar-group time-range-row">
+      <div>
+        <label>Hora de inicio</label>
+        <div class="search-box time-picker-input-wrap">
+          <i class="ph ph-clock search-icon"></i>
+          <input type="time" id="startTimeInput" name="start_time" required min="08:00" max="21:00" step="900" aria-describedby="reservationTimeHelp">
+          <button type="button" class="time-picker-open-btn" data-target="startTimeInput" aria-label="Abrir selector de hora de inicio">
+            <i class="ph ph-clock-afternoon"></i>
+          </button>
+        </div>
+        <div class="time-quick-grid" id="startTimeQuickGrid" data-target="startTimeInput" aria-label="Selector rápido hora inicio"></div>
       </div>
-    </div>
 
-    <div class="toolbar-group">
-      <label>Hora de finalización</label>
-      <div class="search-box">
-        <i class="ph ph-clock-countdown search-icon"></i>
-        <input class="form-control" type="time" name="end_time" required>
+      <div>
+        <label>Hora de finalización</label>
+        <div class="search-box time-picker-input-wrap">
+          <i class="ph ph-clock-countdown search-icon"></i>
+          <input type="time" id="endTimeInput" name="end_time" required min="08:00" max="21:00" step="900" aria-describedby="reservationTimeHelp">
+          <button type="button" class="time-picker-open-btn" data-target="endTimeInput" aria-label="Abrir selector de hora de finalización">
+            <i class="ph ph-clock-afternoon"></i>
+          </button>
+        </div>
+        <div class="time-quick-grid" id="endTimeQuickGrid" data-target="endTimeInput" aria-label="Selector rápido hora fin"></div>
       </div>
+      <small id="reservationTimeHelp" class="datetime-helper">Rango sugerido: 08:00 a 21:00 (formato 24 horas).</small>
     </div>
 
     <div class="toolbar-group" style="grid-column:1/-1;">
       <label>Motivo (opcional)</label>
-      <div class="search-box" style="height: auto; min-height: 110px; align-items:flex-start; padding-top: 14px;">
-        <i class="ph ph-note-pencil search-icon" style="margin-top:2px;"></i>
-        <textarea class="form-control" name="purpose" rows="3" placeholder="Objetivo de la práctica o actividad"></textarea>
-      </div>
+      <textarea class="form-control" name="purpose" rows="3" placeholder="Objetivo de la práctica o actividad"></textarea>
     </div>
 
     <div class="toolbar-group" style="grid-column:1/-1;">
@@ -328,7 +336,10 @@
       <h3 style="margin-top:10px;">Materiales</h3>
 
       <div class="material-search">
-        <input class="form-control" type="text" id="materialSearch" placeholder="Buscar material por nombre, código o ubicación">
+        <div class="search-box">
+          <i class="ph ph-magnifying-glass search-icon"></i>
+          <input type="text" id="materialSearch" placeholder="Buscar material por nombre, código o ubicación">
+        </div>
         <div id="autocompleteList" class="autocomplete-list"></div>
       </div>
 
@@ -460,6 +471,112 @@ const cartKinds = document.getElementById("cartKinds");
 const clearCartBtn = document.getElementById("clearCartBtn");
 const subjectSelect = document.getElementById("subjectSelect");
 const groupSelect = document.getElementById("groupSelect");
+const reservationDateInput = document.getElementById("reservationDateInput");
+const startTimeInput = document.getElementById("startTimeInput");
+const endTimeInput = document.getElementById("endTimeInput");
+
+function buildTimeSlots(startHour = 8, endHour = 21, stepMinutes = 30) {
+  const slots = [];
+  for (let hour = startHour; hour <= endHour; hour++) {
+    for (let minute = 0; minute < 60; minute += stepMinutes) {
+      if (hour === endHour && minute > 0) break;
+      const hh = String(hour).padStart(2, "0");
+      const mm = String(minute).padStart(2, "0");
+      slots.push(`${hh}:${mm}`);
+    }
+  }
+  return slots;
+}
+
+function formatTimeLabel(value) {
+  if (!value || !value.includes(":")) return value || "";
+  const [hRaw, mRaw] = value.split(":");
+  const h = Number(hRaw);
+  const m = Number(mRaw);
+  if (Number.isNaN(h) || Number.isNaN(m)) return value;
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${String(hour12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
+function renderQuickTimeGrid(gridEl, inputEl, slots) {
+  if (!gridEl || !inputEl) return;
+  gridEl.innerHTML = "";
+  slots.forEach((slot) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "time-chip";
+    chip.dataset.value = slot;
+    chip.textContent = formatTimeLabel(slot);
+    chip.addEventListener("click", () => {
+      inputEl.value = slot;
+      inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+      inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+      highlightTimeChip(gridEl, inputEl.value);
+    });
+    gridEl.appendChild(chip);
+  });
+  highlightTimeChip(gridEl, inputEl.value);
+}
+
+function highlightTimeChip(gridEl, value) {
+  if (!gridEl) return;
+  gridEl.querySelectorAll(".time-chip").forEach((chip) => {
+    chip.classList.toggle("is-active", chip.dataset.value === value);
+  });
+}
+
+function syncTimeRangeHints() {
+  if (!startTimeInput || !endTimeInput) return;
+
+  const start = startTimeInput.value || "";
+  endTimeInput.min = start || "08:00";
+
+  if (!start || !endTimeInput.value) return;
+  if (endTimeInput.value > start) return;
+
+  const [h, m] = start.split(":").map(Number);
+  const startMinutes = (h * 60) + m;
+  const suggested = Math.min(startMinutes + 60, 21 * 60);
+  const hh = String(Math.floor(suggested / 60)).padStart(2, "0");
+  const mm = String(suggested % 60).padStart(2, "0");
+  endTimeInput.value = `${hh}:${mm}`;
+  highlightTimeChip(document.getElementById("endTimeQuickGrid"), endTimeInput.value);
+}
+
+if (startTimeInput && endTimeInput) {
+  startTimeInput.addEventListener("input", syncTimeRangeHints);
+  endTimeInput.addEventListener("focus", syncTimeRangeHints);
+  endTimeInput.addEventListener("input", () => {
+    highlightTimeChip(document.getElementById("endTimeQuickGrid"), endTimeInput.value);
+  });
+  startTimeInput.addEventListener("input", () => {
+    highlightTimeChip(document.getElementById("startTimeQuickGrid"), startTimeInput.value);
+  });
+
+  const timeSlots = buildTimeSlots(8, 21, 30);
+  renderQuickTimeGrid(document.getElementById("startTimeQuickGrid"), startTimeInput, timeSlots);
+  renderQuickTimeGrid(document.getElementById("endTimeQuickGrid"), endTimeInput, timeSlots);
+
+  document.querySelectorAll(".time-picker-open-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetId = btn.getAttribute("data-target");
+      const input = document.getElementById(targetId);
+      if (!input) return;
+      try {
+        if (typeof input.showPicker === "function") input.showPicker();
+        else input.focus();
+      } catch (_) {
+        input.focus();
+      }
+    });
+  });
+  syncTimeRangeHints();
+}
+
+if (reservationDateInput) {
+  reservationDateInput.title = "Selecciona la fecha de la reserva";
+}
 
 function renderGroupOptionsForSelectedSubject() {
   if (!subjectSelect || !groupSelect) return;
@@ -635,9 +752,9 @@ function renderCart() {
       </div>
 
       <div class="cart-controls">
-        <button type="button" class="qty-btn" onclick="updateQty(${item.id}, -1)">-</button>
+        <button type="button" class="btn btn-ghost qty-btn" onclick="updateQty(${item.id}, -1)">-</button>
         <span class="qty-value">${item.qty}</span>
-        <button type="button" class="qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
+        <button type="button" class="btn btn-ghost qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
       </div>
     `;
     cartContainer.appendChild(row);

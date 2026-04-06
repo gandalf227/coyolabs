@@ -1307,3 +1307,63 @@ textarea.form-control{
   background: #fff;
   box-shadow: 0 0 0 2px rgba(212,175,55,0.15);
 }
+
+.time-picker-input-wrap{
+  position: relative;
+}
+
+.time-picker-input-wrap input[type="time"]{
+  padding-right: 52px;
+}
+
+.time-picker-open-btn{
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,0.68);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.time-picker-open-btn:hover{
+  background: rgba(255,255,255,0.88);
+}
+
+.time-quick-grid{
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+  max-height: 144px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.time-chip{
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,0.58);
+  color: var(--text);
+  border-radius: 12px;
+  min-height: 36px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.time-chip:hover{
+  background: rgba(255,255,255,0.82);
+}
+
+.time-chip.is-active{
+  border-color: rgba(199,159,51,.55);
+  background: rgba(199,159,51,.16);
+}

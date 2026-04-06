@@ -23,6 +23,10 @@ dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
 
 def _build_operational_snapshot(activity_limit: int = 8) -> dict:
+    today = datetime.now().date()
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+
     counts_row = db.session.query(
         db.select(func.count(Reservation.id))
         .where(Reservation.status == ReservationStatus.PENDING)
@@ -45,6 +49,38 @@ def _build_operational_snapshot(activity_limit: int = 8) -> dict:
         .scalar_subquery()
         .label("open_debts"),
     ).first()
+
+    reservation_counts = db.session.query(
+        func.count(Reservation.id).label("reservations_today"),
+        func.sum(db.case((Reservation.status == ReservationStatus.APPROVED, 1), else_=0)).label("approved_today"),
+        func.sum(db.case((Reservation.status == ReservationStatus.PENDING, 1), else_=0)).label("pending_today"),
+    ).filter(Reservation.date == today).first()
+
+    ticket_debt_counts = db.session.query(
+        db.select(func.count(LabTicket.id))
+        .where(LabTicket.status == LabTicketStatus.OPEN)
+        .scalar_subquery()
+        .label("open_tickets"),
+        db.select(func.count(LabTicket.id))
+        .where(LabTicket.status == LabTicketStatus.CLOSED_WITH_DEBT)
+        .scalar_subquery()
+        .label("closed_with_debt"),
+        db.select(func.count(Debt.id))
+        .where(Debt.status == DebtStatus.OPEN)
+        .scalar_subquery()
+        .label("open_debts"),
+    ).first()
+
+    total_inventory = Material.query.count()
+    low_stock_count = Material.query.filter(
+        Material.pieces_qty.isnot(None),
+        Material.pieces_qty <= 3
+    ).count()
+    pending_users_count = User.query.filter(User.role == ROLE_PENDING).count()
+    weekly_reservations = Reservation.query.filter(
+        Reservation.date >= week_start,
+        Reservation.date <= week_end
+    ).count()
 
     pending_reservations = (
         Reservation.query
@@ -172,6 +208,18 @@ def _build_operational_snapshot(activity_limit: int = 8) -> dict:
             }
             for n in recent_activity
         ],
+        "summary": {
+            "total_inventory": int(total_inventory or 0),
+            "reservations_today": int(reservation_counts.reservations_today or 0),
+            "approved_today": int(reservation_counts.approved_today or 0),
+            "pending_today": int(reservation_counts.pending_today or 0),
+            "open_tickets": int(ticket_debt_counts.open_tickets or 0),
+            "closed_with_debt": int(ticket_debt_counts.closed_with_debt or 0),
+            "open_debts": int(ticket_debt_counts.open_debts or 0),
+            "low_stock_count": int(low_stock_count or 0),
+            "pending_users_count": int(pending_users_count or 0),
+            "weekly_reservations": int(weekly_reservations or 0),
+        },
     }
 
 

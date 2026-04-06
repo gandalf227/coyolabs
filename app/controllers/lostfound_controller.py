@@ -1,5 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+import os
+from uuid import uuid4
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, current_app
 from flask_login import current_user
+from werkzeug.utils import secure_filename
 
 from app.extensions import db
 from app.models.lost_found import LostFound
@@ -9,6 +12,41 @@ from app.utils.roles import is_admin_role
 
 
 lostfound_bp = Blueprint("lostfound", __name__, url_prefix="/lostfound")
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
+
+
+def _save_evidence_image(file_storage):
+    if not file_storage or not file_storage.filename:
+        return None, None
+
+    raw_name = secure_filename(file_storage.filename or "")
+    if "." not in raw_name:
+        return None, "La imagen debe tener extensión válida (.jpg, .jpeg, .png, .webp)."
+
+    ext = raw_name.rsplit(".", 1)[1].lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        return None, "Tipo de archivo no permitido. Usa JPG, JPEG, PNG o WEBP."
+
+    mime = (file_storage.mimetype or "").lower()
+    if not mime.startswith("image/"):
+        return None, "El archivo seleccionado no es una imagen válida."
+
+    file_storage.stream.seek(0, os.SEEK_END)
+    size_bytes = file_storage.stream.tell()
+    file_storage.stream.seek(0)
+    if size_bytes > MAX_IMAGE_SIZE_BYTES:
+        return None, "La imagen supera el tamaño máximo permitido (5 MB)."
+
+    uploads_rel_dir = os.path.join("uploads", "lostfound")
+    uploads_abs_dir = os.path.join(current_app.root_path, "static", uploads_rel_dir)
+    os.makedirs(uploads_abs_dir, exist_ok=True)
+
+    unique_name = f"{uuid4().hex}.{ext}"
+    abs_path = os.path.join(uploads_abs_dir, unique_name)
+    file_storage.save(abs_path)
+
+    return f"{uploads_rel_dir}/{unique_name}", None
 
 
 @lostfound_bp.route("/", methods=["GET"])
@@ -56,6 +94,7 @@ def admin_new():
         description = (request.form.get("description") or "").strip()
         location = (request.form.get("location") or "").strip()
         evidence_ref = (request.form.get("evidence_ref") or "").strip()
+        evidence_file = request.files.get("evidence_file")
         material_id = request.form.get("material_id")
 
         if not title:
@@ -74,13 +113,20 @@ def admin_new():
                 flash("material_id inválido.", "error")
                 return redirect(url_for("lostfound.admin_new"))
 
+        saved_image_ref, image_error = _save_evidence_image(evidence_file)
+        if image_error:
+            flash(image_error, "error")
+            return redirect(url_for("lostfound.admin_new"))
+
+        final_evidence_ref = saved_image_ref or (evidence_ref or None)
+
         item = LostFound(
             reported_by_user_id=getattr(current_user, "id", None),
             material_id=mat.id if mat else None,
             title=title,
             description=description or None,
             location=location or None,
-            evidence_ref=evidence_ref or None,
+            evidence_ref=final_evidence_ref,
             status="REPORTED",
         )
 

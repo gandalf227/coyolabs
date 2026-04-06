@@ -331,53 +331,65 @@
 </section>
 
 <section class="dashboard-notice-grid">
-  {% if is_admin_role(current_user.role) and pending_users_count > 0 %}
-  <a href="{{ url_for('users.pending_users') }}" class="dashboard-notice notice-warn">
+  <a
+    id="noticePendingUsers"
+    href="{{ url_for('users.pending_users') }}"
+    class="dashboard-notice notice-warn"
+    style="{% if not (is_admin_role(current_user.role) and pending_users_count > 0) %}display:none;{% endif %}"
+  >
     <div class="notice-icon">
       <i class="ph ph-user-list"></i>
     </div>
     <div>
-      <strong>{{ pending_users_count }} usuarios por dar de alta</strong>
+      <strong id="noticePendingUsersText">{{ pending_users_count }} usuarios por dar de alta</strong>
       <span>Asigna rol: maestro, staff o admin</span>
     </div>
   </a>
-  {% endif %}
 
-  {% if is_admin_role(current_user.role) and pending_today > 0 %}
-  <a href="{{ url_for('reservations.admin_queue') }}" class="dashboard-notice notice-warn">
+  <a
+    id="noticePendingToday"
+    href="{{ url_for('reservations.admin_queue') }}"
+    class="dashboard-notice notice-warn"
+    style="{% if not (is_admin_role(current_user.role) and pending_today > 0) %}display:none;{% endif %}"
+  >
     <div class="notice-icon">
       <i class="ph ph-clock-countdown"></i>
     </div>
     <div>
-      <strong>{{ pending_today }} pendientes</strong>
+      <strong id="noticePendingTodayText">{{ pending_today }} pendientes</strong>
       <span>Reservas esperando revisión</span>
     </div>
   </a>
-  {% endif %}
 
-  {% if is_admin_role(current_user.role) and open_debts > 0 %}
-  <a href="{{ url_for('debts.admin_list') }}" class="dashboard-notice notice-danger-soft">
+  <a
+    id="noticeOpenDebts"
+    href="{{ url_for('debts.admin_list') }}"
+    class="dashboard-notice notice-danger-soft"
+    style="{% if not (is_admin_role(current_user.role) and open_debts > 0) %}display:none;{% endif %}"
+  >
     <div class="notice-icon">
       <i class="ph ph-warning-circle"></i>
     </div>
     <div>
-      <strong>{{ open_debts }} adeudos activos</strong>
+      <strong id="noticeOpenDebtsText">{{ open_debts }} adeudos activos</strong>
       <span>Usuarios con deuda pendiente</span>
     </div>
   </a>
-  {% endif %}
 
-  {% if low_stock_count > 0 %}
-  <a href="{{ url_for('inventory.inventory_list') }}" class="dashboard-notice notice-stock">
+  <a
+    id="noticeLowStock"
+    href="{{ url_for('inventory.inventory_list') }}"
+    class="dashboard-notice notice-stock"
+    style="{% if low_stock_count <= 0 %}display:none;{% endif %}"
+  >
     <div class="notice-icon">
       <i class="ph ph-package"></i>
     </div>
     <div>
-      <strong>{{ low_stock_count }} con stock bajo</strong>
+      <strong id="noticeLowStockText">{{ low_stock_count }} con stock bajo</strong>
       <span>Materiales que requieren revisión</span>
     </div>
   </a>
-  {% endif %}
 </section>
 
 <section class="kpi-grid">
@@ -386,7 +398,7 @@
       <span class="kpi-label">Inventario total</span>
       <div class="kpi-icon gold"><i class="ph ph-package"></i></div>
     </div>
-    <div class="kpi-value">{{ total_inventory }}</div>
+    <div class="kpi-value" id="kpiTotalInventory">{{ total_inventory }}</div>
     <div class="kpi-sub">Materiales registrados en el sistema</div>
   </article>
 
@@ -395,8 +407,8 @@
       <span class="kpi-label">Reservas hoy</span>
       <div class="kpi-icon blue"><i class="ph ph-calendar-check"></i></div>
     </div>
-    <div class="kpi-value">{{ reservations_today }}</div>
-    <div class="kpi-sub">{{ approved_today }} aprobadas · {{ pending_today }} pendientes</div>
+    <div class="kpi-value" id="kpiReservationsToday">{{ reservations_today }}</div>
+    <div class="kpi-sub" id="kpiReservationsSub">{{ approved_today }} aprobadas · {{ pending_today }} pendientes</div>
   </article>
 
   <article class="kpi-card">
@@ -404,8 +416,8 @@
       <span class="kpi-label">Tickets abiertos</span>
       <div class="kpi-icon gold"><i class="ph ph-ticket"></i></div>
     </div>
-    <div class="kpi-value">{{ open_tickets }}</div>
-    <div class="kpi-sub">{{ closed_with_debt }} cerrados con adeudo</div>
+    <div class="kpi-value" id="kpiOpenTickets">{{ open_tickets }}</div>
+    <div class="kpi-sub" id="kpiTicketsSub">{{ closed_with_debt }} cerrados con adeudo</div>
   </article>
 
   <article class="kpi-card">
@@ -413,8 +425,8 @@
       <span class="kpi-label">Adeudos activos</span>
       <div class="kpi-icon red"><i class="ph ph-warning-circle"></i></div>
     </div>
-    <div class="kpi-value">{{ open_debts }}</div>
-    <div class="kpi-sub">{{ low_stock_count }} materiales con stock bajo</div>
+    <div class="kpi-value" id="kpiOpenDebts">{{ open_debts }}</div>
+    <div class="kpi-sub" id="kpiDebtsSub">{{ low_stock_count }} materiales con stock bajo</div>
   </article>
 </section>
 
@@ -711,6 +723,55 @@ function renderOpsList(containerId, items, renderer) {
 }
 
 function renderOpsSnapshot(snapshot) {
+  const summary = snapshot.summary || {};
+
+  const kpiTotalInventory = document.getElementById("kpiTotalInventory");
+  const kpiReservationsToday = document.getElementById("kpiReservationsToday");
+  const kpiReservationsSub = document.getElementById("kpiReservationsSub");
+  const kpiOpenTickets = document.getElementById("kpiOpenTickets");
+  const kpiTicketsSub = document.getElementById("kpiTicketsSub");
+  const kpiOpenDebts = document.getElementById("kpiOpenDebts");
+  const kpiDebtsSub = document.getElementById("kpiDebtsSub");
+  const noticePendingUsers = document.getElementById("noticePendingUsers");
+  const noticePendingUsersText = document.getElementById("noticePendingUsersText");
+  const noticePendingToday = document.getElementById("noticePendingToday");
+  const noticePendingTodayText = document.getElementById("noticePendingTodayText");
+  const noticeOpenDebts = document.getElementById("noticeOpenDebts");
+  const noticeOpenDebtsText = document.getElementById("noticeOpenDebtsText");
+  const noticeLowStock = document.getElementById("noticeLowStock");
+  const noticeLowStockText = document.getElementById("noticeLowStockText");
+
+  if (kpiTotalInventory) kpiTotalInventory.textContent = summary.total_inventory ?? 0;
+  if (kpiReservationsToday) kpiReservationsToday.textContent = summary.reservations_today ?? 0;
+  if (kpiReservationsSub) {
+    kpiReservationsSub.textContent = `${summary.approved_today ?? 0} aprobadas · ${summary.pending_today ?? 0} pendientes`;
+  }
+  if (kpiOpenTickets) kpiOpenTickets.textContent = summary.open_tickets ?? 0;
+  if (kpiTicketsSub) kpiTicketsSub.textContent = `${summary.closed_with_debt ?? 0} cerrados con adeudo`;
+  if (kpiOpenDebts) kpiOpenDebts.textContent = summary.open_debts ?? 0;
+  if (kpiDebtsSub) kpiDebtsSub.textContent = `${summary.low_stock_count ?? 0} materiales con stock bajo`;
+
+  if (noticePendingUsers && noticePendingUsersText) {
+    const count = summary.pending_users_count ?? 0;
+    noticePendingUsers.style.display = count > 0 ? "" : "none";
+    noticePendingUsersText.textContent = `${count} usuarios por dar de alta`;
+  }
+  if (noticePendingToday && noticePendingTodayText) {
+    const count = summary.pending_today ?? 0;
+    noticePendingToday.style.display = count > 0 ? "" : "none";
+    noticePendingTodayText.textContent = `${count} pendientes`;
+  }
+  if (noticeOpenDebts && noticeOpenDebtsText) {
+    const count = summary.open_debts ?? 0;
+    noticeOpenDebts.style.display = count > 0 ? "" : "none";
+    noticeOpenDebtsText.textContent = `${count} adeudos activos`;
+  }
+  if (noticeLowStock && noticeLowStockText) {
+    const count = summary.low_stock_count ?? 0;
+    noticeLowStock.style.display = count > 0 ? "" : "none";
+    noticeLowStockText.textContent = `${count} con stock bajo`;
+  }
+
   document.getElementById("opsPendingCount").textContent = snapshot.counts.pending_reservations;
   document.getElementById("opsActiveTicketsCount").textContent = snapshot.counts.active_tickets;
   document.getElementById("opsReadyItemsCount").textContent = snapshot.counts.ready_items;
