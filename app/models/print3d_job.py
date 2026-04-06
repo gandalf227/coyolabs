@@ -16,6 +16,10 @@ class Print3DJob(db.Model):
     original_filename = db.Column(db.String(255), nullable=False)
     file_size_bytes = db.Column(db.Integer, nullable=False)
 
+    grams_estimated = db.Column(db.Numeric(10, 2), nullable=True)
+    price_per_gram = db.Column(db.Numeric(10, 2), nullable=True)
+    total_estimated = db.Column(db.Numeric(10, 2), nullable=True)
+
     status = db.Column(db.String(30), nullable=False, default="REQUESTED", index=True)
 
     created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
