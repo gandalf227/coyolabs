@@ -30,6 +30,7 @@ class Reservation(db.Model):
     subject = db.Column(db.String(120), nullable=False)       # materia
     subject_id = db.Column(db.Integer, db.ForeignKey("subjects.id"), nullable=True, index=True)
     signed = db.Column(db.Boolean, nullable=False, default=False)  # "firma" digital simple
+    signature_ref = db.Column(db.Text, nullable=True)  # referencia a evidencia de firma (imagen)
 
     exit_time = db.Column(db.Time, nullable=True)             # hora salida real
     teacher_comments = db.Column(db.Text, nullable=True)      # comentarios al salir

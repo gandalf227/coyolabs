@@ -1,8 +1,12 @@
 import logging
+import os
+import base64
+import binascii
 from datetime import datetime, timedelta
 import json
+from uuid import uuid4
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash
 from flask_login import current_user
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
@@ -81,6 +85,35 @@ def _professor_assignments(teacher_id: int) -> list[TeacherAcademicLoad]:
 def _build_requester_name() -> str:
     full_name = f"{(current_user.first_name or '').strip()} {(current_user.last_name or '').strip()}".strip()
     return full_name or (current_user.email or "").strip()
+
+
+def _save_signature_image(signature_data_url: str) -> tuple[str | None, str | None]:
+    prefix = "data:image/png;base64,"
+    raw = (signature_data_url or "").strip()
+    if not raw.startswith(prefix):
+        return None, "Firma inválida. Vuelve a firmar en el recuadro."
+
+    encoded = raw[len(prefix):]
+    try:
+        payload = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError):
+        return None, "No se pudo procesar la firma digital."
+
+    if len(payload) < 200:
+        return None, "La firma está vacía o incompleta."
+    if len(payload) > 1024 * 1024:
+        return None, "La firma excede el tamaño máximo permitido."
+
+    uploads_rel_dir = os.path.join("uploads", "signatures")
+    uploads_abs_dir = os.path.join(current_app.root_path, "static", uploads_rel_dir)
+    os.makedirs(uploads_abs_dir, exist_ok=True)
+
+    filename = f"{uuid4().hex}.png"
+    abs_path = os.path.join(uploads_abs_dir, filename)
+    with open(abs_path, "wb") as fp:
+        fp.write(payload)
+
+    return f"{uploads_rel_dir}/{filename}", None
 
 
 def parse_date(value: str):
@@ -357,6 +390,7 @@ def request_reservation():
         group_name = (request.form.get("group_name") or "").strip()
         requester_name = _build_requester_name()
         subject = (request.form.get("subject") or "").strip()
+        signature_data = request.form.get("signature_data") or ""
         selected_subject_id = None
 
         group_name, group_error = normalize_and_validate_group_code(group_name)
@@ -422,6 +456,11 @@ def request_reservation():
             flash("Ya existe una reserva aprobada que se empalma con ese horario.", "error")
             return redirect(url_for("reservations.request_reservation"))
 
+        signature_ref, signature_error = _save_signature_image(signature_data)
+        if signature_error:
+            flash(signature_error, "error")
+            return redirect(url_for("reservations.request_reservation"))
+
         r = Reservation(
             user_id=current_user.id,
             room=room,
@@ -433,7 +472,8 @@ def request_reservation():
             teacher_name=requester_name,
             subject=subject,
             subject_id=selected_subject_id,
-            signed=True,
+            signed=bool(signature_ref),
+            signature_ref=signature_ref,
             status=ReservationStatus.PENDING,
         )
 
