@@ -275,6 +275,11 @@
               <span>Software</span>
             </a>
 
+            <a href="{{ url_for('print3d.my_jobs') }}" class="nav-subitem {% if active_page == 'prints3d' %}active{% endif %}">
+              <i class="ph ph-cube nav-subicon"></i>
+              <span>Impresiones 3D</span>
+            </a>
+
             <a href="{{ url_for('reservations.reservations_home') }}" class="nav-subitem {% if active_page == 'reservations' %}active{% endif %}">
               <i class="ph ph-calendar-check nav-subicon"></i>
               <span>Reservaciones</span>
