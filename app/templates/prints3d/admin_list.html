@@ -48,7 +48,7 @@
           <td>{{ job.title }}</td>
           <td>{{ job.original_filename }}</td>
           <td>{{ (job.file_size_bytes / 1024)|round(1) }} KB</td>
-          <td><span class="status-badge status-warn">{{ job.status|status_label }}</span></td>
+          <td><span class="status-badge {{ status_badge_class(job.status) }}">{{ job.status|status_label }}</span></td>
           <td>
             <form method="post" action="{{ url_for('print3d.admin_set_quote', job_id=job.id) }}" class="toolbar" style="grid-template-columns: repeat(3, minmax(90px, 1fr)) auto; gap:8px;">
               <input class="form-control" type="number" step="0.01" min="0" name="grams_estimated" value="{{ job.grams_estimated if job.grams_estimated is not none else '' }}" placeholder="g" required>
@@ -59,7 +59,17 @@
           </td>
           <td>{{ job.created_at }}</td>
           <td>
-            <a href="{{ url_for('print3d.download_file', job_id=job.id) }}" class="btn btn-ghost">Descargar</a>
+            <div class="toolbar" style="grid-template-columns: 1fr; gap:8px;">
+              <a href="{{ url_for('print3d.download_file', job_id=job.id) }}" class="btn btn-ghost">Descargar</a>
+              <form method="post" action="{{ url_for('print3d.admin_set_status', job_id=job.id) }}" class="toolbar" style="grid-template-columns: minmax(180px, 1fr) auto; gap:8px;">
+                <select class="form-control" name="status" required>
+                  {% for status in print3d_statuses %}
+                    <option value="{{ status }}" {% if job.status == status %}selected{% endif %}>{{ status|status_label }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-gold">Estado</button>
+              </form>
+            </div>
           </td>
         </tr>
       {% endfor %}

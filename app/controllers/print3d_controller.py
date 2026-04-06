@@ -11,7 +11,7 @@ from app.models.print3d_job import Print3DJob
 from app.services.audit_service import log_event
 from app.utils.authz import min_role_required
 from app.utils.roles import is_admin_role
-from app.utils.statuses import Print3DJobStatus
+from app.utils.statuses import Print3DJobStatus, PRINT3D_ALLOWED_STATUSES, PRINT3D_ALLOWED_TRANSITIONS
 
 
 print3d_bp = Blueprint("print3d", __name__, url_prefix="/prints3d")
@@ -19,6 +19,26 @@ print3d_bp = Blueprint("print3d", __name__, url_prefix="/prints3d")
 ALLOWED_PRINT3D_EXTENSIONS = {"stl", "obj", "3mf", "gcode"}
 MAX_PRINT3D_FILE_SIZE_BYTES = 25 * 1024 * 1024
 STATUS_REQUESTED = Print3DJobStatus.REQUESTED
+
+
+def _normalize_print3d_status(raw_status: str | None) -> str:
+    return (raw_status or "").strip().upper()
+
+
+def _can_transition_status(current_status: str, next_status: str) -> bool:
+    allowed = PRINT3D_ALLOWED_TRANSITIONS.get(current_status, set())
+    return next_status in allowed
+
+
+def _status_badge_class(status: str | None) -> str:
+    normalized = _normalize_print3d_status(status)
+    if normalized in {Print3DJobStatus.READY, Print3DJobStatus.DELIVERED}:
+        return "status-ok"
+    if normalized == Print3DJobStatus.CANCELED:
+        return "status-bad"
+    if normalized == Print3DJobStatus.IN_PROGRESS:
+        return "status-neutral"
+    return "status-warn"
 
 
 def _save_print3d_file(file_storage):
@@ -74,7 +94,12 @@ def my_jobs():
         .order_by(Print3DJob.created_at.desc())
         .all()
     )
-    return render_template("prints3d/my_list.html", jobs=jobs, active_page="prints3d")
+    return render_template(
+        "prints3d/my_list.html",
+        jobs=jobs,
+        active_page="prints3d",
+        status_badge_class=_status_badge_class,
+    )
 
 
 @print3d_bp.route("/new", methods=["GET", "POST"])
@@ -171,7 +196,20 @@ def admin_list():
         .order_by(Print3DJob.created_at.desc())
         .all()
     )
-    return render_template("prints3d/admin_list.html", jobs=jobs, active_page="prints3d")
+    return render_template(
+        "prints3d/admin_list.html",
+        jobs=jobs,
+        active_page="prints3d",
+        status_badge_class=_status_badge_class,
+        print3d_statuses=[
+            Print3DJobStatus.REQUESTED,
+            Print3DJobStatus.QUOTED,
+            Print3DJobStatus.IN_PROGRESS,
+            Print3DJobStatus.READY,
+            Print3DJobStatus.DELIVERED,
+            Print3DJobStatus.CANCELED,
+        ],
+    )
 
 
 @print3d_bp.route("/admin/<int:job_id>/quote", methods=["POST"])
@@ -197,6 +235,10 @@ def admin_set_quote(job_id: int):
     job.price_per_gram = price
     job.total_estimated = total
 
+    previous_status = _normalize_print3d_status(job.status)
+    if previous_status == Print3DJobStatus.REQUESTED:
+        job.status = Print3DJobStatus.QUOTED
+
     log_event(
         module="PRINT3D",
         action="PRINT3D_QUOTE_UPDATED",
@@ -208,9 +250,57 @@ def admin_set_quote(job_id: int):
             "grams_estimated": str(grams),
             "price_per_gram": str(price),
             "total_estimated": str(total),
+            "status": job.status,
         },
     )
+
+    if previous_status != job.status:
+        log_event(
+            module="PRINT3D",
+            action="PRINT3D_STATUS_CHANGED",
+            user_id=current_user.id,
+            entity_label=f"Print3DJob #{job.id}",
+            description=f"Estado de impresión 3D cambiado de {previous_status} a {job.status}",
+            metadata={"job_id": job.id, "from": previous_status, "to": job.status, "reason": "quote_updated"},
+        )
+
     db.session.commit()
 
     flash("Cotización guardada correctamente.", "success")
+    return redirect(url_for("print3d.admin_list"))
+
+
+@print3d_bp.route("/admin/<int:job_id>/status", methods=["POST"])
+@min_role_required("ADMIN")
+def admin_set_status(job_id: int):
+    job = Print3DJob.query.get_or_404(job_id)
+
+    target_status = _normalize_print3d_status(request.form.get("status"))
+    current_status = _normalize_print3d_status(job.status)
+
+    if target_status not in PRINT3D_ALLOWED_STATUSES:
+        flash("Estado de impresión 3D no válido.", "error")
+        return redirect(url_for("print3d.admin_list"))
+
+    if current_status == target_status:
+        flash("El trabajo ya se encuentra en ese estado.", "info")
+        return redirect(url_for("print3d.admin_list"))
+
+    if not _can_transition_status(current_status, target_status):
+        flash("Transición de estado no permitida para este trabajo.", "error")
+        return redirect(url_for("print3d.admin_list"))
+
+    job.status = target_status
+
+    log_event(
+        module="PRINT3D",
+        action="PRINT3D_STATUS_CHANGED",
+        user_id=current_user.id,
+        entity_label=f"Print3DJob #{job.id}",
+        description=f"Estado de impresión 3D cambiado de {current_status} a {target_status}",
+        metadata={"job_id": job.id, "from": current_status, "to": target_status},
+    )
+    db.session.commit()
+
+    flash("Estado actualizado correctamente.", "success")
     return redirect(url_for("print3d.admin_list"))
