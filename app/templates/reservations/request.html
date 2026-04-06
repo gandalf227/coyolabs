@@ -296,18 +296,26 @@
     <div class="toolbar-group time-range-row">
       <div>
         <label>Hora de inicio</label>
-        <div class="search-box">
+        <div class="search-box time-picker-input-wrap">
           <i class="ph ph-clock search-icon"></i>
-          <input type="time" id="startTimeInput" name="start_time" required min="08:00" max="21:00" aria-describedby="reservationTimeHelp">
+          <input type="time" id="startTimeInput" name="start_time" required min="08:00" max="21:00" step="900" aria-describedby="reservationTimeHelp">
+          <button type="button" class="time-picker-open-btn" data-target="startTimeInput" aria-label="Abrir selector de hora de inicio">
+            <i class="ph ph-clock-afternoon"></i>
+          </button>
         </div>
+        <div class="time-quick-grid" id="startTimeQuickGrid" data-target="startTimeInput" aria-label="Selector rápido hora inicio"></div>
       </div>
 
       <div>
         <label>Hora de finalización</label>
-        <div class="search-box">
+        <div class="search-box time-picker-input-wrap">
           <i class="ph ph-clock-countdown search-icon"></i>
-          <input type="time" id="endTimeInput" name="end_time" required min="08:00" max="21:00" aria-describedby="reservationTimeHelp">
+          <input type="time" id="endTimeInput" name="end_time" required min="08:00" max="21:00" step="900" aria-describedby="reservationTimeHelp">
+          <button type="button" class="time-picker-open-btn" data-target="endTimeInput" aria-label="Abrir selector de hora de finalización">
+            <i class="ph ph-clock-afternoon"></i>
+          </button>
         </div>
+        <div class="time-quick-grid" id="endTimeQuickGrid" data-target="endTimeInput" aria-label="Selector rápido hora fin"></div>
       </div>
       <small id="reservationTimeHelp" class="datetime-helper">Rango sugerido: 08:00 a 21:00 (formato 24 horas).</small>
     </div>
@@ -467,6 +475,57 @@ const reservationDateInput = document.getElementById("reservationDateInput");
 const startTimeInput = document.getElementById("startTimeInput");
 const endTimeInput = document.getElementById("endTimeInput");
 
+function buildTimeSlots(startHour = 8, endHour = 21, stepMinutes = 30) {
+  const slots = [];
+  for (let hour = startHour; hour <= endHour; hour++) {
+    for (let minute = 0; minute < 60; minute += stepMinutes) {
+      if (hour === endHour && minute > 0) break;
+      const hh = String(hour).padStart(2, "0");
+      const mm = String(minute).padStart(2, "0");
+      slots.push(`${hh}:${mm}`);
+    }
+  }
+  return slots;
+}
+
+function formatTimeLabel(value) {
+  if (!value || !value.includes(":")) return value || "";
+  const [hRaw, mRaw] = value.split(":");
+  const h = Number(hRaw);
+  const m = Number(mRaw);
+  if (Number.isNaN(h) || Number.isNaN(m)) return value;
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${String(hour12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
+function renderQuickTimeGrid(gridEl, inputEl, slots) {
+  if (!gridEl || !inputEl) return;
+  gridEl.innerHTML = "";
+  slots.forEach((slot) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "time-chip";
+    chip.dataset.value = slot;
+    chip.textContent = formatTimeLabel(slot);
+    chip.addEventListener("click", () => {
+      inputEl.value = slot;
+      inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+      inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+      highlightTimeChip(gridEl, inputEl.value);
+    });
+    gridEl.appendChild(chip);
+  });
+  highlightTimeChip(gridEl, inputEl.value);
+}
+
+function highlightTimeChip(gridEl, value) {
+  if (!gridEl) return;
+  gridEl.querySelectorAll(".time-chip").forEach((chip) => {
+    chip.classList.toggle("is-active", chip.dataset.value === value);
+  });
+}
+
 function syncTimeRangeHints() {
   if (!startTimeInput || !endTimeInput) return;
 
@@ -482,11 +541,36 @@ function syncTimeRangeHints() {
   const hh = String(Math.floor(suggested / 60)).padStart(2, "0");
   const mm = String(suggested % 60).padStart(2, "0");
   endTimeInput.value = `${hh}:${mm}`;
+  highlightTimeChip(document.getElementById("endTimeQuickGrid"), endTimeInput.value);
 }
 
 if (startTimeInput && endTimeInput) {
   startTimeInput.addEventListener("input", syncTimeRangeHints);
   endTimeInput.addEventListener("focus", syncTimeRangeHints);
+  endTimeInput.addEventListener("input", () => {
+    highlightTimeChip(document.getElementById("endTimeQuickGrid"), endTimeInput.value);
+  });
+  startTimeInput.addEventListener("input", () => {
+    highlightTimeChip(document.getElementById("startTimeQuickGrid"), startTimeInput.value);
+  });
+
+  const timeSlots = buildTimeSlots(8, 21, 30);
+  renderQuickTimeGrid(document.getElementById("startTimeQuickGrid"), startTimeInput, timeSlots);
+  renderQuickTimeGrid(document.getElementById("endTimeQuickGrid"), endTimeInput, timeSlots);
+
+  document.querySelectorAll(".time-picker-open-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetId = btn.getAttribute("data-target");
+      const input = document.getElementById(targetId);
+      if (!input) return;
+      try {
+        if (typeof input.showPicker === "function") input.showPicker();
+        else input.focus();
+      } catch (_) {
+        input.focus();
+      }
+    });
+  });
   syncTimeRangeHints();
 }
 
